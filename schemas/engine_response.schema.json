@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://quantradar.one/schemas/engine_response.schema.json",
+  "title": "QuantRadarEngineResponse",
+  "type": "object",
+  "required": [
+    "ok",
+    "contract_version",
+    "ticker",
+    "gate",
+    "score",
+    "artifacts",
+    "sources",
+    "warnings"
+  ],
+  "properties": {
+    "ok": { "type": "boolean" },
+    "contract_version": { "type": "string", "minLength": 1 },
+    "ticker": { "type": "string", "minLength": 1 },
+    "company_name": { "type": ["string", "null"] },
+    "sector": { "type": ["string", "null"] },
+    "gate": {
+      "type": "object",
+      "anyOf": [
+        { "required": ["signal"] },
+        { "required": ["state_code"] }
+      ],
+      "properties": {
+        "state_code": { "type": ["string", "null"] },
+        "state_name": { "type": ["string", "null"] },
+        "state_reason": { "type": ["string", "null"] },
+        "signal": { "type": ["string", "null"] },
+        "signal_label": { "type": ["string", "null"] }
+      }
+    },
+    "score": {
+      "type": "object",
+      "required": ["final", "scale"],
+      "properties": {
+        "final": { "type": "number" },
+        "base_total": { "type": ["number", "null"] },
+        "scale": { "type": "number" }
+      }
+    },
+    "artifacts": {
+      "type": "object",
+      "required": ["charts"],
+      "properties": {
+        "charts": { "type": "object" },
+        "analysis_json": { "type": ["string", "null"] },
+        "report_html": { "type": ["string", "null"] }
+      }
+    },
+    "sources": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "role", "status"],
+        "properties": {
+          "name": { "type": "string" },
+          "role": { "type": "string" },
+          "status": { "type": "string" }
+        }
+      }
+    },
+    "warnings": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "degraded": { "type": "boolean" },
+    "market": { "type": "object" },
+    "meta": { "type": "object" },
+    "error": { "type": "string" }
+  },
+  "additionalProperties": true
+}

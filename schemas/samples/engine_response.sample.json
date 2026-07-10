@@ -1,0 +1,58 @@
+{
+  "ok": true,
+  "contract_version": "1.0.0",
+  "ticker": "INTC",
+  "company_name": "Intel Corp",
+  "sector": "SEMICONDUCTORS & RELATED DEVICES",
+  "gate": {
+    "state_code": "B",
+    "state_name": "uptrend_pullback",
+    "state_reason": "Weekly MA bullish, pullback 7.1%",
+    "signal": "NO",
+    "signal_label": "No / stand aside"
+  },
+  "score": {
+    "final": 39.0,
+    "base_total": 53.0,
+    "scale": 100
+  },
+  "artifacts": {
+    "charts": {
+      "daily_price": "/Users/rongjianliao/charts/reports/2026-03-21_014312_intc-nbis-technical-intelligence-report/assets/INTC_daily_price_2026-03-21_01-43-21.png",
+      "daily_indicators": "/Users/rongjianliao/charts/reports/2026-03-21_014312_intc-nbis-technical-intelligence-report/assets/INTC_daily_indicators_2026-03-21_01-43-21.png",
+      "weekly_price": "/Users/rongjianliao/charts/reports/2026-03-21_014312_intc-nbis-technical-intelligence-report/assets/INTC_weekly_price_2026-03-21_01-43-21.png",
+      "weekly_indicators": "/Users/rongjianliao/charts/reports/2026-03-21_014312_intc-nbis-technical-intelligence-report/assets/INTC_weekly_indicators_2026-03-21_01-43-21.png"
+    },
+    "analysis_json": "/Users/rongjianliao/quantradar/fixtures/charts_sample/INTC_analysis.json",
+    "report_html": null
+  },
+  "sources": [
+    {
+      "name": "charts.artifact",
+      "role": "engine",
+      "status": "ok"
+    },
+    {
+      "name": "INTC_analysis.json",
+      "role": "file",
+      "status": "ok"
+    }
+  ],
+  "warnings": [],
+  "degraded": false,
+  "market": {
+    "market_state": "open",
+    "spy_change_pct": 0.43,
+    "sector_etf": "SMH",
+    "sector_change_pct": 2.84,
+    "vix_current": 25.72,
+    "vix_trend": "rising"
+  },
+  "meta": {
+    "engine": "charts",
+    "mode": "artifact",
+    "fetch_time": "2026-03-21T01:43:25.276639",
+    "generated_at": "2026-03-21_01-43-21",
+    "reliability": "medium"
+  }
+}
