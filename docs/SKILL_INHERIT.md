@@ -47,4 +47,19 @@
 
 ---
 
+### 2026-07-10 · QR0-0 / QR0-4 / QR0-2 · 路径 C 最小壳落地
+
+- 水源：**L1** ship-code / research-brief；**L2** `~/charts/fetch_all.py`、`quantradar_site_api.py`（workbench subprocess 模式）、`reports/sample-site-current/*_analysis.json`、`commands/*.md` 入口表
+- 比对：charts site API 厚壳 vs 本仓 stdlib 薄壳 — 选薄壳 + ENGINE_CONTRACT，避免把 `quantradar_site_api.py` 整文件当 SSOT 迁入
+- 层：Architecture / BE / Analysis 边界
+- 提炼：
+  1. 分析真源 = charts JSON（`mechanical_scores` / `chart_files` / `data_quality.warnings`）
+  2. 壳只 normalize + map + HTTP，不算分
+  3. 默认 `artifact` 模式可无 key 验收；`live` = subprocess `fetch_all.py`
+- 采用档：**技术**（subprocess/读 artifact facade）+ **思想**（stock-agent degraded/sources/warnings）
+- 深度分析：§4.2 — 解 U1/U2；可迁移物=契约+facade；不与路径 C 冲突；成本=零新依赖；最小 diff=PHASE0+CONTRACT+`python -m app`；charts 厚站 vs 薄壳 → 薄壳胜（Manus 可 pull）
+- 落地：QR0-0 `docs/PHASE0.md`；QR0-4 `docs/ENGINE_CONTRACT.md`；QR0-2 `app/` + `static/` + fixture
+
+---
+
 *后续轮次追加在上方分隔线之下。*
