@@ -272,11 +272,11 @@ quantradar App (本仓)
 
 | ID | 状态 | 任务 | 验收 |
 |----|------|------|------|
-| QR0-0 | ⬜ | `docs/PHASE0.md`：线上行为、charts 可调用入口表、壳技术选型建议 | 文件 |
-| QR0-2 | ⬜ | **最小产品壳**进 quantradar：可 dev 的 API+简单 UI 或静态+API；调用 charts 1 条路径（如 fetch 或读已有报告 JSON） | push 后本机可起；Manus 可 pull |
+| QR0-0 | ✅ | `docs/PHASE0.md`：线上行为、charts 可调用入口表、壳技术选型建议 | 文件 |
+| QR0-2 | ✅ | **最小产品壳**进 quantradar：可 dev 的 API+简单 UI 或静态+API；调用 charts 1 条路径（如 fetch 或读已有报告 JSON） | push 后本机可起；Manus 可 pull |
 | QR0-SEC | ⬜ | 清 charts/历史明文 key；两仓 `.env.example` | 无明文 |
 | QR0-3 | ⬜ | 完善 `MANUS_SYNC.md` + 路径 C 构建说明（是否需 charts submodule/复制 artifact） | 你能按文档同步 |
-| QR0-4 | ⬜ | 定义 charts→壳 的 **契约**：输入 ticker/sector，输出 JSON schema（门控/分/图路径） | `docs/ENGINE_CONTRACT.md` |
+| QR0-4 | ✅ | 定义 charts→壳 的 **契约**：输入 ticker/sector，输出 JSON schema（门控/分/图路径） | `docs/ENGINE_CONTRACT.md` |
 
 ### QR1 — Dev / 访客 / 同步可验证
 
