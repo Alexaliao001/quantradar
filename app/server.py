@@ -49,7 +49,38 @@ def health_payload() -> dict[str, Any]:
         "charts_reachable": cdir.is_dir(),
         "fetch_all_present": fetch_all.is_file(),
         "mode_default": os.environ.get("QUANTRADAR_MODE", "artifact"),
+        # Auth iron rule: guest analysis, never Manus app-auth
+        "auth": "none",
+        "manus_login": False,
+        "guest_access": True,
     }
+
+
+def manus_login_disabled_payload() -> dict[str, Any]:
+    """Explicit 410 body for legacy Manus OAuth routes."""
+    return {
+        "ok": False,
+        "error": "manus_login_disabled",
+        "message": (
+            "QuantRadar does not use manus.im/app-auth. "
+            "Use / for guest UI or GET /api/analyze?ticker=INTC — no login."
+        ),
+        "auth": "none",
+        "manus_login": False,
+        "docs": "docs/AUTH.md",
+    }
+
+
+def is_manus_auth_path(path: str) -> bool:
+    """Legacy Manus platform auth paths that must never succeed."""
+    p = path.lower()
+    if p.startswith("/api/oauth"):
+        return True
+    if p in {"/login", "/signin", "/sign-in", "/auth", "/app-auth"}:
+        return True
+    if "manus" in p and ("auth" in p or "oauth" in p or "login" in p):
+        return True
+    return False
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -88,6 +119,11 @@ class Handler(BaseHTTPRequestHandler):
         path = parsed.path.rstrip("/") or "/"
         qs = urllib.parse.parse_qs(parsed.query)
 
+        # Never proxy or succeed at Manus platform login
+        if is_manus_auth_path(path) or is_manus_auth_path(parsed.path):
+            self._send(410, manus_login_disabled_payload())
+            return
+
         if path in {"/health", "/api/health"}:
             self._send(200, health_payload())
             return
@@ -109,6 +145,16 @@ class Handler(BaseHTTPRequestHandler):
             if errs and result.get("ok"):
                 result = {**result, "warnings": list(result.get("warnings") or []) + errs}
             self._send(code, result)
+            return
+
+        # Guest sample — no login (QR1-2 direction)
+        if path in {"/api/sample", "/sample"}:
+            result = analyze("INTC", mode="artifact")
+            result["meta"] = dict(result.get("meta") or {})
+            result["meta"]["guest"] = True
+            result["meta"]["auth"] = "none"
+            result["sample"] = True
+            self._send(200 if result.get("ok") else 502, result)
             return
 
         if path in {"/", "/index.html"}:
@@ -141,6 +187,9 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self) -> None:  # noqa: N802
         parsed = urllib.parse.urlparse(self.path)
         path = parsed.path.rstrip("/") or "/"
+        if is_manus_auth_path(path) or is_manus_auth_path(parsed.path):
+            self._send(410, manus_login_disabled_payload())
+            return
         if path != "/api/analyze":
             self._send(404, {"ok": False, "error": "not found"})
             return

@@ -72,5 +72,43 @@ class SchemaSampleTests(unittest.TestCase):
         self.assertEqual(validate_response(obj), [])
 
 
+class NoManusAuthTests(unittest.TestCase):
+    """Product shell must never offer Manus login."""
+
+    def test_auth_helpers(self) -> None:
+        from app.server import health_payload, is_manus_auth_path, manus_login_disabled_payload
+
+        self.assertTrue(is_manus_auth_path("/api/oauth/callback"))
+        self.assertTrue(is_manus_auth_path("/login"))
+        self.assertFalse(is_manus_auth_path("/api/analyze"))
+        self.assertFalse(is_manus_auth_path("/health"))
+        body = manus_login_disabled_payload()
+        self.assertEqual(body["error"], "manus_login_disabled")
+        self.assertIs(body["manus_login"], False)
+        h = health_payload()
+        self.assertEqual(h["auth"], "none")
+        self.assertIs(h["manus_login"], False)
+        self.assertIs(h["guest_access"], True)
+
+    def test_source_has_no_manus_auth_urls(self) -> None:
+        # Code/UI must not construct a Manus login URL or OAuth redirect
+        forbidden = (
+            "https://manus.im/app-auth",
+            "manus.im/app-auth?",
+            "type=signIn",
+            "/api/oauth/callback?code=",
+        )
+        for path in list((REPO / "app").rglob("*.py")) + [REPO / "static" / "index.html"]:
+            text = path.read_text(encoding="utf-8")
+            for token in forbidden:
+                self.assertNotIn(token, text, msg=f"{path} embeds {token!r}")
+        ui = (REPO / "static" / "index.html").read_text(encoding="utf-8")
+        self.assertNotIn("href=\"https://manus.im", ui)
+        self.assertNotIn("app-auth", ui)
+        # No login button / OAuth start
+        self.assertNotIn("Sign in with Manus", ui)
+        self.assertNotIn("用 Manus 登录", ui)
+
+
 if __name__ == "__main__":
     unittest.main()

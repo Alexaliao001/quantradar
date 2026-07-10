@@ -1,5 +1,6 @@
 # PROGRESS — QuantRadar
 
+2026-07-10 | **auth** | 铁律：禁止 manus.im 登录；`/api/oauth/*`→410；health `manus_login:false`；docs/AUTH.md | **可 Manus pull 发布**（须关平台 App Auth）
 2026-07-10 | **QR0-2** | 最小产品壳 `python -m app`：`/health` + `/api/analyze` 读 charts 工件/可选 live fetch_all；路径 C 边界无引擎分叉 | **可 Manus pull 发布**
 2026-07-10 | **QR0-4** | `docs/ENGINE_CONTRACT.md` + schema + map/validate；样例由真实 fixture 生成 | 契约可测
 2026-07-10 | **QR0-0** | `docs/PHASE0.md`：线上笔记、charts 入口表（≥8）、壳栈建议 stdlib HTTP | 盘点完成

@@ -110,6 +110,7 @@
   </header>
   <main>
     <section class="panel">
+      <p class="status ok" style="margin-top:0">访客模式 · 无需登录 · 无平台托管登录</p>
       <div class="row">
         <div>
           <label for="ticker">Ticker</label>
@@ -121,7 +122,7 @@
         </div>
         <button id="run" type="button">Analyze</button>
       </div>
-      <p class="status" id="status">Ready — default mode reads charts artifact (no live key required).</p>
+      <p class="status" id="status">Ready — guest analyze, no Manus sign-in.</p>
       <div class="meta" id="kpis" hidden>
         <div class="kpi"><small>Signal</small><b id="kSignal">—</b></div>
         <div class="kpi"><small>Score</small><b id="kScore">—</b></div>
@@ -137,7 +138,7 @@
         const r = await fetch("/health");
         const j = await r.json();
         document.getElementById("healthLine").textContent =
-          `ok=${j.ok} sha=${j.git_sha || "n/a"} charts=${j.charts_reachable} mode=${j.mode_default}`;
+          `guest auth=none manus_login=${j.manus_login} sha=${j.git_sha || "n/a"} mode=${j.mode_default}`;
       } catch (e) {
         document.getElementById("healthLine").textContent = "health unreachable";
       }

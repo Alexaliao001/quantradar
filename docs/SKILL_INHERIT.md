@@ -47,6 +47,15 @@
 
 ---
 
+### 2026-07-10 · 禁止 Manus 登录（用户要求）
+
+- 水源：L2 线上探针 + `charts/site/LIVE_ENDPOINTS_2026-03-21.md`（历史误把 CTA 指到 manus app-auth）
+- 比对：Manus 平台托管 SPA（强制 OAuth）vs GitHub 访客壳 — **选访客壳**
+- 层：Ops / Auth / UX
+- 提炼：线上 quantradar.one 仍是 Manus SPA；SSOT 壳必须 410 掉 oauth 路径且 UI 无登录按钮；发布时关 App Auth
+- 采用档：**直接**（产品铁律）
+- 落地：`docs/AUTH.md`、MANUS_SYNC 更新、server 410、tests
+
 ### 2026-07-10 · QR0-0 / QR0-4 / QR0-2 · 路径 C 最小壳落地
 
 - 水源：**L1** ship-code / research-brief；**L2** `~/charts/fetch_all.py`、`quantradar_site_api.py`（workbench subprocess 模式）、`reports/sample-site-current/*_analysis.json`、`commands/*.md` 入口表

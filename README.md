@@ -46,10 +46,14 @@ QUANTRADAR_MODE=artifact PORT=8765 python3 -m app
 
 | 端点 | 说明 |
 |------|------|
-| `GET /` | 简单 desk UI |
-| `GET /health` | 服务 + `git_sha` + charts 可达性 |
-| `GET /api/analyze?ticker=INTC` | 分析（ENGINE_CONTRACT JSON） |
+| `GET /` | 访客 UI（**无需登录**，无 manus.im） |
+| `GET /health` | `git_sha` + `auth: none` + `manus_login: false` |
+| `GET /api/analyze?ticker=INTC` | 公开分析（ENGINE_CONTRACT JSON） |
 | `POST /api/analyze` | body: `{"ticker":"INTC","sector":"SMH"}` |
+| `GET /api/sample` | 访客样例（INTC artifact） |
+| `GET /api/oauth/*` | **410** — Manus 登录已禁用 |
+
+**Auth**：不使用 Manus 登录。见 [docs/AUTH.md](./docs/AUTH.md)。若线上仍跳 `manus.im/app-auth`，说明域名还挂着旧 Manus 托管 App，需按 [MANUS_SYNC.md](./docs/MANUS_SYNC.md) 关平台 Auth 并发布本仓壳。
 
 ### 环境变量
 
