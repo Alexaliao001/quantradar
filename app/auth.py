@@ -27,9 +27,11 @@ _GOOGLE_AUTH = "https://accounts.google.com/o/oauth2/v2/auth"
 _GOOGLE_TOKEN = "https://oauth2.googleapis.com/token"
 _GOOGLE_USERINFO = "https://openidconnect.googleapis.com/v1/userinfo"
 
-# Ephemeral OAuth state store (single process). Production multi-instance should use shared store.
+# Ephemeral OAuth / magic-link store (single process). Multi-instance: use shared Redis later.
 _STATE_LOCK = __import__("threading").Lock()
 _OAUTH_STATES: dict[str, float] = {}
+_MAGIC_TOKENS: dict[str, dict[str, Any]] = {}
+MAGIC_TTL_SEC = 900
 
 
 def public_base_url() -> str:
@@ -58,17 +60,52 @@ def google_configured() -> bool:
     return bool(google_client_id() and google_client_secret())
 
 
+def magic_link_enabled() -> bool:
+    """Email magic link is always available (console delivery if SMTP unset)."""
+    return os.environ.get("MAGIC_LINK_DISABLED", "").strip().lower() not in {
+        "1",
+        "true",
+        "yes",
+    }
+
+
+def smtp_configured() -> bool:
+    return bool(
+        os.environ.get("SMTP_HOST", "").strip()
+        and os.environ.get("SMTP_FROM", "").strip()
+    )
+
+
 def auth_status_public() -> dict[str, Any]:
     """Safe fields for /health and /api/auth/status."""
+    providers: list[str] = []
+    if google_configured():
+        providers.append("google")
+    if magic_link_enabled():
+        providers.append("magic_link")
+    if google_configured() and magic_link_enabled():
+        mode = "google+magic"
+    elif google_configured():
+        mode = "google_session"
+    elif magic_link_enabled():
+        mode = "magic_link"
+    else:
+        mode = "guest_only"
     return {
         "manus_login": False,
         "guest_access": True,
         "google_oauth": google_configured(),
-        "providers": ["google"] if google_configured() else [],
+        "magic_link": magic_link_enabled(),
+        "smtp_configured": smtp_configured(),
+        "providers": providers,
         "login_path": "/login",
         "session_cookie": COOKIE_NAME,
-        "auth_mode": "google_session" if google_configured() else "guest_only",
+        "auth_mode": mode,
         "live_requires_login": True,
+        "stripe_checkout": bool(
+            os.environ.get("QUANTRADAR_STRIPE_SECRET_KEY", "").strip()
+            or os.environ.get("STRIPE_SECRET_KEY", "").strip()
+        ),
     }
 
 
@@ -301,3 +338,108 @@ def dev_login_enabled() -> bool:
         return False
     base = public_base_url()
     return "127.0.0.1" in base or "localhost" in base
+
+
+def _email_allowed(email: str) -> bool:
+    email = email.strip().lower()
+    if "@" not in email or email.startswith("@") or email.endswith("@"):
+        return False
+    allow = os.environ.get("MAGIC_LINK_ALLOWLIST", "").strip()
+    if not allow:
+        # Open beta: any valid-looking email
+        return True
+    allowed = {a.strip().lower() for a in allow.split(",") if a.strip()}
+    return email in allowed
+
+
+def issue_magic_link(email: str) -> dict[str, Any]:
+    """Create one-time magic link. Returns {ok, email, login_url?, delivered, channel}."""
+    if not magic_link_enabled():
+        raise RuntimeError("magic link disabled")
+    email_n = email.strip().lower()
+    if not _email_allowed(email_n):
+        raise ValueError("email not allowed")
+    token = secrets.token_urlsafe(32)
+    now = time.time()
+    with _STATE_LOCK:
+        # prune
+        dead = [k for k, v in _MAGIC_TOKENS.items() if float(v.get("exp", 0)) < now]
+        for k in dead:
+            _MAGIC_TOKENS.pop(k, None)
+        _MAGIC_TOKENS[token] = {"email": email_n, "exp": now + MAGIC_TTL_SEC}
+    login_url = f"{public_base_url()}/api/auth/magic/consume?token={urllib.parse.quote(token)}"
+    delivered, channel = _deliver_magic_link(email_n, login_url)
+    out: dict[str, Any] = {
+        "ok": True,
+        "email": email_n,
+        "delivered": delivered,
+        "channel": channel,
+        "expires_in_sec": MAGIC_TTL_SEC,
+    }
+    # Only echo URL when not using real SMTP (safe for local / console delivery)
+    if channel in {"console", "file"}:
+        out["login_url"] = login_url
+    return out
+
+
+def consume_magic_token(token: str | None) -> dict[str, Any]:
+    if not token:
+        raise ValueError("missing token")
+    now = time.time()
+    with _STATE_LOCK:
+        rec = _MAGIC_TOKENS.pop(token, None)
+    if not rec or float(rec.get("exp", 0)) < now:
+        raise ValueError("invalid or expired magic link")
+    email = str(rec["email"])
+    return {
+        "sub": f"magic:{hashlib.sha256(email.encode()).hexdigest()[:16]}",
+        "email": email,
+        "name": email.split("@")[0],
+        "picture": "",
+    }
+
+
+def _deliver_magic_link(email: str, login_url: str) -> tuple[bool, str]:
+    """Send magic link via SMTP if configured; else log + write data/last_magic_link.txt."""
+    from pathlib import Path
+
+    repo = Path(__file__).resolve().parent.parent
+    data = repo / "data"
+    data.mkdir(exist_ok=True)
+    stamp = f"to={email}\nurl={login_url}\n"
+    (data / "last_magic_link.txt").write_text(stamp, encoding="utf-8")
+    print(f"[auth] magic link for {email}: {login_url}", flush=True)
+
+    if not smtp_configured():
+        return True, "console"
+
+    import smtplib
+    from email.message import EmailMessage
+
+    host = os.environ["SMTP_HOST"].strip()
+    port = int(os.environ.get("SMTP_PORT", "587"))
+    user = os.environ.get("SMTP_USER", "").strip()
+    password = os.environ.get("SMTP_PASS", "").strip()
+    from_addr = os.environ["SMTP_FROM"].strip()
+    use_tls = os.environ.get("SMTP_TLS", "1").strip() not in {"0", "false", "no"}
+
+    msg = EmailMessage()
+    msg["Subject"] = "Your QuantRadar sign-in link"
+    msg["From"] = from_addr
+    msg["To"] = email
+    msg.set_content(
+        "Sign in to QuantRadar (link expires in 15 minutes):\n\n"
+        f"{login_url}\n\n"
+        "If you did not request this, ignore this email.\n"
+    )
+    try:
+        with smtplib.SMTP(host, port, timeout=20) as smtp:
+            if use_tls:
+                smtp.starttls()
+            if user:
+                smtp.login(user, password)
+            smtp.send_message(msg)
+        return True, "smtp"
+    except Exception as exc:
+        print(f"[auth] SMTP failed: {exc}", flush=True)
+        return True, "console"  # still have console/file fallback

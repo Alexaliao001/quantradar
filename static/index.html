@@ -176,6 +176,7 @@
     <div class="nav">
       <span class="sub" id="userLine">guest</span>
       <a id="loginLink" href="/login">Sign in</a>
+      <a id="checkoutLink" href="#" hidden>Upgrade</a>
       <a id="logoutLink" href="/api/auth/logout" hidden>Sign out</a>
       <span class="sub" id="healthLine">health…</span>
     </div>
@@ -266,14 +267,17 @@
         const userLine = document.getElementById("userLine");
         const loginLink = document.getElementById("loginLink");
         const logoutLink = document.getElementById("logoutLink");
+        const checkoutLink = document.getElementById("checkoutLink");
         if (authState.authenticated && authState.user) {
           userLine.textContent = authState.user.email || "signed in";
           loginLink.hidden = true;
           logoutLink.hidden = false;
+          checkoutLink.hidden = false;
         } else {
           userLine.textContent = "guest";
           loginLink.hidden = false;
           logoutLink.hidden = true;
+          checkoutLink.hidden = true;
         }
       } catch (e) {
         document.getElementById("userLine").textContent = "guest";
@@ -407,6 +411,25 @@
     document.getElementById("sample").addEventListener("click", () => runAnalyze({ sample: true }));
     document.getElementById("ticker").addEventListener("keydown", (e) => {
       if (e.key === "Enter") runAnalyze();
+    });
+    document.getElementById("checkoutLink").addEventListener("click", async (e) => {
+      e.preventDefault();
+      try {
+        const r = await fetch("/api/billing/checkout", {
+          method: "POST",
+          credentials: "same-origin",
+          headers: { "content-type": "application/json" },
+          body: "{}",
+        });
+        const j = await r.json();
+        if (j.url) {
+          location.href = j.url;
+        } else {
+          setBanner("warn", j.error_detail || j.error || "checkout unavailable");
+        }
+      } catch (ex) {
+        setBanner("bad", String(ex));
+      }
     });
     refreshHealth();
     refreshAuth();

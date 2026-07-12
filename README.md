@@ -84,7 +84,16 @@ python3 scripts/validate_contract_sample.py
 | QR0-2 最小产品壳 | ✅ 可 `python -m app`；**可 Manus pull 发布** |
 | **P0 信任门控 v0.2.0** | ✅ 假 ticker / 无数据 fail-closed；量能·期权诚实字段；`scripts/p0_smoke.py` |
 | **Auth v0.3.0** | ✅ `/login` + Google OAuth + session；live 需登录；Manus 仍 410 |
-| 下一优先 | **域名 cutover** + 配 Google 环境变量 → QR0-SEC / QR2-1 / Stripe |
+| **Ship v0.4.0** | ✅ magic link、Stripe checkout、Docker/Render/Fly、`bootstrap_env`、CI |
+| 下一优先 | **域名 cutover**（Render/Fly + DNS）→ live charts 挂载 → QR2-1 |
+
+### 一键本地
+
+```bash
+python3 scripts/bootstrap_env.py
+python3 -m app
+# http://127.0.0.1:8765/login  — 邮箱 magic link 即可登录
+```
 
 ### P0 验收
 

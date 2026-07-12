@@ -1,9 +1,9 @@
-# Auth policy — 自有登录 + Google；禁止 Manus
+# Auth policy — 自有登录 + Google / Magic link；禁止 Manus
 
 > **铁律**：QuantRadar **不使用** `manus.im/app-auth`。  
-> 产品登录是 **本站 `/login`** + **Google OAuth** + **自有 session cookie**。
+> 产品登录是 **本站 `/login`** + **Google OAuth 和/或邮箱 magic link** + **自有 session cookie**。
 
-## 现行策略（v0.3）
+## 现行策略（v0.4）
 
 | 能力 | 策略 |
 |------|------|
@@ -11,10 +11,11 @@
 | 访客样例 `/api/sample` | **公开** |
 | Health `/health` | **公开** |
 | Live 分析 `mode=live` | **需登录**（session cookie） |
-| 产品登录 | **`/login`** → Continue with Google |
+| 产品登录 | **`/login`** → Google 和/或 Email magic link |
 | Session | HttpOnly cookie `qr_session`（HMAC 签名，无 DB） |
 | Manus OAuth `/api/oauth/*` | **410** |
 | `/api/me` | 已登录返回用户；未登录 401 |
+| Stripe checkout | 登录后 `POST /api/billing/checkout` |
 
 ## 环境变量
 

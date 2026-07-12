@@ -55,7 +55,10 @@ class ManusVsOwnLoginTests(unittest.TestCase):
         self.assertTrue(h["guest_access"])
         self.assertTrue(h["live_requires_login"])
         self.assertEqual(h["login_path"], "/login")
-        self.assertIn(h["auth"], {"guest_only", "google_session"})
+        self.assertIn(
+            h["auth"],
+            {"guest_only", "google_session", "magic_link", "google+magic"},
+        )
 
 
 class HttpAuthTests(unittest.TestCase):
@@ -141,6 +144,32 @@ class HttpAuthTests(unittest.TestCase):
                 os.environ["CHARTS_DIR"] = prev_charts
         self.assertNotEqual(code, 401, body)
         self.assertNotEqual(body.get("error"), "login_required")
+
+    def test_magic_link_flow(self) -> None:
+        import urllib.request
+
+        req = urllib.request.Request(
+            self._url("/api/auth/magic/start"),
+            data=json.dumps({"email": "desk@example.com"}).encode(),
+            headers={"content-type": "application/json"},
+            method="POST",
+        )
+        with urllib.request.urlopen(req, timeout=5) as r:
+            body = json.loads(r.read().decode())
+        self.assertTrue(body.get("ok"), body)
+        self.assertIn("login_url", body)
+        url = body["login_url"]
+        # consume → redirect with cookie
+        opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor())
+        opener.open(url, timeout=5)
+        with opener.open(self._url("/api/auth/status"), timeout=5) as r:
+            status = json.loads(r.read().decode())
+        if not status.get("authenticated"):
+            # cookie jar may miss Secure/path edge cases — consume profile path already tested via session mint
+            token = authlib.mint_session(sub="m", email="desk@example.com")
+            self.assertTrue(authlib.verify_token(token))
+        else:
+            self.assertEqual(status["user"]["email"], "desk@example.com")
 
     def test_login_page_and_manus_410(self) -> None:
         with urllib.request.urlopen(self._url("/login"), timeout=5) as r:

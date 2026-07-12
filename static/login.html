@@ -4,104 +4,63 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Sign in — QuantRadar</title>
-  <meta name="description" content="QuantRadar own login. Google sign-in. No Manus platform account." />
+  <meta name="description" content="QuantRadar own login. Google or email magic link. No Manus." />
   <style>
     :root {
-      --bg: #0b0f14;
-      --panel: #121a24;
-      --text: #e7eef7;
-      --muted: #8b9bb0;
-      --accent: #3d8bfd;
-      --ok: #3ecf8e;
-      --warn: #f0b429;
-      --bad: #f07178;
-      --border: #1e2a3a;
+      --bg: #0b0f14; --panel: #121a24; --text: #e7eef7; --muted: #8b9bb0;
+      --accent: #3d8bfd; --ok: #3ecf8e; --warn: #f0b429; --bad: #f07178; --border: #1e2a3a;
       --sans: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
     }
     * { box-sizing: border-box; }
     body {
-      margin: 0;
-      min-height: 100vh;
-      font-family: var(--sans);
+      margin: 0; min-height: 100vh; font-family: var(--sans);
       background: radial-gradient(1000px 500px at 50% -20%, #1a2740 0%, var(--bg) 55%);
-      color: var(--text);
-      display: flex;
-      flex-direction: column;
+      color: var(--text); display: flex; flex-direction: column;
     }
     header {
-      padding: 1.25rem 1.5rem;
-      border-bottom: 1px solid var(--border);
-      display: flex;
-      justify-content: space-between;
-      align-items: baseline;
+      padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--border);
+      display: flex; justify-content: space-between; align-items: baseline;
     }
     header a { color: var(--muted); text-decoration: none; font-size: 0.9rem; }
-    header a:hover { color: var(--text); }
-    main {
-      flex: 1;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 2rem 1rem;
-    }
+    main { flex: 1; display: flex; align-items: center; justify-content: center; padding: 2rem 1rem; }
     .card {
-      width: 100%;
-      max-width: 420px;
-      background: var(--panel);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 1.75rem;
+      width: 100%; max-width: 440px; background: var(--panel);
+      border: 1px solid var(--border); border-radius: 12px; padding: 1.75rem;
     }
     h1 { margin: 0 0 0.35rem; font-size: 1.25rem; font-weight: 600; }
     .lede { margin: 0 0 1.25rem; color: var(--muted); font-size: 0.92rem; line-height: 1.5; }
+    label { display: block; color: var(--muted); font-size: 0.8rem; margin-bottom: 0.35rem; }
+    input {
+      width: 100%; background: #0a1018; border: 1px solid var(--border); color: var(--text);
+      border-radius: 8px; padding: 0.7rem 0.8rem; font-size: 0.95rem; margin-bottom: 0.75rem;
+    }
     .btn {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 0.6rem;
-      width: 100%;
-      padding: 0.75rem 1rem;
-      border-radius: 8px;
-      border: 0;
-      font-weight: 600;
-      font-size: 0.95rem;
-      cursor: pointer;
-      text-decoration: none;
-      color: #fff;
+      display: flex; align-items: center; justify-content: center; gap: 0.6rem;
+      width: 100%; padding: 0.75rem 1rem; border-radius: 8px; border: 0;
+      font-weight: 600; font-size: 0.95rem; cursor: pointer; text-decoration: none; color: #fff;
       background: var(--accent);
     }
     .btn:hover { filter: brightness(1.06); }
-    .btn:disabled, .btn[aria-disabled="true"] {
-      opacity: 0.45;
-      cursor: not-allowed;
-      pointer-events: none;
-    }
+    .btn:disabled { opacity: 0.45; cursor: wait; }
     .btn.secondary {
-      margin-top: 0.65rem;
-      background: transparent;
-      border: 1px solid var(--border);
-      color: var(--text);
+      margin-top: 0.65rem; background: transparent; border: 1px solid var(--border); color: var(--text);
     }
-    .note {
-      margin-top: 1rem;
-      font-size: 0.8rem;
-      color: var(--muted);
-      line-height: 1.45;
+    .divider {
+      display: flex; align-items: center; gap: 0.75rem; margin: 1rem 0;
+      color: var(--muted); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em;
     }
+    .divider::before, .divider::after {
+      content: ""; flex: 1; height: 1px; background: var(--border);
+    }
+    .note { margin-top: 1rem; font-size: 0.8rem; color: var(--muted); line-height: 1.45; word-break: break-all; }
     .banner {
-      margin-bottom: 1rem;
-      padding: 0.7rem 0.85rem;
-      border-radius: 8px;
-      font-size: 0.85rem;
-      line-height: 1.4;
-      border: 1px solid var(--border);
-      background: #0a1018;
+      margin-bottom: 1rem; padding: 0.7rem 0.85rem; border-radius: 8px;
+      font-size: 0.85rem; line-height: 1.4; border: 1px solid var(--border); background: #0a1018;
     }
     .banner.warn { color: var(--warn); border-color: rgba(240,180,41,.4); }
     .banner.bad { color: var(--bad); border-color: rgba(240,113,120,.4); }
     .banner.ok { color: var(--ok); border-color: rgba(62,207,142,.4); }
     ul { margin: 0.75rem 0 0; padding-left: 1.1rem; color: var(--muted); font-size: 0.82rem; }
-    code { font-size: 0.85em; }
   </style>
 </head>
 <body>
@@ -113,17 +72,26 @@
     <section class="card">
       <h1>Sign in</h1>
       <p class="lede">
-        Own login page — Google account only. No Manus platform account.
-        Guest sample analysis stays available without signing in.
+        Your login page — Google and/or email magic link. No Manus platform account.
+        Guest sample stays available without signing in.
       </p>
       <div id="banner" class="banner" hidden></div>
+
       <a class="btn" id="googleBtn" href="/api/auth/google/start">Continue with Google</a>
+
+      <div class="divider">or email</div>
+      <form id="magicForm">
+        <label for="email">Email</label>
+        <input id="email" type="email" required placeholder="you@company.com" autocomplete="email" />
+        <button class="btn secondary" id="magicBtn" type="submit">Email me a sign-in link</button>
+      </form>
+
       <a class="btn secondary" href="/">Continue as guest</a>
       <a class="btn secondary" id="devBtn" href="/api/auth/dev-login" hidden>Dev login (local only)</a>
       <p class="note" id="statusNote">Checking auth configuration…</p>
       <ul>
         <li>Guest: artifact / sample analyze</li>
-        <li>Signed in: live mode + higher rate limits</li>
+        <li>Signed in: live mode + checkout</li>
         <li>Session cookie is HttpOnly on this domain</li>
       </ul>
     </section>
@@ -135,6 +103,7 @@
     const googleBtn = document.getElementById("googleBtn");
     const note = document.getElementById("statusNote");
     const devBtn = document.getElementById("devBtn");
+    const magicBtn = document.getElementById("magicBtn");
 
     function showBanner(kind, text) {
       banner.hidden = false;
@@ -142,9 +111,39 @@
       banner.textContent = text;
     }
 
-    if (err) {
-      showBanner("bad", "Sign-in failed: " + err);
-    }
+    if (err) showBanner("bad", "Sign-in failed: " + err);
+    if (params.get("checkout") === "cancel") showBanner("warn", "Checkout canceled.");
+
+    document.getElementById("magicForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const email = document.getElementById("email").value.trim();
+      magicBtn.disabled = true;
+      try {
+        const r = await fetch("/api/auth/magic/start", {
+          method: "POST",
+          credentials: "same-origin",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ email }),
+        });
+        const j = await r.json();
+        if (!j.ok) {
+          showBanner("bad", j.error_detail || j.error || "failed");
+          return;
+        }
+        if (j.login_url) {
+          showBanner("ok", "Link ready (console delivery). Opening…");
+          note.textContent = "Magic link (dev/console): " + j.login_url;
+          setTimeout(() => { location.href = j.login_url; }, 400);
+        } else {
+          showBanner("ok", "Check your email for the sign-in link (" + j.email + ").");
+          note.textContent = "Delivered via " + (j.channel || "email") + ". Expires in " + (j.expires_in_sec || 900) + "s.";
+        }
+      } catch (ex) {
+        showBanner("bad", String(ex));
+      } finally {
+        magicBtn.disabled = false;
+      }
+    });
 
     async function boot() {
       try {
@@ -152,26 +151,26 @@
         const j = await r.json();
         if (j.authenticated && j.user) {
           showBanner("ok", "Already signed in as " + (j.user.email || "user") + ". Redirecting…");
-          setTimeout(() => { location.href = "/"; }, 600);
+          setTimeout(() => { location.href = "/"; }, 500);
           return;
         }
         if (j.google_oauth) {
-          note.textContent = "Google OAuth is configured. You will return to quantradar after consent.";
-          googleBtn.removeAttribute("aria-disabled");
+          googleBtn.style.display = "flex";
         } else {
-          note.textContent =
-            "Google OAuth not configured on this host. Set GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, SESSION_SECRET, PUBLIC_BASE_URL — or use guest mode.";
-          googleBtn.setAttribute("aria-disabled", "true");
-          googleBtn.removeAttribute("href");
-          if (!err) showBanner("warn", "Google sign-in unavailable until server env is set. Guest radar still works.");
+          googleBtn.style.display = "none";
         }
-        // Dev login only advertised by status path existence — probe
-        const dr = await fetch("/api/auth/dev-login", { method: "GET", redirect: "manual", credentials: "same-origin" });
-        // 302 means enabled; 404 disabled. manual redirect may be 0/opaqueredirect in some browsers — use status endpoint instead
+        const parts = [];
+        parts.push("mode=" + (j.auth_mode || "?"));
+        parts.push("google=" + !!j.google_oauth);
+        parts.push("magic=" + !!j.magic_link);
+        parts.push("smtp=" + !!j.smtp_configured);
+        note.textContent = parts.join(" · ");
+        if (!j.google_oauth && j.magic_link && !j.smtp_configured) {
+          if (!err) showBanner("warn", "Magic link is on (console/file delivery until SMTP is set). Google optional.");
+        }
       } catch (e) {
         note.textContent = String(e);
       }
-      // Show dev button only on localhost
       if (location.hostname === "127.0.0.1" || location.hostname === "localhost") {
         devBtn.hidden = false;
       }

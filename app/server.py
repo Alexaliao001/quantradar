@@ -22,6 +22,11 @@ from app import CONTRACT_VERSION, __version__
 from app import auth as authlib
 from app.charts_facade import analyze, charts_dir
 from app.contract import validate_response
+from app.envload import load_dotenv
+from app import stripe_billing
+
+# Load .env before reading any auth/stripe config in handlers
+load_dotenv()
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 STATIC_DIR = REPO_ROOT / "static"
@@ -438,6 +443,36 @@ class Handler(BaseHTTPRequestHandler):
             )
             return
 
+        if path == "/api/auth/magic/consume":
+            tok = (qs.get("token") or [None])[0]
+            try:
+                profile = authlib.consume_magic_token(tok)
+                token = authlib.mint_session(
+                    sub=profile["sub"],
+                    email=profile["email"],
+                    name=profile.get("name"),
+                    plan="free",
+                )
+            except Exception as exc:
+                self._redirect(f"/login?error={urllib.parse.quote(str(exc)[:120])}")
+                return
+            self._redirect(
+                "/?signed_in=1",
+                extra_headers=[("Set-Cookie", authlib.session_cookie_header(token))],
+            )
+            return
+
+        if path == "/api/billing/status":
+            self._send(
+                200,
+                {
+                    "ok": True,
+                    "stripe_configured": stripe_billing.stripe_configured(),
+                    "checkout": "/api/billing/checkout",
+                },
+            )
+            return
+
         if path == "/api/analyze":
             ticker = (qs.get("ticker") or [None])[0]
             sector = (qs.get("sector") or [None])[0]
@@ -507,6 +542,65 @@ class Handler(BaseHTTPRequestHandler):
             )
             return
 
+        if path == "/api/auth/magic/start":
+            try:
+                body = self._read_json()
+            except Exception as exc:
+                self._send(400, {"ok": False, "error": f"invalid JSON: {exc}"})
+                return
+            email = str(body.get("email") or "").strip()
+            try:
+                result = authlib.issue_magic_link(email)
+            except ValueError as exc:
+                self._send(400, {"ok": False, "error": "invalid_email", "error_detail": str(exc)})
+                return
+            except Exception as exc:
+                self._send(500, {"ok": False, "error": "magic_failed", "error_detail": str(exc)})
+                return
+            self._send(200, result)
+            return
+
+        if path == "/api/billing/checkout":
+            user = self._current_user()
+            if not user:
+                self._send(
+                    401,
+                    {
+                        "ok": False,
+                        "error": "login_required",
+                        "login": "/login",
+                        "error_detail": "Sign in before checkout",
+                    },
+                )
+                return
+            if not stripe_billing.stripe_configured():
+                self._send(
+                    503,
+                    {
+                        "ok": False,
+                        "error": "stripe_not_configured",
+                        "error_detail": "Set QUANTRADAR_STRIPE_SECRET_KEY",
+                    },
+                )
+                return
+            try:
+                body = self._read_json()
+            except Exception:
+                body = {}
+            try:
+                session = stripe_billing.create_checkout_session(
+                    customer_email=str(user.get("email") or "") or None,
+                    price_id=str(body.get("price_id") or "") or None,
+                )
+            except Exception as exc:
+                self._send(
+                    502,
+                    {"ok": False, "error": "stripe_error", "error_detail": str(exc)[:500]},
+                )
+                return
+            self._send(200, {"ok": True, **session})
+            return
+
         if path != "/api/analyze":
             self._send(404, {"ok": False, "error": "not found"})
             return
@@ -529,13 +623,15 @@ class Handler(BaseHTTPRequestHandler):
 
 
 def main() -> None:
-    host = os.environ.get("HOST", "127.0.0.1")
+    load_dotenv()
+    host = os.environ.get("HOST", "0.0.0.0")
     port = int(os.environ.get("PORT", "8765"))
     server = ThreadingHTTPServer((host, port), Handler)
     a = authlib.auth_status_public()
     print(
         f"quantradar shell v{__version__} contract={CONTRACT_VERSION} "
-        f"auth={a['auth_mode']} google={a['google_oauth']} "
+        f"auth={a['auth_mode']} google={a['google_oauth']} magic={a['magic_link']} "
+        f"stripe={a['stripe_checkout']} "
         f"http://{host}:{port}/  login=/login",
         flush=True,
     )
