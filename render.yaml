@@ -14,9 +14,7 @@ services:
         value: "3.12.8"
       - key: HOST
         value: "0.0.0.0"
-      - key: PORT
-        generateValue: false
-        # Render injects PORT
+      # PORT is injected by Render — do not set in blueprint
       - key: QUANTRADAR_MODE
         value: artifact
       - key: PUBLIC_BASE_URL
