@@ -4,15 +4,15 @@
 
 | | |
 |--|--|
-| 线上 | https://quantradar.one |
-| **工程 SSOT** | 本仓库（GitHub） |
+| 线上（目标） | https://quantradar.one — cutover 前可能仍是旧 Manus SPA |
+| **工程 SSOT** | **本仓库 GitHub main**（不是 Manus） |
 | 本机路径 | `~/quantradar` |
-| 分析引擎（可复用） | [`stock-charts`](https://github.com/Alexaliao001/stock-charts) → `~/charts` |
-| **优化 /goal** | **[GROK_GOAL.md](./GROK_GOAL.md)**（**v3 · 路径 C**） |
-| Skill 继承账本 | [docs/SKILL_INHERIT.md](./docs/SKILL_INHERIT.md) |
-| Manus 发布 | [docs/MANUS_SYNC.md](./docs/MANUS_SYNC.md) |
-| 盘点 | [docs/PHASE0.md](./docs/PHASE0.md) |
+| 分析引擎 | [`stock-charts`](https://github.com/Alexaliao001/stock-charts) → `~/charts` |
+| **最正确操作法** | **[docs/CORRECT_OPS.md](./docs/CORRECT_OPS.md)**（锁定） |
+| Trust Gate | [docs/TRUST_GATE.md](./docs/TRUST_GATE.md) |
+| Auth | [docs/AUTH.md](./docs/AUTH.md)（邮箱密码优先） |
 | 引擎契约 | [docs/ENGINE_CONTRACT.md](./docs/ENGINE_CONTRACT.md) |
+| /goal | [GROK_GOAL.md](./GROK_GOAL.md) |
 
 ## 工程闭环（强制）
 

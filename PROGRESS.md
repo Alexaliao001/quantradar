@@ -1,5 +1,6 @@
 # PROGRESS — QuantRadar
 
+2026-07-12 | **ops 锁定** | `docs/CORRECT_OPS.md`：SSOT=GitHub；线上 Manus SPA≠仓库；部署=Render/Python 主机+GlobalDomain DNS；Manus 只做解绑/停发、尽量少用 Lite | 执行时勿再混三套
 2026-07-12 | **auth v0.6.0** | 自建邮箱+密码登录（`data/users.json` PBKDF2）；`/api/auth/register|login`；登录页主路径密码，magic 次要，Google 仅 env 配置时显示；bootstrap admin@local.test | 可本地立刻用
 2026-07-12 | **trust v0.5.0** | TRUST_GATE.md + 单 primary_score/summary；demo chips 免费 sample；methodology/pricing/terms/privacy/refund；/api/notify waitlist；og 自托管；无假 1247 社交证明 | **可 Manus pull**；上线前按 TRUST_GATE 验收
 2026-07-12 | **ship v0.4.0** | magic link + Stripe checkout + .env bootstrap + Docker/Render/Fly/CI；`docs/DEPLOY.md` | 代码可发布；域名/Render账号/Google Console 需人工

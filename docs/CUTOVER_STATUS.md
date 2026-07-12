@@ -1,42 +1,12 @@
-# Cutover status (2026-07-12)
+# Cutover status
 
-## Working now
+权威操作法见 **[CORRECT_OPS.md](./CORRECT_OPS.md)**（已锁定）。
 
-| Surface | URL | Status |
-|---------|-----|--------|
-| Path-C shell (public tunnel) | https://hwy-regional-registry-wings.trycloudflare.com | **LIVE** `quantradar-shell` v0.5 Trust Gate |
-| Local | http://127.0.0.1:8765 | Same process |
-| Production domain | https://quantradar.one | **Still old Manus SPA** |
+| 表面 | 状态 |
+|------|------|
+| GitHub main | ✅ v0.6.0 `d8132cc` path-C + 密码登录 + Trust Gate |
+| 本地 `python -m app` | 开发验收用 |
+| `quantradar.one` | ❌ 仍是 Manus 旧 SPA，**不是**仓库最新版 |
 
-## Blockers for quantradar.one
-
-1. **DNS NS** = `ns1/ns2.globaldomaingroup.com` (not Cloudflare account `liaor@merrimack.edu`, which has **zero zones**).
-2. Domain currently fronts Manus app via CF edge IP `104.18.26.246` — managed by Manus/host stack, not personal CF account.
-3. Fly.io requires credit card for launch.
-4. Render requires email verification (`liaorongjian@outlook.com` — not found in connected Outlook).
-5. Manus task waiting for CF API token / Worker reverse-proxy config.
-
-## What to do next (pick one)
-
-### A. Fastest permanent: Render free + DNS at GlobalDomain
-
-1. Verify Render email, Blueprint: `Alexaliao001/quantradar` (`render.yaml` native Python).
-2. Get `https://quantradar-shell.onrender.com`.
-3. At **globaldomaingroup** DNS for `quantradar.one`: CNAME/A per Render custom domain instructions.
-4. Disable Manus publish for that hostname.
-
-### B. Manus Worker reverse-proxy
-
-1. Manus has origin: `https://hwy-regional-registry-wings.trycloudflare.com` (temporary).
-2. Replace with Render URL when ready.
-3. Point Manus custom domain routing to Worker.
-
-### C. Move zone to personal Cloudflare
-
-1. Add `quantradar.one` to CF account.
-2. Change nameservers at GlobalDomain to CF NS.
-3. Tunnel or Pages+container + custom hostname.
-
-## Tunnel note
-
-Quick tunnel URL changes when `cloudflared` restarts. Not for production; only for proof + Manus wiring tests.
+**下一步（唯一推荐）**：Render（或等价 Python 主机）从 GitHub 部署 → GlobalDomain 改 DNS → 停 Manus 旧发布。  
+**不推荐**：继续用 Manus Max/Lite 当运行时或 Worker 反代硬扛。
