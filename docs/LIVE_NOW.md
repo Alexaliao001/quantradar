@@ -34,3 +34,12 @@ bash scripts/cutover_verify.sh https://quantradar.one
 
 - Free 空闲 ~15 分钟休眠，冷启动约 1 分钟
 - `charts_reachable=false` 在 artifact 模式正常（用 fixtures）
+
+## 多站点迁出 Manus
+
+另三站（MoYu / Fortune / Portfolio）预览已在 Render Free 就绪。  
+完整清单与 **DNS / Manus 解绑步骤** 见 **[MULTI_SITE_MIGRATION.md](./MULTI_SITE_MIGRATION.md)**。
+
+```bash
+python3 scripts/multi_site_verify.py
+```
