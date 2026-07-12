@@ -28,11 +28,19 @@
     "scale": 100,
     "withheld": false
   },
+  "primary_score": {
+    "value": 39.0,
+    "scale": 100,
+    "label": "Mechanical posture score",
+    "withheld": false,
+    "note": "Single authoritative score from charts. Not a multi-panel composite mix."
+  },
   "primary": {
     "action": "NO",
     "label": "No / stand aside",
     "reason": "Weekly MA bullish, pullback 7.1%"
   },
+  "summary": "INTC — Score: 39/100 · Primary: No / stand aside · uptrend_pullback",
   "data_quality": {
     "usable": true,
     "reliability": "medium",

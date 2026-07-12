@@ -290,11 +290,19 @@ def fail_response(
             "scale": 100,
             "withheld": True,
         },
+        "primary_score": {
+            "value": None,
+            "scale": 100,
+            "label": "Mechanical posture score",
+            "withheld": True,
+            "note": "Score withheld — no tradeable conclusion.",
+        },
         "primary": {
             "action": "NO",
             "label": "No / stand aside",
             "reason": error_detail,
         },
+        "summary": f"{t} — Score withheld · Primary: No / stand aside",
         "data_quality": {
             "usable": False,
             "volume_narrative_allowed": False,

@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Methodology — QuantRadar</title>
+  <meta name="description" content="How QuantRadar scores work: single mechanical posture score, gates, data quality. Educational only." />
+  <meta property="og:title" content="QuantRadar Methodology" />
+  <meta property="og:image" content="/static/og-default.svg" />
+  <link rel="stylesheet" href="/static/site.css" />
+</head>
+<body>
+  <header class="top">
+    <a class="brand" href="/">QuantRadar</a>
+    <nav>
+      <a href="/methodology">Methodology</a>
+      <a href="/pricing">Pricing</a>
+      <a href="/login">Sign in</a>
+    </nav>
+  </header>
+  <main class="prose">
+    <h1>Methodology</h1>
+    <p class="muted">Educational radar — not investment advice. We publish how the score is built so you can distrust us productively.</p>
+
+    <h2>One public score</h2>
+    <p>
+      The only number we call <strong>Score</strong> on the product surface is the charts engine
+      <em>mechanical posture score</em> (<code>primary_score</code> / <code>score.final</code>, 0–100).
+      Sub-indicators may exist in the engine payload for research, but the UI must not show multiple “Composite” scores that disagree.
+    </p>
+
+    <h2>What the score is (and is not)</h2>
+    <ul>
+      <li><strong>Is:</strong> a deterministic technical posture of the current setup given OHLCV + environment inputs.</li>
+      <li><strong>Is not:</strong> a forecast that the stock will rise tomorrow, or a guarantee of edge.</li>
+      <li>Same inputs → same score (regression-tested in the engine).</li>
+    </ul>
+
+    <h2>Gates &amp; primary action</h2>
+    <p>
+      Market / sector context and a state code (e.g. pullback vs breakdown) feed a single
+      <strong>primary</strong> action: Full / Build / Probe / Wait / No / Put-bias.
+      Summary text must match that primary — no “buy” next to “Wait &amp; Watch”.
+    </p>
+
+    <h2>Data quality</h2>
+    <p>
+      If volume fields are zero or missing, we <strong>withhold volume narratives</strong>.
+      If options data is simulated or unavailable, options are marked non-actionable.
+      Unknown tickers fail closed — no fabricated buy score.
+    </p>
+
+    <h2>Pattern “success rates”</h2>
+    <p>
+      Pattern labels and historical efficiency ranks, when shown, must cite the data series and period.
+      We do not invent social proof (user counts) or fake testimonials.
+      Calibrated edges from our private research desk will be published here as they clear verification — not before.
+    </p>
+
+    <h2>Demo vs live</h2>
+    <p>
+      Demo chips (e.g. INTC) load pre-built artifacts and do not charge credits or hit live market APIs.
+      Live mode requires sign-in and uses the charts fetch path when configured.
+    </p>
+
+    <p class="muted"><a href="/">← Back to radar</a></p>
+  </main>
+  <footer class="foot">
+    <a href="/terms">Terms</a> · <a href="/privacy">Privacy</a> · <a href="/refund">Refund</a>
+    · Fortune Insight, LLC · Educational only
+  </footer>
+</body>
+</html>

@@ -24,6 +24,10 @@ from app.charts_facade import analyze, charts_dir
 from app.contract import validate_response
 from app.envload import load_dotenv
 from app import stripe_billing
+from app.notify import save_waitlist
+
+# Demo tickers: free artifact sample only (TG-5) — never live, never "credits"
+DEMO_TICKERS = frozenset({"INTC", "NVDA", "AAPL", "MU", "TSLA", "AMD"})
 
 # Load .env before reading any auth/stripe config in handlers
 load_dotenv()
@@ -480,15 +484,36 @@ class Handler(BaseHTTPRequestHandler):
             self._run_analyze(ticker, sector, mode)
             return
 
-        # Guest sample — no login
+        # Guest sample / demo chips — free, artifact only (TG-5)
         if path in {"/api/sample", "/sample"}:
             user = self._current_user()
-            result = analyze("INTC", mode="artifact")
+            ticker = (qs.get("ticker") or ["INTC"])[0] or "INTC"
+            t = str(ticker).strip().upper()
+            if t not in DEMO_TICKERS:
+                t = "INTC"
+            result = analyze(t, mode="artifact")
             result["meta"] = dict(result.get("meta") or {})
             result["meta"]["guest"] = not bool(user)
             result["meta"]["auth"] = "session" if user else "guest"
+            result["meta"]["demo"] = True
+            result["meta"]["credits_charged"] = 0
             result["sample"] = True
+            result["demo"] = True
             self._analyze_response(result, user=user)
+            return
+
+        if path == "/api/public_stats":
+            # TG-3: never invent social proof counts
+            self._send(
+                200,
+                {
+                    "ok": True,
+                    "label": "Beta",
+                    "note": "No fabricated user counts. Early product — sample analyses available free.",
+                    "totalAnalyses": None,
+                    "totalUsers": None,
+                },
+            )
             return
 
         if path in {"/", "/index.html"}:
@@ -499,12 +524,38 @@ class Handler(BaseHTTPRequestHandler):
             self._send(200, index.read_bytes(), content_type="text/html")
             return
 
-        if path == "/login":
-            page = STATIC_DIR / "login.html"
+        # Marketing / legal pages (TG-8/9)
+        page_map = {
+            "/login": "login.html",
+            "/methodology": "methodology.html",
+            "/pricing": "pricing.html",
+            "/terms": "terms.html",
+            "/privacy": "privacy.html",
+            "/refund": "refund.html",
+        }
+        if path in page_map:
+            page = STATIC_DIR / page_map[path]
             if not page.is_file():
-                self._send(404, {"ok": False, "error": "static/login.html missing"})
+                self._send(404, {"ok": False, "error": f"missing {page_map[path]}"})
                 return
             self._send(200, page.read_bytes(), content_type="text/html")
+            return
+
+        if path == "/robots.txt":
+            body = (
+                "User-agent: *\n"
+                "Allow: /\n"
+                "Disallow: /api/auth/\n"
+                "Sitemap: /sitemap.txt\n"
+            ).encode()
+            self._send(200, body, content_type="text/plain")
+            return
+
+        if path == "/sitemap.txt":
+            body = (
+                "/\n/methodology\n/pricing\n/terms\n/privacy\n/refund\n/login\n"
+            ).encode()
+            self._send(200, body, content_type="text/plain")
             return
 
         # static assets
@@ -540,6 +591,25 @@ class Handler(BaseHTTPRequestHandler):
                 extra_headers=[("Set-Cookie", authlib.session_cookie_header("", clear=True))],
                 auth_tag="guest",
             )
+            return
+
+        if path == "/api/notify":
+            try:
+                body = self._read_json()
+            except Exception as exc:
+                self._send(400, {"ok": False, "error": f"invalid JSON: {exc}"})
+                return
+            try:
+                out = save_waitlist(
+                    email=str(body.get("email") or ""),
+                    ticker=str(body.get("ticker") or "") or None,
+                    kind=str(body.get("kind") or "setup_alert"),
+                    source=str(body.get("source") or "web"),
+                )
+            except ValueError as exc:
+                self._send(400, {"ok": False, "error": "invalid_email", "error_detail": str(exc)})
+                return
+            self._send(200, out)
             return
 
         if path == "/api/auth/magic/start":

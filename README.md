@@ -85,7 +85,12 @@ python3 scripts/validate_contract_sample.py
 | **P0 信任门控 v0.2.0** | ✅ 假 ticker / 无数据 fail-closed；量能·期权诚实字段；`scripts/p0_smoke.py` |
 | **Auth v0.3.0** | ✅ `/login` + Google OAuth + session；live 需登录；Manus 仍 410 |
 | **Ship v0.4.0** | ✅ magic link、Stripe checkout、Docker/Render/Fly、`bootstrap_env`、CI |
-| 下一优先 | **域名 cutover**（Render/Fly + DNS）→ live charts 挂载 → QR2-1 |
+| **Trust Gate v0.5.0** | ✅ 单 `primary_score`、诚实落地页、demo 不计费、methodology/pricing/legal、waitlist |
+| 下一优先 | **域名 cutover** + Trust Gate 线上 PASS → live charts → 再谈 Pro 收款 |
+
+### Trust Gate
+
+见 [docs/TRUST_GATE.md](./docs/TRUST_GATE.md)（假评价/多分数/假统计禁止；demo free；合规页齐全）。
 
 ### 一键本地
 

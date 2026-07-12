@@ -176,11 +176,24 @@ def map_charts_payload(
             "scale": 100,
             "withheld": False,
         },
+        # TG-1: only public-facing composite. UI must not invent sibling "Composite" scores.
+        "primary_score": {
+            "value": float(final),
+            "scale": 100,
+            "label": "Mechanical posture score",
+            "withheld": False,
+            "note": "Single authoritative score from charts. Not a multi-panel composite mix.",
+        },
         "primary": {
             "action": primary_action,
             "label": primary_label,
             "reason": state.get("reason") or primary_label,
         },
+        "summary": (
+            f"{ticker} — Score: {float(final):.0f}/100 · "
+            f"Primary: {primary_label}"
+            + (f" · {state.get('name')}" if state.get("name") else "")
+        ),
         "data_quality": {
             "usable": True,
             "reliability": reliability,
