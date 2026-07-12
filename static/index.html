@@ -43,6 +43,18 @@
       font-weight: 600;
     }
     header .sub { color: var(--muted); font-size: 0.85rem; }
+    header .nav { display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap; }
+    header .nav a { color: var(--accent); text-decoration: none; font-size: 0.85rem; }
+    header .nav a:hover { text-decoration: underline; }
+    select {
+      background: #0a1018;
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 6px;
+      padding: 0.55rem 0.7rem;
+      font-family: var(--mono);
+      font-size: 0.9rem;
+    }
     main {
       max-width: 960px;
       margin: 0 auto;
@@ -159,16 +171,21 @@
   <header>
     <div>
       <h1>QuantRadar</h1>
-      <div class="sub">Market → Sector → Stock · guest mode · no platform login</div>
+      <div class="sub">Market → Sector → Stock · guest sample · Google desk login</div>
     </div>
-    <span class="sub" id="healthLine">health…</span>
+    <div class="nav">
+      <span class="sub" id="userLine">guest</span>
+      <a id="loginLink" href="/login">Sign in</a>
+      <a id="logoutLink" href="/api/auth/logout" hidden>Sign out</a>
+      <span class="sub" id="healthLine">health…</span>
+    </div>
   </header>
   <main>
     <section class="panel">
       <p class="lede">
         Auditable radar over a real charts engine. Unknown tickers fail closed.
         Volume and options claims are withheld when data is missing or simulated.
-        <strong>Educational only — not investment advice.</strong>
+        Live mode needs Google sign-in. <strong>Educational only — not investment advice.</strong>
       </p>
       <div class="row">
         <div>
@@ -178,6 +195,13 @@
         <div>
           <label for="sector">Sector ETF (optional)</label>
           <input id="sector" placeholder="SMH" maxlength="8" autocomplete="off" spellcheck="false" />
+        </div>
+        <div>
+          <label for="mode">Mode</label>
+          <select id="mode">
+            <option value="artifact" selected>artifact (guest OK)</option>
+            <option value="live">live (sign-in required)</option>
+          </select>
         </div>
         <button id="run" type="button">Analyze</button>
         <button id="sample" type="button" class="secondary">Load sample (INTC)</button>
@@ -232,12 +256,36 @@
       });
     }
 
+    let authState = { authenticated: false, user: null };
+
+    async function refreshAuth() {
+      try {
+        const r = await fetch("/api/auth/status", { credentials: "same-origin" });
+        const j = await r.json();
+        authState = { authenticated: !!j.authenticated, user: j.user || null };
+        const userLine = document.getElementById("userLine");
+        const loginLink = document.getElementById("loginLink");
+        const logoutLink = document.getElementById("logoutLink");
+        if (authState.authenticated && authState.user) {
+          userLine.textContent = authState.user.email || "signed in";
+          loginLink.hidden = true;
+          logoutLink.hidden = false;
+        } else {
+          userLine.textContent = "guest";
+          loginLink.hidden = false;
+          logoutLink.hidden = true;
+        }
+      } catch (e) {
+        document.getElementById("userLine").textContent = "guest";
+      }
+    }
+
     async function refreshHealth() {
       try {
         const r = await fetch("/health");
         const j = await r.json();
         document.getElementById("healthLine").textContent =
-          `guest auth=${j.auth} manus_login=${j.manus_login} sha=${j.git_sha || "n/a"} mode=${j.mode_default} p0=${j.p0_gates}`;
+          `auth=${j.auth} google=${j.google_oauth} manus=${j.manus_login} sha=${j.git_sha || "n/a"} p0=${j.p0_gates}`;
       } catch (e) {
         document.getElementById("healthLine").textContent = "health unreachable";
       }
@@ -305,7 +353,13 @@
       const useSample = opts && opts.sample;
       const ticker = useSample ? "INTC" : document.getElementById("ticker").value.trim();
       const sector = document.getElementById("sector").value.trim();
+      const mode = document.getElementById("mode").value;
       if (useSample) document.getElementById("ticker").value = "INTC";
+      if (!useSample && mode === "live" && !authState.authenticated) {
+        setBanner("warn", "Live mode needs sign-in. Redirecting to /login…");
+        setTimeout(() => { location.href = "/login"; }, 500);
+        return;
+      }
       const btn = document.getElementById("run");
       const sampleBtn = document.getElementById("sample");
       const status = document.getElementById("status");
@@ -317,15 +371,19 @@
       try {
         let r;
         if (useSample) {
-          r = await fetch("/api/sample");
+          r = await fetch("/api/sample", { credentials: "same-origin" });
         } else {
-          const q = new URLSearchParams({ ticker });
+          const q = new URLSearchParams({ ticker, mode });
           if (sector) q.set("sector", sector);
-          r = await fetch("/api/analyze?" + q.toString());
+          r = await fetch("/api/analyze?" + q.toString(), { credentials: "same-origin" });
         }
         const j = await r.json();
         renderResult(j);
-        if (!j.ok) {
+        if (r.status === 401 || j.error === "login_required") {
+          status.className = "status warn";
+          status.textContent = "Login required for this mode";
+          setBanner("warn", "Sign in with Google to use live mode.");
+        } else if (!j.ok) {
           status.className = "status bad";
           status.textContent = `Failed (${r.status}): ${j.error || "see body"}`;
         } else if (j.degraded) {
@@ -351,6 +409,7 @@
       if (e.key === "Enter") runAnalyze();
     });
     refreshHealth();
+    refreshAuth();
   </script>
 </body>
 </html>

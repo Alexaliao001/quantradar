@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import Any
 
 from app import CONTRACT_VERSION, __version__
+from app import auth as authlib
 from app.charts_facade import analyze, charts_dir
 from app.contract import validate_response
 
@@ -30,11 +31,13 @@ _RATE_LOCK = threading.Lock()
 _RATE_HITS: dict[str, list[float]] = {}
 
 
-def _rate_limit_max() -> int:
+def _rate_limit_max(authenticated: bool = False) -> int:
     try:
-        return max(1, int(os.environ.get("QUANTRADAR_RATE_LIMIT", "30")))
+        guest = max(1, int(os.environ.get("QUANTRADAR_RATE_LIMIT", "30")))
+        authed = max(guest, int(os.environ.get("QUANTRADAR_RATE_LIMIT_AUTH", "120")))
     except ValueError:
-        return 30
+        guest, authed = 30, 120
+    return authed if authenticated else guest
 
 
 def _rate_limit_window() -> float:
@@ -44,18 +47,19 @@ def _rate_limit_window() -> float:
         return 60.0
 
 
-def check_rate_limit(client: str) -> bool:
+def check_rate_limit(client: str, *, authenticated: bool = False) -> bool:
     """Return True if allowed, False if limited."""
     now = time.time()
     window = _rate_limit_window()
-    limit = _rate_limit_max()
+    limit = _rate_limit_max(authenticated)
+    key = f"{'a' if authenticated else 'g'}:{client}"
     with _RATE_LOCK:
-        hits = [t for t in _RATE_HITS.get(client, []) if now - t < window]
+        hits = [t for t in _RATE_HITS.get(key, []) if now - t < window]
         if len(hits) >= limit:
-            _RATE_HITS[client] = hits
+            _RATE_HITS[key] = hits
             return False
         hits.append(now)
-        _RATE_HITS[client] = hits
+        _RATE_HITS[key] = hits
         return True
 
 
@@ -74,6 +78,7 @@ def git_sha() -> str | None:
 def health_payload() -> dict[str, Any]:
     cdir = charts_dir()
     fetch_all = cdir / "fetch_all.py"
+    a = authlib.auth_status_public()
     return {
         "ok": True,
         "service": "quantradar-shell",
@@ -84,10 +89,13 @@ def health_payload() -> dict[str, Any]:
         "charts_reachable": cdir.is_dir(),
         "fetch_all_present": fetch_all.is_file(),
         "mode_default": os.environ.get("QUANTRADAR_MODE", "artifact"),
-        # Auth iron rule: guest analysis, never Manus app-auth
-        "auth": "none",
+        # Auth: guest + optional Google session; never Manus
+        "auth": a["auth_mode"],
         "manus_login": False,
         "guest_access": True,
+        "google_oauth": a["google_oauth"],
+        "login_path": "/login",
+        "live_requires_login": True,
         "p0_gates": True,
     }
 
@@ -99,20 +107,24 @@ def manus_login_disabled_payload() -> dict[str, Any]:
         "error": "manus_login_disabled",
         "message": (
             "QuantRadar does not use manus.im/app-auth. "
-            "Use / for guest UI or GET /api/analyze?ticker=INTC — no login."
+            "Use /login for Google sign-in, or guest UI at / — no Manus account."
         ),
-        "auth": "none",
+        "auth": authlib.auth_status_public()["auth_mode"],
         "manus_login": False,
+        "login": "/login",
         "docs": "docs/AUTH.md",
     }
 
 
 def is_manus_auth_path(path: str) -> bool:
-    """Legacy Manus platform auth paths that must never succeed."""
-    p = path.lower()
+    """Legacy Manus platform auth paths that must never succeed.
+
+    Own product login is /login and /api/auth/* — those are NOT Manus.
+    """
+    p = path.lower().rstrip("/") or "/"
     if p.startswith("/api/oauth"):
         return True
-    if p in {"/login", "/signin", "/sign-in", "/auth", "/app-auth"}:
+    if p in {"/app-auth", "/signin", "/sign-in"}:
         return True
     if "manus" in p and ("auth" in p or "oauth" in p or "login" in p):
         return True
@@ -123,6 +135,8 @@ def http_code_for_result(result: dict[str, Any]) -> int:
     if result.get("ok"):
         return 200
     err = str(result.get("error") or "")
+    if err in {"login_required"}:
+        return 401
     if err in {"invalid_ticker", "artifact_not_found", "no_data"}:
         return 404
     if "invalid" in err:
@@ -140,11 +154,17 @@ class Handler(BaseHTTPRequestHandler):
     def _client_id(self) -> str:
         return self.client_address[0] if self.client_address else "unknown"
 
+    def _current_user(self) -> dict[str, Any] | None:
+        return authlib.user_from_cookie_header(self.headers.get("Cookie"))
+
     def _send(
         self,
         code: int,
         body: dict[str, Any] | bytes,
         content_type: str = "application/json",
+        *,
+        extra_headers: list[tuple[str, str]] | None = None,
+        auth_tag: str | None = None,
     ) -> None:
         if isinstance(body, dict):
             raw = json.dumps(body, ensure_ascii=False, indent=2).encode("utf-8")
@@ -154,9 +174,24 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Type", f"{content_type}; charset=utf-8")
         self.send_header("Content-Length", str(len(raw)))
         self.send_header("Cache-Control", "no-store")
-        self.send_header("X-QuantRadar-Auth", "none")
+        tag = auth_tag
+        if tag is None:
+            tag = "session" if self._current_user() else "guest"
+        self.send_header("X-QuantRadar-Auth", tag)
+        if extra_headers:
+            for k, v in extra_headers:
+                self.send_header(k, v)
         self.end_headers()
         self.wfile.write(raw)
+
+    def _redirect(self, location: str, *, extra_headers: list[tuple[str, str]] | None = None) -> None:
+        self.send_response(302)
+        self.send_header("Location", location)
+        self.send_header("Cache-Control", "no-store")
+        if extra_headers:
+            for k, v in extra_headers:
+                self.send_header(k, v)
+        self.end_headers()
 
     def _read_json(self) -> dict[str, Any]:
         length = int(self.headers.get("Content-Length") or 0)
@@ -170,7 +205,7 @@ class Handler(BaseHTTPRequestHandler):
             raise ValueError("JSON body must be an object")
         return data
 
-    def _analyze_response(self, result: dict[str, Any]) -> None:
+    def _analyze_response(self, result: dict[str, Any], *, user: dict[str, Any] | None) -> None:
         errs = validate_response(result)
         if errs:
             result = {
@@ -179,7 +214,6 @@ class Handler(BaseHTTPRequestHandler):
                 + [f"contract: {e}" for e in errs],
             }
             if result.get("ok") and errs:
-                # structural break on success path → refuse rather than ship bad JSON
                 result = {
                     **result,
                     "ok": False,
@@ -203,67 +237,223 @@ class Handler(BaseHTTPRequestHandler):
                     },
                     "degraded": True,
                 }
-        self._send(http_code_for_result(result), result)
+        result.setdefault("meta", {})
+        if isinstance(result["meta"], dict):
+            result["meta"]["auth"] = "session" if user else "guest"
+            if user:
+                result["meta"]["user_email"] = user.get("email")
+        self._send(
+            http_code_for_result(result),
+            result,
+            auth_tag="session" if user else "guest",
+        )
+
+    def _run_analyze(
+        self,
+        ticker: str | None,
+        sector: str | None,
+        mode: str | None,
+        request_id: str | None = None,
+    ) -> None:
+        user = self._current_user()
+        if not check_rate_limit(self._client_id(), authenticated=bool(user)):
+            self._send(
+                429,
+                {
+                    "ok": False,
+                    "error": "rate_limited",
+                    "error_detail": "too many analyze requests; try again shortly",
+                    "contract_version": CONTRACT_VERSION,
+                },
+            )
+            return
+
+        mode_norm = (mode or "").strip().lower() or None
+        # Live mode requires login (uses real charts fetch / keys)
+        if mode_norm == "live" and not user:
+            self._send(
+                401,
+                {
+                    "ok": False,
+                    "error": "login_required",
+                    "error_detail": "mode=live requires sign-in. Guest may use artifact/sample.",
+                    "login": "/login",
+                    "contract_version": CONTRACT_VERSION,
+                    "gate": {"signal": "NO"},
+                    "score": {"final": None, "scale": 100, "withheld": True},
+                    "artifacts": {"charts": {}},
+                    "sources": [],
+                    "warnings": ["live mode requires Google session"],
+                    "ticker": (ticker or "").upper() or "UNKNOWN",
+                },
+                auth_tag="guest",
+            )
+            return
+
+        try:
+            result = analyze(
+                ticker or "",
+                sector=sector,
+                mode=mode_norm,
+                request_id=request_id,
+            )
+        except ValueError as exc:
+            self._send(
+                400,
+                {
+                    "ok": False,
+                    "error": "invalid_ticker",
+                    "error_detail": str(exc),
+                    "contract_version": CONTRACT_VERSION,
+                    "gate": {"signal": "NO"},
+                    "score": {"final": None, "scale": 100, "withheld": True},
+                    "artifacts": {"charts": {}},
+                    "sources": [],
+                    "warnings": [str(exc)],
+                    "ticker": (ticker or "").upper() or "UNKNOWN",
+                },
+            )
+            return
+        self._analyze_response(result, user=user)
 
     def do_GET(self) -> None:  # noqa: N802
         parsed = urllib.parse.urlparse(self.path)
         path = parsed.path.rstrip("/") or "/"
         qs = urllib.parse.parse_qs(parsed.query)
 
-        # Never proxy or succeed at Manus platform login
+        # Never succeed at Manus platform login
         if is_manus_auth_path(path) or is_manus_auth_path(parsed.path):
-            self._send(410, manus_login_disabled_payload())
+            self._send(410, manus_login_disabled_payload(), auth_tag="none")
             return
 
         if path in {"/health", "/api/health"}:
-            self._send(200, health_payload())
+            self._send(200, health_payload(), auth_tag="none")
+            return
+
+        # --- Auth API (own session, not Manus) ---
+        if path in {"/api/auth/status", "/api/me"}:
+            user = self._current_user()
+            body = {
+                "ok": True,
+                **authlib.auth_status_public(),
+                "user": authlib.session_user_public(user) if user else None,
+                "authenticated": bool(user),
+            }
+            if path == "/api/me" and not user:
+                self._send(
+                    401,
+                    {
+                        "ok": False,
+                        "error": "login_required",
+                        "authenticated": False,
+                        "login": "/login",
+                        **authlib.auth_status_public(),
+                    },
+                    auth_tag="guest",
+                )
+                return
+            self._send(200, body, auth_tag="session" if user else "guest")
+            return
+
+        if path == "/api/auth/google/start":
+            if not authlib.google_configured():
+                self._send(
+                    503,
+                    {
+                        "ok": False,
+                        "error": "google_not_configured",
+                        "error_detail": (
+                            "Set GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, "
+                            "SESSION_SECRET, PUBLIC_BASE_URL"
+                        ),
+                        "login": "/login",
+                    },
+                )
+                return
+            state = authlib.create_oauth_state()
+            try:
+                url = authlib.google_authorize_url(state)
+            except Exception as exc:
+                self._send(500, {"ok": False, "error": "oauth_start_failed", "error_detail": str(exc)})
+                return
+            self._redirect(url)
+            return
+
+        if path == "/api/auth/google/callback":
+            if not authlib.google_configured():
+                self._redirect("/login?error=google_not_configured")
+                return
+            err = (qs.get("error") or [None])[0]
+            if err:
+                self._redirect(f"/login?error={urllib.parse.quote(str(err))}")
+                return
+            state = (qs.get("state") or [None])[0]
+            code = (qs.get("code") or [None])[0]
+            if not authlib.consume_oauth_state(state):
+                self._redirect("/login?error=invalid_state")
+                return
+            if not code:
+                self._redirect("/login?error=missing_code")
+                return
+            try:
+                profile = authlib.exchange_google_code(str(code))
+                token = authlib.mint_session(
+                    sub=profile["sub"],
+                    email=profile["email"],
+                    name=profile.get("name"),
+                    picture=profile.get("picture"),
+                    plan="free",
+                )
+            except Exception as exc:
+                self._redirect(f"/login?error={urllib.parse.quote(str(exc)[:120])}")
+                return
+            self._redirect(
+                "/?signed_in=1",
+                extra_headers=[("Set-Cookie", authlib.session_cookie_header(token))],
+            )
+            return
+
+        if path == "/api/auth/logout":
+            # GET logout for simple <a href>
+            self._redirect(
+                "/",
+                extra_headers=[("Set-Cookie", authlib.session_cookie_header("", clear=True))],
+            )
+            return
+
+        if path == "/api/auth/dev-login":
+            if not authlib.dev_login_enabled():
+                self._send(404, {"ok": False, "error": "not found"})
+                return
+            email = (qs.get("email") or ["dev@localhost"])[0]
+            token = authlib.mint_session(
+                sub="dev-local",
+                email=str(email),
+                name="Dev User",
+                plan="free",
+            )
+            self._redirect(
+                "/?signed_in=1",
+                extra_headers=[("Set-Cookie", authlib.session_cookie_header(token))],
+            )
             return
 
         if path == "/api/analyze":
-            if not check_rate_limit(self._client_id()):
-                self._send(
-                    429,
-                    {
-                        "ok": False,
-                        "error": "rate_limited",
-                        "error_detail": "too many analyze requests; try again shortly",
-                        "contract_version": CONTRACT_VERSION,
-                    },
-                )
-                return
             ticker = (qs.get("ticker") or [None])[0]
             sector = (qs.get("sector") or [None])[0]
             mode = (qs.get("mode") or [None])[0]
-            try:
-                result = analyze(ticker or "", sector=sector, mode=mode)
-            except ValueError as exc:
-                self._send(
-                    400,
-                    {
-                        "ok": False,
-                        "error": "invalid_ticker",
-                        "error_detail": str(exc),
-                        "contract_version": CONTRACT_VERSION,
-                        "gate": {"signal": "NO"},
-                        "score": {"final": None, "scale": 100, "withheld": True},
-                        "artifacts": {"charts": {}},
-                        "sources": [],
-                        "warnings": [str(exc)],
-                        "ticker": (ticker or "").upper() or "UNKNOWN",
-                    },
-                )
-                return
-            self._analyze_response(result)
+            self._run_analyze(ticker, sector, mode)
             return
 
-        # Guest sample — no login (QR1-2 direction)
+        # Guest sample — no login
         if path in {"/api/sample", "/sample"}:
+            user = self._current_user()
             result = analyze("INTC", mode="artifact")
             result["meta"] = dict(result.get("meta") or {})
-            result["meta"]["guest"] = True
-            result["meta"]["auth"] = "none"
+            result["meta"]["guest"] = not bool(user)
+            result["meta"]["auth"] = "session" if user else "guest"
             result["sample"] = True
-            self._analyze_response(result)
+            self._analyze_response(result, user=user)
             return
 
         if path in {"/", "/index.html"}:
@@ -272,6 +462,14 @@ class Handler(BaseHTTPRequestHandler):
                 self._send(404, {"ok": False, "error": "static/index.html missing"})
                 return
             self._send(200, index.read_bytes(), content_type="text/html")
+            return
+
+        if path == "/login":
+            page = STATIC_DIR / "login.html"
+            if not page.is_file():
+                self._send(404, {"ok": False, "error": "static/login.html missing"})
+                return
+            self._send(200, page.read_bytes(), content_type="text/html")
             return
 
         # static assets
@@ -297,21 +495,20 @@ class Handler(BaseHTTPRequestHandler):
         parsed = urllib.parse.urlparse(self.path)
         path = parsed.path.rstrip("/") or "/"
         if is_manus_auth_path(path) or is_manus_auth_path(parsed.path):
-            self._send(410, manus_login_disabled_payload())
+            self._send(410, manus_login_disabled_payload(), auth_tag="none")
             return
+
+        if path == "/api/auth/logout":
+            self._send(
+                200,
+                {"ok": True, "authenticated": False, "manus_login": False},
+                extra_headers=[("Set-Cookie", authlib.session_cookie_header("", clear=True))],
+                auth_tag="guest",
+            )
+            return
+
         if path != "/api/analyze":
             self._send(404, {"ok": False, "error": "not found"})
-            return
-        if not check_rate_limit(self._client_id()):
-            self._send(
-                429,
-                {
-                    "ok": False,
-                    "error": "rate_limited",
-                    "error_detail": "too many analyze requests; try again shortly",
-                    "contract_version": CONTRACT_VERSION,
-                },
-            )
             return
         try:
             body = self._read_json()
@@ -323,40 +520,23 @@ class Handler(BaseHTTPRequestHandler):
         ctx = body.get("context") if isinstance(body.get("context"), dict) else {}
         mode = ctx.get("mode") or body.get("mode")
         request_id = ctx.get("request_id")
-        try:
-            result = analyze(
-                str(ticker) if ticker is not None else "",
-                sector=str(sector) if sector else None,
-                mode=str(mode) if mode else None,
-                request_id=str(request_id) if request_id else None,
-            )
-        except ValueError as exc:
-            self._send(
-                400,
-                {
-                    "ok": False,
-                    "error": "invalid_ticker",
-                    "error_detail": str(exc),
-                    "contract_version": CONTRACT_VERSION,
-                    "gate": {"signal": "NO"},
-                    "score": {"final": None, "scale": 100, "withheld": True},
-                    "artifacts": {"charts": {}},
-                    "sources": [],
-                    "warnings": [str(exc)],
-                    "ticker": str(ticker or "UNKNOWN").upper(),
-                },
-            )
-            return
-        self._analyze_response(result)
+        self._run_analyze(
+            str(ticker) if ticker is not None else "",
+            str(sector) if sector else None,
+            str(mode) if mode else None,
+            str(request_id) if request_id else None,
+        )
 
 
 def main() -> None:
     host = os.environ.get("HOST", "127.0.0.1")
     port = int(os.environ.get("PORT", "8765"))
     server = ThreadingHTTPServer((host, port), Handler)
+    a = authlib.auth_status_public()
     print(
         f"quantradar shell v{__version__} contract={CONTRACT_VERSION} "
-        f"http://{host}:{port}/  (health=/health analyze=/api/analyze)",
+        f"auth={a['auth_mode']} google={a['google_oauth']} "
+        f"http://{host}:{port}/  login=/login",
         flush=True,
     )
     try:

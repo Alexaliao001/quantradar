@@ -46,14 +46,18 @@ QUANTRADAR_MODE=artifact PORT=8765 python3 -m app
 
 | 端点 | 说明 |
 |------|------|
-| `GET /` | 访客 UI（**无需登录**，无 manus.im） |
-| `GET /health` | `git_sha` + `auth: none` + `manus_login: false` |
-| `GET /api/analyze?ticker=INTC` | 公开分析（ENGINE_CONTRACT JSON） |
-| `POST /api/analyze` | body: `{"ticker":"INTC","sector":"SMH"}` |
+| `GET /` | 访客 UI（artifact 分析无需登录） |
+| `GET /login` | **自有登录页** → Continue with Google |
+| `GET /health` | `manus_login:false` + `google_oauth` + `login_path` |
+| `GET /api/analyze?ticker=INTC` | 公开 artifact 分析（ENGINE_CONTRACT JSON） |
+| `GET /api/analyze?…&mode=live` | **需登录** |
+| `GET /api/auth/status` · `/api/me` | 会话状态 |
+| `GET /api/auth/google/start` | Google OAuth 起点 |
 | `GET /api/sample` | 访客样例（INTC artifact） |
 | `GET /api/oauth/*` | **410** — Manus 登录已禁用 |
 
-**Auth**：不使用 Manus 登录。见 [docs/AUTH.md](./docs/AUTH.md)。若线上仍跳 `manus.im/app-auth`，说明域名还挂着旧 Manus 托管 App，需按 [MANUS_SYNC.md](./docs/MANUS_SYNC.md) 关平台 Auth 并发布本仓壳。
+**Auth**：自有 `/login` + Google session；**禁止** Manus。见 [docs/AUTH.md](./docs/AUTH.md)。  
+生产需设 `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` / `SESSION_SECRET` / `PUBLIC_BASE_URL`。
 
 ### 环境变量
 
@@ -79,7 +83,8 @@ python3 scripts/validate_contract_sample.py
 | QR0-4 ENGINE_CONTRACT | ✅ |
 | QR0-2 最小产品壳 | ✅ 可 `python -m app`；**可 Manus pull 发布** |
 | **P0 信任门控 v0.2.0** | ✅ 假 ticker / 无数据 fail-closed；量能·期权诚实字段；`scripts/p0_smoke.py` |
-| 下一优先 | **域名 cutover**（[docs/P0_CUTOVER.md](./docs/P0_CUTOVER.md)）→ QR0-SEC / QR2-1 |
+| **Auth v0.3.0** | ✅ `/login` + Google OAuth + session；live 需登录；Manus 仍 410 |
+| 下一优先 | **域名 cutover** + 配 Google 环境变量 → QR0-SEC / QR2-1 / Stripe |
 
 ### P0 验收
 

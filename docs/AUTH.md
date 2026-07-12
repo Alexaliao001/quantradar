@@ -1,41 +1,74 @@
-# Auth policy — 禁止 Manus 登录
+# Auth policy — 自有登录 + Google；禁止 Manus
 
-> **铁律**：QuantRadar 产品壳 **不使用** `manus.im/app-auth`、不实现 `/api/oauth/callback` 给 Manus、不强制用户用 Manus 账号进入分析。
+> **铁律**：QuantRadar **不使用** `manus.im/app-auth`。  
+> 产品登录是 **本站 `/login`** + **Google OAuth** + **自有 session cookie**。
 
-## 现行策略
+## 现行策略（v0.3）
 
 | 能力 | 策略 |
 |------|------|
-| 访客分析 `/api/analyze` | **公开**，无登录 |
-| 访客样例 `/api/sample` | **公开**，无登录 |
+| 访客分析 `/api/analyze`（默认 artifact） | **公开**，无登录 |
+| 访客样例 `/api/sample` | **公开** |
 | Health `/health` | **公开** |
-| Manus OAuth / `app-auth` | **禁用**（见下方 410） |
-| 未来 desk 账号（若有） | 自有 session / Stripe 客户态，**不得**默认跳转 `manus.im` |
+| Live 分析 `mode=live` | **需登录**（session cookie） |
+| 产品登录 | **`/login`** → Continue with Google |
+| Session | HttpOnly cookie `qr_session`（HMAC 签名，无 DB） |
+| Manus OAuth `/api/oauth/*` | **410** |
+| `/api/me` | 已登录返回用户；未登录 401 |
+
+## 环境变量
+
+| 变量 | 必需 | 说明 |
+|------|------|------|
+| `GOOGLE_CLIENT_ID` | 生产登录 | Google Cloud OAuth 客户端 ID |
+| `GOOGLE_CLIENT_SECRET` | 生产登录 | 客户端密钥 |
+| `SESSION_SECRET` | 生产 | 签名 session 的随机长串（≥32 字节） |
+| `PUBLIC_BASE_URL` | 生产 | 如 `https://quantradar.one`（无尾斜杠） |
+| `QUANTRADAR_DEV_LOGIN` | 仅本地 | `1` 时允许 `/api/auth/dev-login`（仅 127.0.0.1/localhost） |
+
+未配置 Google 时：访客雷达仍可用；`/login` 显示「未配置」；`/api/auth/google/start` → 503。
+
+## Google Cloud 配置
+
+1. [Google Cloud Console](https://console.cloud.google.com/apis/credentials) → OAuth 2.0 Client ID（Web）
+2. Authorized JavaScript origins: `https://quantradar.one`
+3. Authorized redirect URIs: **`https://quantradar.one/api/auth/google/callback`**
+4. 本地开发可再加：`http://127.0.0.1:8765/api/auth/google/callback`
+5. 把 Client ID/Secret 注入运行环境（勿提交 git）
+
+## 路由
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/login` | 自有登录页 |
+| GET | `/api/auth/status` | 是否已登录 + 是否配置 Google |
+| GET | `/api/me` | 当前用户（需 cookie） |
+| GET | `/api/auth/google/start` | 302 → Google |
+| GET | `/api/auth/google/callback` | OAuth code 换 session |
+| GET/POST | `/api/auth/logout` | 清 cookie |
+| GET | `/api/auth/dev-login` | 仅本地 dev |
+| GET | `/api/oauth/*` | **410 Manus 禁用** |
 
 ## 为何线上还会看到 Manus 登录
 
-`https://quantradar.one` **当前仍部署着 Manus 平台托管的旧 SPA**（带 `__MANUS_*` 运行时与平台 OAuth），**不是**本仓库 `python -m app` 壳。
-
-只要域名还挂在 **Manus App Auth 项目** 上，点「登录 / 进入应用」就会去：
-
-```text
-https://manus.im/app-auth?appId=…&redirectUri=https://quantradar.one/api/oauth/callback…
-```
-
-这与 GitHub SSOT 无关；**发布必须换成无 Manus Auth 的构建**（见 [MANUS_SYNC.md](./MANUS_SYNC.md)）。
-
-## 本仓保证
-
-- 源码 **零** `manus.im` / `app-auth` / OAuth client  
-- `GET|POST /api/oauth/*`、`/login`（Manus 遗留路径）→ **410** + JSON 说明  
-- `/health` 含 `"auth": "none"`, `"manus_login": false`  
-- UI 仅访客 Analyze，无「用 Manus 登录」按钮  
+域名若仍挂 **Manus 托管旧 SPA + App Auth**，会跳 `manus.im/app-auth`。  
+必须按 [MANUS_SYNC.md](./MANUS_SYNC.md) 发布本仓壳并关闭平台 Auth。
 
 ## 验收
 
 ```bash
-python3 -m app   # 本机
+python3 -m app
 curl -sS http://127.0.0.1:8765/health | grep manus_login   # false
-curl -sS -o /dev/null -w "%{http_code}" http://127.0.0.1:8765/api/oauth/callback  # 410
-# 页面源码无 manus.im
+curl -sS -o /dev/null -w "%{http_code}\n" http://127.0.0.1:8765/api/oauth/callback  # 410
+curl -sS -o /dev/null -w "%{http_code}\n" http://127.0.0.1:8765/login  # 200
+curl -sS -o /dev/null -w "%{http_code}\n" "http://127.0.0.1:8765/api/analyze?ticker=INTC&mode=live"  # 401
+# 页面源码无 manus.im；有 /login 与 Continue with Google
+```
+
+本地无 Google 密钥时测 session：
+
+```bash
+PUBLIC_BASE_URL=http://127.0.0.1:8765 QUANTRADAR_DEV_LOGIN=1 SESSION_SECRET=devsecret \
+  python3 -m app
+# 浏览器打开 http://127.0.0.1:8765/api/auth/dev-login
 ```

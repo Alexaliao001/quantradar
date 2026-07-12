@@ -79,16 +79,20 @@ class NoManusAuthTests(unittest.TestCase):
         from app.server import health_payload, is_manus_auth_path, manus_login_disabled_payload
 
         self.assertTrue(is_manus_auth_path("/api/oauth/callback"))
-        self.assertTrue(is_manus_auth_path("/login"))
+        self.assertTrue(is_manus_auth_path("/app-auth"))
+        # Own product login is allowed (not Manus)
+        self.assertFalse(is_manus_auth_path("/login"))
+        self.assertFalse(is_manus_auth_path("/api/auth/google/start"))
         self.assertFalse(is_manus_auth_path("/api/analyze"))
         self.assertFalse(is_manus_auth_path("/health"))
         body = manus_login_disabled_payload()
         self.assertEqual(body["error"], "manus_login_disabled")
         self.assertIs(body["manus_login"], False)
         h = health_payload()
-        self.assertEqual(h["auth"], "none")
+        self.assertIn(h["auth"], {"none", "guest_only", "google_session"})
         self.assertIs(h["manus_login"], False)
         self.assertIs(h["guest_access"], True)
+        self.assertEqual(h.get("login_path"), "/login")
 
     def test_source_has_no_manus_auth_urls(self) -> None:
         # Code/UI must not construct a Manus login URL or OAuth redirect
@@ -105,9 +109,14 @@ class NoManusAuthTests(unittest.TestCase):
         ui = (REPO / "static" / "index.html").read_text(encoding="utf-8")
         self.assertNotIn("href=\"https://manus.im", ui)
         self.assertNotIn("app-auth", ui)
-        # No login button / OAuth start
+        # No Manus login CTAs (own Google login is OK)
         self.assertNotIn("Sign in with Manus", ui)
         self.assertNotIn("用 Manus 登录", ui)
+        login = REPO / "static" / "login.html"
+        self.assertTrue(login.is_file())
+        login_html = login.read_text(encoding="utf-8")
+        self.assertIn("Continue with Google", login_html)
+        self.assertNotIn("manus.im", login_html)
 
 
 if __name__ == "__main__":
