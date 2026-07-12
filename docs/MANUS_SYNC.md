@@ -3,6 +3,20 @@
 **架构路径 C**：GitHub `quantradar` = 产品壳；分析核在 `~/charts`。  
 **Auth 铁律**：发布后的 `quantradar.one` **不得** 再走 `manus.im/app-auth`。见 [AUTH.md](./AUTH.md)。
 
+## 积分铁律（强制 · 2026-07-12 用户确认）
+
+**Manus 积分必须尽量少花。能不用就不用；能用 lite 就用 lite；主要用途是部署才用。**
+
+| 优先 | 做法 |
+|------|------|
+| ✅ | 本机 / GitHub 改代码 → `git push` → Manus **只 Pull/Sync + Publish**（部署通道，尽量不跑 agent） |
+| ✅ | 排障用本机 curl / 本地 `python -m app` |
+| ✅ | 若必须开 Manus agent：**优先 lite / 最便宜模型**，prompt 压到最短，单任务 |
+| ❌ | 默认 `tasks create` 让 Manus 修 bug / 写功能 / 探索（烧积分） |
+| ❌ | 重复轮询、并行 task、满血 agent 做本机可做的事 |
+
+**默认策略**：开发与修 bug **全在本机**；Manus = **部署/发布**，不是开发环境。
+
 ## 发布步骤
 
 1. 打开 Manus 中 QuantRadar **工作区 / 同步**（仅作 Git 同步与构建，**不是**用户登录产品）  

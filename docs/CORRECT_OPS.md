@@ -37,6 +37,13 @@ curl -sS https://quantradar.one/health
 
 **不要用 Manus 当应用运行时。** Manus 不适合长期跑 path-C Python 壳；且烧 Lite/Max 额度、易分叉。
 
+### Manus 积分（用户锁定）
+
+- **能不用就不用**（开发/修 bug 本机做）
+- **能用 lite 就用 lite**（万一必须开 agent）
+- **主要部署才用** — 实际更推荐 Render/自托管部署；Manus 仅在「解绑域名 / 停旧 SPA / 极简 publish」时才碰
+- 禁止再开满血 agent 修线上 bug
+
 ### 推荐顺序
 
 ```text

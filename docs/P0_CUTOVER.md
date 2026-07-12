@@ -32,19 +32,17 @@ python3 scripts/p0_smoke.py --base http://127.0.0.1:8765
 {"ok":true,"service":"quantradar","env":"production"}
 ```
 
-说明 **还没切到本壳**。按 [MANUS_SYNC.md](./MANUS_SYNC.md)：
+说明 **还没切到本壳**。
 
-1. `git push` 本仓 main（含 v0.2.0）
-2. Manus **Pull** `Alexaliao001/quantradar`
-3. **关闭 App Auth**（禁止 `manus.im/app-auth`）
-4. 启动命令改为（或等价）：
+**最终决断见 [DECISION.md](./DECISION.md)**（不要再开 Manus agent 修 SPA）：
+
+1. `git push` 本仓 main  
+2. **Render** Blueprint 部署 `python -m app`（`render.yaml`）  
+3. **GlobalDomain** DNS 指到 Render  
+4. Manus **仅解绑**旧 SPA（不烧 agent 积分）  
+5. 验收：
    ```bash
-   QUANTRADAR_MODE=artifact PORT=$PORT python3 -m app
-   ```
-   若 Manus 只能跑 Node SPA：改绑定为**静态反代到本壳**，或暂时把域名指到能跑 Python 的主机。
-5. 发布后验收：
-   ```bash
-   python3 scripts/p0_smoke.py --live
+   bash scripts/cutover_verify.sh https://quantradar.one
    ```
    全部 PASS 才算 cutover 完成。
 
