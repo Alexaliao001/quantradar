@@ -78,12 +78,24 @@ def smtp_configured() -> bool:
 
 def auth_status_public() -> dict[str, Any]:
     """Safe fields for /health and /api/auth/status."""
+    from app.users import password_auth_enabled, registration_open, count_users
+
     providers: list[str] = []
-    if google_configured():
-        providers.append("google")
+    if password_auth_enabled():
+        providers.append("password")
     if magic_link_enabled():
         providers.append("magic_link")
-    if google_configured() and magic_link_enabled():
+    # Google is optional / later — only advertise when configured
+    if google_configured():
+        providers.append("google")
+
+    if password_auth_enabled():
+        mode = "password"
+        if magic_link_enabled():
+            mode = "password+magic"
+        if google_configured():
+            mode = mode + "+google"
+    elif google_configured() and magic_link_enabled():
         mode = "google+magic"
     elif google_configured():
         mode = "google_session"
@@ -94,10 +106,13 @@ def auth_status_public() -> dict[str, Any]:
     return {
         "manus_login": False,
         "guest_access": True,
+        "password_auth": password_auth_enabled(),
+        "registration_open": registration_open() if password_auth_enabled() else False,
         "google_oauth": google_configured(),
         "magic_link": magic_link_enabled(),
         "smtp_configured": smtp_configured(),
         "providers": providers,
+        "user_count": count_users(),
         "login_path": "/login",
         "session_cookie": COOKIE_NAME,
         "auth_mode": mode,

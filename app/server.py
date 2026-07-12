@@ -25,9 +25,20 @@ from app.contract import validate_response
 from app.envload import load_dotenv
 from app import stripe_billing
 from app.notify import save_waitlist
+from app.users import (
+    authenticate as password_login,
+    ensure_bootstrap_admin,
+    register_user,
+)
 
 # Demo tickers: free artifact sample only (TG-5) — never live, never "credits"
 DEMO_TICKERS = frozenset({"INTC", "NVDA", "AAPL", "MU", "TSLA", "AMD"})
+
+# Ensure local admin exists once at import (no-op if users already present)
+try:
+    ensure_bootstrap_admin()
+except Exception:
+    pass
 
 # Load .env before reading any auth/stripe config in handlers
 load_dotenv()
@@ -116,7 +127,7 @@ def manus_login_disabled_payload() -> dict[str, Any]:
         "error": "manus_login_disabled",
         "message": (
             "QuantRadar does not use manus.im/app-auth. "
-            "Use /login for Google sign-in, or guest UI at / — no Manus account."
+            "QuantRadar uses its own /login (email+password). Guest UI at / — no Manus."
         ),
         "auth": authlib.auth_status_public()["auth_mode"],
         "manus_login": False,
@@ -590,6 +601,79 @@ class Handler(BaseHTTPRequestHandler):
                 {"ok": True, "authenticated": False, "manus_login": False},
                 extra_headers=[("Set-Cookie", authlib.session_cookie_header("", clear=True))],
                 auth_tag="guest",
+            )
+            return
+
+        if path == "/api/auth/register":
+            try:
+                body = self._read_json()
+            except Exception as exc:
+                self._send(400, {"ok": False, "error": f"invalid JSON: {exc}"})
+                return
+            try:
+                user = register_user(
+                    str(body.get("email") or ""),
+                    str(body.get("password") or ""),
+                    name=str(body.get("name") or "") or None,
+                )
+            except ValueError as exc:
+                self._send(400, {"ok": False, "error": "register_failed", "error_detail": str(exc)})
+                return
+            except RuntimeError as exc:
+                self._send(403, {"ok": False, "error": "register_disabled", "error_detail": str(exc)})
+                return
+            token = authlib.mint_session(
+                sub=f"pw:{user['email']}",
+                email=str(user["email"]),
+                name=user.get("name"),
+                plan=str(user.get("plan") or "free"),
+            )
+            self._send(
+                200,
+                {
+                    "ok": True,
+                    "authenticated": True,
+                    "user": user,
+                    "auth": "password",
+                },
+                extra_headers=[("Set-Cookie", authlib.session_cookie_header(token))],
+                auth_tag="session",
+            )
+            return
+
+        if path == "/api/auth/login":
+            try:
+                body = self._read_json()
+            except Exception as exc:
+                self._send(400, {"ok": False, "error": f"invalid JSON: {exc}"})
+                return
+            try:
+                user = password_login(
+                    str(body.get("email") or ""),
+                    str(body.get("password") or ""),
+                )
+            except ValueError as exc:
+                self._send(401, {"ok": False, "error": "login_failed", "error_detail": str(exc)})
+                return
+            except RuntimeError as exc:
+                self._send(403, {"ok": False, "error": "login_disabled", "error_detail": str(exc)})
+                return
+            token = authlib.mint_session(
+                sub=f"pw:{user['email']}",
+                email=str(user["email"]),
+                name=user.get("name"),
+                plan=str(user.get("plan") or "free"),
+            )
+            self._send(
+                200,
+                {
+                    "ok": True,
+                    "authenticated": True,
+                    "user": user,
+                    "auth": "password",
+                },
+                extra_headers=[("Set-Cookie", authlib.session_cookie_header(token))],
+                auth_tag="session",
             )
             return
 

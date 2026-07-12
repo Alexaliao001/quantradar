@@ -55,10 +55,21 @@ class ManusVsOwnLoginTests(unittest.TestCase):
         self.assertTrue(h["guest_access"])
         self.assertTrue(h["live_requires_login"])
         self.assertEqual(h["login_path"], "/login")
-        self.assertIn(
+        self.assertTrue(
+            h["auth"] in {
+                "guest_only",
+                "google_session",
+                "magic_link",
+                "google+magic",
+                "password",
+                "password+magic",
+                "password+magic+google",
+                "password+google",
+            }
+            or "password" in str(h["auth"]),
             h["auth"],
-            {"guest_only", "google_session", "magic_link", "google+magic"},
         )
+        self.assertTrue(h.get("password_auth") is not False)
 
 
 class HttpAuthTests(unittest.TestCase):

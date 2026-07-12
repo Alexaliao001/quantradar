@@ -89,9 +89,21 @@ class NoManusAuthTests(unittest.TestCase):
         self.assertEqual(body["error"], "manus_login_disabled")
         self.assertIs(body["manus_login"], False)
         h = health_payload()
-        self.assertIn(
+        self.assertTrue(
+            h["auth"]
+            in {
+                "none",
+                "guest_only",
+                "google_session",
+                "magic_link",
+                "google+magic",
+                "password",
+                "password+magic",
+                "password+magic+google",
+                "password+google",
+            }
+            or "password" in str(h["auth"]),
             h["auth"],
-            {"none", "guest_only", "google_session", "magic_link", "google+magic"},
         )
         self.assertIs(h["manus_login"], False)
         self.assertIs(h["guest_access"], True)

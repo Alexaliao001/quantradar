@@ -1,9 +1,9 @@
-# Auth policy — 自有登录 + Google / Magic link；禁止 Manus
+# Auth policy — 自有邮箱密码登录优先；禁止 Manus
 
 > **铁律**：QuantRadar **不使用** `manus.im/app-auth`。  
-> 产品登录是 **本站 `/login`** + **Google OAuth 和/或邮箱 magic link** + **自有 session cookie**。
+> 产品登录是 **本站 `/login`**：**邮箱+密码（默认）**，可选 magic link；**Google 可选、后接**。
 
-## 现行策略（v0.4）
+## 现行策略（v0.6）
 
 | 能力 | 策略 |
 |------|------|
@@ -11,11 +11,27 @@
 | 访客样例 `/api/sample` | **公开** |
 | Health `/health` | **公开** |
 | Live 分析 `mode=live` | **需登录**（session cookie） |
-| 产品登录 | **`/login`** → Google 和/或 Email magic link |
-| Session | HttpOnly cookie `qr_session`（HMAC 签名，无 DB） |
+| 产品登录 | **`/login`** → **邮箱+密码** 注册/登录 |
+| Magic link | 可选（无 SMTP 时控制台/文件交付） |
+| Google OAuth | 仅当配置 `GOOGLE_CLIENT_*` 时显示 |
+| Session | HttpOnly cookie `qr_session`（HMAC 签名） |
+| 用户库 | `data/users.json`（PBKDF2-SHA256） |
 | Manus OAuth `/api/oauth/*` | **410** |
-| `/api/me` | 已登录返回用户；未登录 401 |
 | Stripe checkout | 登录后 `POST /api/billing/checkout` |
+
+## 自有登录 API
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| POST | `/api/auth/register` | `{email,password,name?}` → Set-Cookie |
+| POST | `/api/auth/login` | `{email,password}` → Set-Cookie |
+| POST | `/api/auth/logout` | 清 cookie |
+| GET | `/api/me` | 当前用户 |
+
+## Bootstrap
+
+- 环境变量 `QUANTRADAR_ADMIN_EMAIL` + `QUANTRADAR_ADMIN_PASSWORD`：无用户时创建管理员  
+- 或默认 demo（`QUANTRADAR_BOOTSTRAP_DEMO=1`）：`admin@local.test` / `quantradar`（仅无用户时）
 
 ## 环境变量
 

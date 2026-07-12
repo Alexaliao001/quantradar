@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Sign in — QuantRadar</title>
-  <meta name="description" content="QuantRadar own login. Google or email magic link. No Manus." />
+  <meta name="description" content="QuantRadar own login — email and password. No Manus platform account." />
   <style>
     :root {
       --bg: #0b0f14; --panel: #121a24; --text: #e7eef7; --muted: #8b9bb0;
@@ -24,7 +24,7 @@
     header a { color: var(--muted); text-decoration: none; font-size: 0.9rem; }
     main { flex: 1; display: flex; align-items: center; justify-content: center; padding: 2rem 1rem; }
     .card {
-      width: 100%; max-width: 440px; background: var(--panel);
+      width: 100%; max-width: 420px; background: var(--panel);
       border: 1px solid var(--border); border-radius: 12px; padding: 1.75rem;
     }
     h1 { margin: 0 0 0.35rem; font-size: 1.25rem; font-weight: 600; }
@@ -52,7 +52,7 @@
     .divider::before, .divider::after {
       content: ""; flex: 1; height: 1px; background: var(--border);
     }
-    .note { margin-top: 1rem; font-size: 0.8rem; color: var(--muted); line-height: 1.45; word-break: break-all; }
+    .note { margin-top: 1rem; font-size: 0.8rem; color: var(--muted); line-height: 1.45; }
     .banner {
       margin-bottom: 1rem; padding: 0.7rem 0.85rem; border-radius: 8px;
       font-size: 0.85rem; line-height: 1.4; border: 1px solid var(--border); background: #0a1018;
@@ -60,7 +60,16 @@
     .banner.warn { color: var(--warn); border-color: rgba(240,180,41,.4); }
     .banner.bad { color: var(--bad); border-color: rgba(240,113,120,.4); }
     .banner.ok { color: var(--ok); border-color: rgba(62,207,142,.4); }
-    ul { margin: 0.75rem 0 0; padding-left: 1.1rem; color: var(--muted); font-size: 0.82rem; }
+    .tabs { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
+    .tabs button {
+      flex: 1; background: transparent; border: 1px solid var(--border); color: var(--muted);
+      border-radius: 8px; padding: 0.45rem; font-weight: 600; cursor: pointer;
+    }
+    .tabs button.active { border-color: var(--accent); color: var(--text); background: #0a1018; }
+    .hint {
+      margin: 0 0 0.75rem; padding: 0.55rem 0.7rem; border-radius: 8px;
+      background: #0a1018; border: 1px solid var(--border); color: var(--muted); font-size: 0.78rem;
+    }
   </style>
 </head>
 <body>
@@ -70,40 +79,51 @@
   </header>
   <main>
     <section class="card">
-      <h1>Sign in</h1>
+      <h1 id="title">Sign in</h1>
       <p class="lede">
-        Your login page — Google and/or email magic link. No Manus platform account.
-        Guest sample stays available without signing in.
+        Own account — email + password. No Manus. Google can be enabled later via env.
+        Guest demo radar stays open without signing in.
       </p>
       <div id="banner" class="banner" hidden></div>
+      <div class="hint" id="bootstrapHint" hidden></div>
 
-      <a class="btn" id="googleBtn" href="/api/auth/google/start">Continue with Google</a>
+      <div class="tabs">
+        <button type="button" class="active" id="tabLogin">Sign in</button>
+        <button type="button" id="tabRegister">Create account</button>
+      </div>
 
-      <div class="divider">or email</div>
-      <form id="magicForm">
+      <form id="pwForm">
         <label for="email">Email</label>
-        <input id="email" type="email" required placeholder="you@company.com" autocomplete="email" />
-        <button class="btn secondary" id="magicBtn" type="submit">Email me a sign-in link</button>
+        <input id="email" type="email" required autocomplete="username" placeholder="you@email.com" />
+        <label for="password">Password</label>
+        <input id="password" type="password" required minlength="8" autocomplete="current-password" placeholder="min 8 characters" />
+        <div id="nameWrap" hidden>
+          <label for="name">Display name (optional)</label>
+          <input id="name" type="text" maxlength="80" autocomplete="nickname" placeholder="Optional" />
+        </div>
+        <button class="btn" id="pwBtn" type="submit">Sign in</button>
       </form>
 
+      <div class="divider">or</div>
+      <button class="btn secondary" id="magicToggle" type="button">Email me a magic link</button>
+      <form id="magicForm" hidden>
+        <label for="magicEmail" style="margin-top:0.75rem">Email for magic link</label>
+        <input id="magicEmail" type="email" placeholder="you@email.com" />
+        <button class="btn secondary" id="magicBtn" type="submit">Send link</button>
+      </form>
+
+      <a class="btn secondary" id="googleBtn" href="/api/auth/google/start" hidden>Continue with Google</a>
       <a class="btn secondary" href="/">Continue as guest</a>
-      <a class="btn secondary" id="devBtn" href="/api/auth/dev-login" hidden>Dev login (local only)</a>
-      <p class="note" id="statusNote">Checking auth configuration…</p>
-      <ul>
-        <li>Guest: artifact / sample analyze</li>
-        <li>Signed in: live mode + checkout</li>
-        <li>Session cookie is HttpOnly on this domain</li>
-      </ul>
+      <p class="note" id="statusNote">Loading auth config…</p>
     </section>
   </main>
   <script>
-    const params = new URLSearchParams(location.search);
-    const err = params.get("error");
+    let mode = "login"; // login | register
     const banner = document.getElementById("banner");
-    const googleBtn = document.getElementById("googleBtn");
-    const note = document.getElementById("statusNote");
-    const devBtn = document.getElementById("devBtn");
-    const magicBtn = document.getElementById("magicBtn");
+    const pwBtn = document.getElementById("pwBtn");
+    const title = document.getElementById("title");
+    const nameWrap = document.getElementById("nameWrap");
+    const statusNote = document.getElementById("statusNote");
 
     function showBanner(kind, text) {
       banner.hidden = false;
@@ -111,12 +131,61 @@
       banner.textContent = text;
     }
 
-    if (err) showBanner("bad", "Sign-in failed: " + err);
-    if (params.get("checkout") === "cancel") showBanner("warn", "Checkout canceled.");
+    function setMode(m) {
+      mode = m;
+      document.getElementById("tabLogin").classList.toggle("active", m === "login");
+      document.getElementById("tabRegister").classList.toggle("active", m === "register");
+      title.textContent = m === "login" ? "Sign in" : "Create account";
+      pwBtn.textContent = m === "login" ? "Sign in" : "Create account";
+      nameWrap.hidden = m !== "register";
+      document.getElementById("password").autocomplete =
+        m === "login" ? "current-password" : "new-password";
+    }
+
+    document.getElementById("tabLogin").onclick = () => setMode("login");
+    document.getElementById("tabRegister").onclick = () => setMode("register");
+
+    document.getElementById("pwForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      pwBtn.disabled = true;
+      const email = document.getElementById("email").value.trim();
+      const password = document.getElementById("password").value;
+      const name = document.getElementById("name").value.trim();
+      const path = mode === "register" ? "/api/auth/register" : "/api/auth/login";
+      try {
+        const r = await fetch(path, {
+          method: "POST",
+          credentials: "same-origin",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ email, password, name: name || undefined }),
+        });
+        const j = await r.json();
+        if (!j.ok) {
+          showBanner("bad", j.error_detail || j.error || "failed");
+          return;
+        }
+        showBanner("ok", "Signed in as " + (j.user && j.user.email) + ". Redirecting…");
+        setTimeout(() => { location.href = "/?signed_in=1"; }, 400);
+      } catch (ex) {
+        showBanner("bad", String(ex));
+      } finally {
+        pwBtn.disabled = false;
+      }
+    });
+
+    document.getElementById("magicToggle").onclick = () => {
+      const f = document.getElementById("magicForm");
+      f.hidden = !f.hidden;
+      if (!f.hidden) {
+        document.getElementById("magicEmail").value =
+          document.getElementById("email").value || "";
+      }
+    };
 
     document.getElementById("magicForm").addEventListener("submit", async (e) => {
       e.preventDefault();
-      const email = document.getElementById("email").value.trim();
+      const email = document.getElementById("magicEmail").value.trim();
+      const magicBtn = document.getElementById("magicBtn");
       magicBtn.disabled = true;
       try {
         const r = await fetch("/api/auth/magic/start", {
@@ -131,12 +200,11 @@
           return;
         }
         if (j.login_url) {
-          showBanner("ok", "Link ready (console delivery). Opening…");
-          note.textContent = "Magic link (dev/console): " + j.login_url;
+          showBanner("ok", "Magic link ready (console delivery). Opening…");
+          statusNote.textContent = j.login_url;
           setTimeout(() => { location.href = j.login_url; }, 400);
         } else {
-          showBanner("ok", "Check your email for the sign-in link (" + j.email + ").");
-          note.textContent = "Delivered via " + (j.channel || "email") + ". Expires in " + (j.expires_in_sec || 900) + "s.";
+          showBanner("ok", "Check your email for the link (" + j.email + ").");
         }
       } catch (ex) {
         showBanner("bad", String(ex));
@@ -150,30 +218,35 @@
         const r = await fetch("/api/auth/status", { credentials: "same-origin" });
         const j = await r.json();
         if (j.authenticated && j.user) {
-          showBanner("ok", "Already signed in as " + (j.user.email || "user") + ". Redirecting…");
+          showBanner("ok", "Already signed in as " + j.user.email);
           setTimeout(() => { location.href = "/"; }, 500);
           return;
         }
         if (j.google_oauth) {
-          googleBtn.style.display = "flex";
-        } else {
-          googleBtn.style.display = "none";
+          document.getElementById("googleBtn").hidden = false;
         }
-        const parts = [];
-        parts.push("mode=" + (j.auth_mode || "?"));
-        parts.push("google=" + !!j.google_oauth);
-        parts.push("magic=" + !!j.magic_link);
-        parts.push("smtp=" + !!j.smtp_configured);
-        note.textContent = parts.join(" · ");
-        if (!j.google_oauth && j.magic_link && !j.smtp_configured) {
-          if (!err) showBanner("warn", "Magic link is on (console/file delivery until SMTP is set). Google optional.");
+        if (j.registration_open === false) {
+          document.getElementById("tabRegister").disabled = true;
+          document.getElementById("tabRegister").style.opacity = "0.4";
+        }
+        statusNote.textContent =
+          "auth=" + (j.auth_mode || "?") +
+          " · password=" + !!j.password_auth +
+          " · magic=" + !!j.magic_link +
+          " · google=" + !!j.google_oauth;
+
+        // Bootstrap hint when demo admin likely exists
+        if (j.user_count === 1 || j.user_count === 0) {
+          const h = document.getElementById("bootstrapHint");
+          h.hidden = false;
+          h.textContent =
+            "First-run tip: if no account yet, register above — or use bootstrap admin@local.test / quantradar when QUANTRADAR_BOOTSTRAP_DEMO=1.";
         }
       } catch (e) {
-        note.textContent = String(e);
+        statusNote.textContent = String(e);
       }
-      if (location.hostname === "127.0.0.1" || location.hostname === "localhost") {
-        devBtn.hidden = false;
-      }
+      const params = new URLSearchParams(location.search);
+      if (params.get("error")) showBanner("bad", "Error: " + params.get("error"));
     }
     boot();
   </script>
