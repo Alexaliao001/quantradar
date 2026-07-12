@@ -1,5 +1,7 @@
 # PROGRESS — QuantRadar
 
+2026-07-13 | **cutover 完成** | quantradar.one → Render Free 壳 `quantradar-shell`；apex verified；cutover_verify PASS；无 Manus auth | 主站已是新壳
+
 2026-07-12 | **Render Free 上线** | `quantradar-shell` plan=free · https://quantradar-shell.onrender.com · cutover_verify PASS · srv-d99nc357vvec73frpus0 | **域名 quantradar.one 待 DNS 切**
 2026-07-12 | **最终决断** | `docs/DECISION.md`：否决 Manus 修 SPA；Render 跑 path-C 壳 → GlobalDomain DNS → Manus 仅解绑；`scripts/cutover_verify.sh` | 代理侧代码/测试/文档完成；等你点 Render+DNS
 2026-07-12 | **ops 锁定** | `docs/CORRECT_OPS.md`：SSOT=GitHub；线上 Manus SPA≠仓库；部署=Render/Python 主机+GlobalDomain DNS；Manus 只做解绑/停发、尽量少用 Lite | 执行时勿再混三套
