@@ -40,6 +40,10 @@ bash scripts/cutover_verify.sh https://quantradar.one
 另三站（MoYu / Fortune / Portfolio）预览已在 Render Free 就绪。  
 完整清单与 **DNS / Manus 解绑步骤** 见 **[MULTI_SITE_MIGRATION.md](./MULTI_SITE_MIGRATION.md)**。
 
+**极致收官 /goal 任务源**：**[GROK_GOAL_SITES_EXTREME.md](../GROK_GOAL_SITES_EXTREME.md)**  
+（可靠性 → QR 数据 → MoYu 轻后端 → Fortune/Drama 最小可产品，按 ROI）
+
 ```bash
 python3 scripts/multi_site_verify.py
+python3 scripts/sites_extreme_verify.py
 ```
