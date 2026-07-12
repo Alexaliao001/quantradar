@@ -1,0 +1,2 @@
+# QuantRadar path-C shell is stdlib-only.
+# Empty requirements keeps Render/Python builders happy.
