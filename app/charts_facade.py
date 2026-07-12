@@ -12,7 +12,8 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from app.contract import map_charts_payload, normalize_request
+from app.contract import CONTRACT_VERSION, map_charts_payload, normalize_request
+from app.quality import assess_charts_payload, fail_response
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_FIXTURE_DIR = REPO_ROOT / "fixtures" / "charts_sample"
@@ -95,13 +96,46 @@ def run_fetch_all(ticker: str, sector: str | None = None, timeout: int = 300) ->
     return payload
 
 
+def _map_or_fail(
+    payload: dict[str, Any],
+    *,
+    ticker: str,
+    mode: str,
+    analysis_json_path: str | None,
+    sources: list[dict[str, str]],
+) -> dict[str, Any]:
+    quality = assess_charts_payload(payload, ticker)
+    if not quality.get("usable"):
+        return fail_response(
+            ticker=ticker,
+            contract_version=CONTRACT_VERSION,
+            error=str(quality.get("error") or "no_data"),
+            error_detail=str(quality.get("error_detail") or "insufficient data"),
+            mode=mode,
+            sources=sources,
+            warnings=list(quality.get("warnings") or []),
+            meta_extra={
+                "quality_reasons": quality.get("reasons") or [],
+                "analysis_json": analysis_json_path,
+            },
+        )
+    mapped = map_charts_payload(
+        payload,
+        mode=mode,
+        analysis_json_path=analysis_json_path,
+        sources=sources,
+        quality=quality,
+    )
+    return mapped
+
+
 def analyze(
     ticker: str,
     sector: str | None = None,
     mode: str | None = None,
     request_id: str | None = None,
 ) -> dict[str, Any]:
-    """Full analyze path: normalize → charts live|artifact → contract map."""
+    """Full analyze path: normalize → charts live|artifact → quality gate → contract map."""
     req = normalize_request(ticker, sector=sector, mode=mode, request_id=request_id)
     mode_r = resolve_mode(req["context"].get("mode"))
     t = req["ticker"]
@@ -114,70 +148,76 @@ def analyze(
                 {"name": "charts.fetch_all", "role": "engine", "status": "ok"},
                 {"name": "live-subprocess", "role": "invoke", "status": "ok"},
             ]
-            return map_charts_payload(payload, mode="live", sources=sources)
+            return _map_or_fail(
+                payload,
+                ticker=t,
+                mode="live",
+                analysis_json_path=None,
+                sources=sources,
+            )
         except Exception as exc:
             # Fall through to artifact with warning rather than invent scores
             art = find_analysis_artifact(t)
             if art is None:
-                return {
-                    "ok": False,
-                    "contract_version": req["contract_version"],
-                    "ticker": t,
-                    "gate": {"signal": None, "state_code": None},
-                    "score": {"final": 0, "scale": 100},
-                    "artifacts": {"charts": {}},
-                    "sources": [
+                return fail_response(
+                    ticker=t,
+                    contract_version=req["contract_version"],
+                    error="live_fetch_failed",
+                    error_detail=str(exc),
+                    mode="live",
+                    sources=[
                         {"name": "charts.fetch_all", "role": "engine", "status": "error"},
                     ],
-                    "warnings": [f"live fetch failed: {exc}"],
-                    "degraded": True,
-                    "error": str(exc),
-                    "meta": {"engine": "charts", "mode": "live", "fallback": None},
-                }
+                    warnings=[f"live fetch failed: {exc}"],
+                    meta_extra={"fallback": None},
+                )
             payload = load_charts_json(art)
             sources = [
                 {"name": "charts.fetch_all", "role": "engine", "status": "error"},
                 {"name": "charts.artifact", "role": "engine", "status": "ok"},
             ]
-            mapped = map_charts_payload(
+            mapped = _map_or_fail(
                 payload,
+                ticker=t,
                 mode="artifact",
                 analysis_json_path=str(art),
                 sources=sources,
             )
-            mapped["warnings"] = list(mapped.get("warnings") or []) + [
-                f"live fetch failed, using artifact: {exc}"
-            ]
-            mapped["degraded"] = True
-            mapped["meta"]["fallback"] = "artifact"
+            if mapped.get("ok"):
+                mapped["warnings"] = list(mapped.get("warnings") or []) + [
+                    f"live fetch failed, using artifact: {exc}"
+                ]
+                mapped["degraded"] = True
+                mapped.setdefault("meta", {})["fallback"] = "artifact"
+            else:
+                mapped["warnings"] = list(mapped.get("warnings") or []) + [
+                    f"live fetch failed: {exc}"
+                ]
             return mapped
 
     # artifact mode
     art = find_analysis_artifact(t)
     if art is None:
-        return {
-            "ok": False,
-            "contract_version": req["contract_version"],
-            "ticker": t,
-            "gate": {"signal": None, "state_code": None},
-            "score": {"final": 0, "scale": 100},
-            "artifacts": {"charts": {}},
-            "sources": [{"name": "charts.artifact", "role": "engine", "status": "missing"}],
-            "warnings": [
+        return fail_response(
+            ticker=t,
+            contract_version=req["contract_version"],
+            error="artifact_not_found",
+            error_detail=(
                 f"no charts artifact for {t}; place fixtures/charts_sample/{t}_analysis.json "
                 "or set CHARTS_DIR with reports/**/assets"
-            ],
-            "degraded": True,
-            "error": "artifact_not_found",
-            "meta": {"engine": "charts", "mode": "artifact"},
-        }
+            ),
+            mode="artifact",
+            sources=[{"name": "charts.artifact", "role": "engine", "status": "missing"}],
+            warnings=[f"no charts artifact for {t}"],
+        )
     payload = load_charts_json(art)
     sources = [
         {"name": "charts.artifact", "role": "engine", "status": "ok"},
         {"name": art.name, "role": "file", "status": "ok"},
     ]
-    return map_charts_payload(
+    return _map_or_fail(
         payload,
+        ticker=t,
         mode="artifact",
         analysis_json_path=str(art),
         sources=sources,

@@ -37,11 +37,21 @@
       "type": "object",
       "required": ["final", "scale"],
       "properties": {
-        "final": { "type": "number" },
+        "final": { "type": ["number", "null"] },
         "base_total": { "type": ["number", "null"] },
-        "scale": { "type": "number" }
+        "scale": { "type": "number" },
+        "withheld": { "type": "boolean" }
       }
     },
+    "primary": {
+      "type": "object",
+      "properties": {
+        "action": { "type": "string" },
+        "label": { "type": "string" },
+        "reason": { "type": ["string", "null"] }
+      }
+    },
+    "data_quality": { "type": "object" },
     "artifacts": {
       "type": "object",
       "required": ["charts"],

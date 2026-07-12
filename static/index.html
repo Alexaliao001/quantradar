@@ -3,7 +3,8 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>QuantRadar Shell</title>
+  <title>QuantRadar — Market · Sector · Stock</title>
+  <meta name="description" content="Auditable three-layer radar for US equities. Guest analysis, no platform login. Educational only." />
   <style>
     :root {
       --bg: #0b0f14;
@@ -13,6 +14,7 @@
       --accent: #3d8bfd;
       --ok: #3ecf8e;
       --warn: #f0b429;
+      --bad: #f07178;
       --border: #1e2a3a;
       --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
       --sans: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
@@ -29,26 +31,36 @@
       display: flex;
       justify-content: space-between;
       align-items: baseline;
+      gap: 1rem;
+      flex-wrap: wrap;
       padding: 1.25rem 1.5rem;
       border-bottom: 1px solid var(--border);
     }
     header h1 {
       margin: 0;
-      font-size: 1.1rem;
+      font-size: 1.15rem;
       letter-spacing: 0.04em;
       font-weight: 600;
     }
-    header span { color: var(--muted); font-size: 0.85rem; }
+    header .sub { color: var(--muted); font-size: 0.85rem; }
     main {
-      max-width: 920px;
+      max-width: 960px;
       margin: 0 auto;
       padding: 1.5rem;
+      display: grid;
+      gap: 1rem;
     }
     .panel {
       background: var(--panel);
       border: 1px solid var(--border);
       border-radius: 10px;
       padding: 1.25rem;
+    }
+    .lede {
+      margin: 0 0 1rem;
+      color: var(--muted);
+      font-size: 0.95rem;
+      line-height: 1.5;
     }
     label { display: block; color: var(--muted); font-size: 0.8rem; margin-bottom: 0.35rem; }
     .row { display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: end; }
@@ -71,6 +83,11 @@
       font-weight: 600;
       cursor: pointer;
     }
+    button.secondary {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text);
+    }
     button:disabled { opacity: 0.5; cursor: wait; }
     .meta {
       margin-top: 1rem;
@@ -84,98 +101,252 @@
       border-radius: 8px;
       padding: 0.75rem;
     }
-    .kpi b { display: block; font-size: 1.25rem; margin-top: 0.2rem; font-family: var(--mono); }
+    .kpi b { display: block; font-size: 1.2rem; margin-top: 0.2rem; font-family: var(--mono); word-break: break-word; }
     .kpi small { color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; font-size: 0.7rem; }
-    pre {
+    .banner {
       margin-top: 1rem;
+      padding: 0.75rem 0.9rem;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: #0a1018;
+      font-size: 0.9rem;
+      line-height: 1.45;
+    }
+    .banner.ok { border-color: rgba(62, 207, 142, 0.4); color: var(--ok); }
+    .banner.warn { border-color: rgba(240, 180, 41, 0.45); color: var(--warn); }
+    .banner.bad { border-color: rgba(240, 113, 120, 0.45); color: var(--bad); }
+    ul.warns {
+      margin: 0.75rem 0 0;
+      padding-left: 1.1rem;
+      color: var(--muted);
+      font-size: 0.85rem;
+    }
+    pre {
+      margin: 0;
       background: #0a1018;
       border: 1px solid var(--border);
       border-radius: 8px;
       padding: 1rem;
       overflow: auto;
       font-family: var(--mono);
-      font-size: 0.78rem;
+      font-size: 0.75rem;
       line-height: 1.45;
-      max-height: 420px;
+      max-height: 360px;
+    }
+    details { margin-top: 0.5rem; }
+    details summary {
+      cursor: pointer;
+      color: var(--muted);
+      font-size: 0.85rem;
+      margin-bottom: 0.5rem;
     }
     .status { margin-top: 0.75rem; color: var(--muted); font-size: 0.85rem; }
     .status.ok { color: var(--ok); }
     .status.warn { color: var(--warn); }
+    .status.bad { color: var(--bad); }
+    footer {
+      padding: 0 1.5rem 2rem;
+      max-width: 960px;
+      margin: 0 auto;
+      color: var(--muted);
+      font-size: 0.78rem;
+      line-height: 1.5;
+    }
+    code { font-family: var(--mono); font-size: 0.85em; }
   </style>
 </head>
 <body>
   <header>
-    <h1>QuantRadar · path C shell</h1>
-    <span id="healthLine">health…</span>
+    <div>
+      <h1>QuantRadar</h1>
+      <div class="sub">Market → Sector → Stock · guest mode · no platform login</div>
+    </div>
+    <span class="sub" id="healthLine">health…</span>
   </header>
   <main>
     <section class="panel">
-      <p class="status ok" style="margin-top:0">访客模式 · 无需登录 · 无平台托管登录</p>
+      <p class="lede">
+        Auditable radar over a real charts engine. Unknown tickers fail closed.
+        Volume and options claims are withheld when data is missing or simulated.
+        <strong>Educational only — not investment advice.</strong>
+      </p>
       <div class="row">
         <div>
           <label for="ticker">Ticker</label>
-          <input id="ticker" value="INTC" maxlength="10" autocomplete="off" />
+          <input id="ticker" value="INTC" maxlength="10" autocomplete="off" spellcheck="false" />
         </div>
         <div>
           <label for="sector">Sector ETF (optional)</label>
-          <input id="sector" placeholder="SMH" maxlength="8" autocomplete="off" />
+          <input id="sector" placeholder="SMH" maxlength="8" autocomplete="off" spellcheck="false" />
         </div>
         <button id="run" type="button">Analyze</button>
+        <button id="sample" type="button" class="secondary">Load sample (INTC)</button>
       </div>
-      <p class="status" id="status">Ready — guest analyze, no Manus sign-in.</p>
+      <p class="status" id="status">Ready — enter a US ticker. Placeholders like XXXX are rejected.</p>
       <div class="meta" id="kpis" hidden>
-        <div class="kpi"><small>Signal</small><b id="kSignal">—</b></div>
+        <div class="kpi"><small>Primary</small><b id="kPrimary">—</b></div>
         <div class="kpi"><small>Score</small><b id="kScore">—</b></div>
-        <div class="kpi"><small>Gate</small><b id="kGate">—</b></div>
-        <div class="kpi"><small>Mode</small><b id="kMode">—</b></div>
+        <div class="kpi"><small>State</small><b id="kGate">—</b></div>
+        <div class="kpi"><small>Data quality</small><b id="kDq">—</b></div>
+        <div class="kpi"><small>Volume narrative</small><b id="kVol">—</b></div>
+        <div class="kpi"><small>Options</small><b id="kOpt">—</b></div>
       </div>
-      <pre id="out">{}</pre>
+      <div id="banner" class="banner" hidden></div>
+      <ul class="warns" id="warnList" hidden></ul>
+      <details>
+        <summary>Raw ENGINE_CONTRACT JSON</summary>
+        <pre id="out">{}</pre>
+      </details>
     </section>
   </main>
+  <footer>
+    Fortune Insight, LLC · Path-C shell (GitHub SSOT) · Scores come from charts engine artifacts only —
+    this UI never invents mechanical scores, Greeks, or social-proof counters.
+    If production still shows Manus login or fake buys for unknown tickers, the domain has not cut over to this shell.
+  </footer>
   <script>
+    function setBanner(kind, text) {
+      const el = document.getElementById("banner");
+      if (!text) {
+        el.hidden = true;
+        el.textContent = "";
+        return;
+      }
+      el.hidden = false;
+      el.className = "banner " + (kind || "");
+      el.textContent = text;
+    }
+
+    function setWarns(list) {
+      const ul = document.getElementById("warnList");
+      ul.innerHTML = "";
+      if (!list || !list.length) {
+        ul.hidden = true;
+        return;
+      }
+      ul.hidden = false;
+      list.forEach((w) => {
+        const li = document.createElement("li");
+        li.textContent = w;
+        ul.appendChild(li);
+      });
+    }
+
     async function refreshHealth() {
       try {
         const r = await fetch("/health");
         const j = await r.json();
         document.getElementById("healthLine").textContent =
-          `guest auth=none manus_login=${j.manus_login} sha=${j.git_sha || "n/a"} mode=${j.mode_default}`;
+          `guest auth=${j.auth} manus_login=${j.manus_login} sha=${j.git_sha || "n/a"} mode=${j.mode_default} p0=${j.p0_gates}`;
       } catch (e) {
         document.getElementById("healthLine").textContent = "health unreachable";
       }
     }
-    async function runAnalyze() {
-      const ticker = document.getElementById("ticker").value.trim();
-      const sector = document.getElementById("sector").value.trim();
-      const btn = document.getElementById("run");
-      const status = document.getElementById("status");
-      btn.disabled = true;
-      status.className = "status";
-      status.textContent = "Analyzing…";
-      try {
-        const q = new URLSearchParams({ ticker });
-        if (sector) q.set("sector", sector);
-        const r = await fetch("/api/analyze?" + q.toString());
-        const j = await r.json();
-        document.getElementById("out").textContent = JSON.stringify(j, null, 2);
-        document.getElementById("kpis").hidden = false;
-        document.getElementById("kSignal").textContent = (j.gate && j.gate.signal) || "—";
-        document.getElementById("kScore").textContent =
-          j.score && j.score.final != null ? `${j.score.final}/${j.score.scale}` : "—";
-        document.getElementById("kGate").textContent =
-          (j.gate && (j.gate.state_code || j.gate.state_name)) || "—";
-        document.getElementById("kMode").textContent = (j.meta && j.meta.mode) || "—";
-        status.className = j.ok ? "status ok" : "status warn";
-        status.textContent = j.ok
-          ? (j.degraded ? "OK (degraded) — see warnings" : "OK — ENGINE_CONTRACT response")
-          : ("Failed: " + (j.error || "see body"));
-      } catch (e) {
-        status.className = "status warn";
-        status.textContent = String(e);
-      } finally {
-        btn.disabled = false;
+
+    function renderResult(j) {
+      document.getElementById("out").textContent = JSON.stringify(j, null, 2);
+      document.getElementById("kpis").hidden = false;
+
+      const primary = (j.primary && j.primary.action) || (j.gate && j.gate.signal) || "—";
+      const primaryLabel = (j.primary && j.primary.label) || (j.gate && j.gate.signal_label) || "";
+      document.getElementById("kPrimary").textContent = primaryLabel
+        ? `${primary} · ${primaryLabel}`
+        : primary;
+
+      if (j.score && j.score.withheld) {
+        document.getElementById("kScore").textContent = "withheld";
+      } else if (j.score && j.score.final != null) {
+        document.getElementById("kScore").textContent = `${j.score.final}/${j.score.scale || 100}`;
+      } else {
+        document.getElementById("kScore").textContent = "—";
+      }
+
+      document.getElementById("kGate").textContent =
+        (j.gate && (j.gate.state_code || j.gate.state_name)) || "—";
+
+      const dq = j.data_quality || {};
+      document.getElementById("kDq").textContent = j.ok
+        ? (dq.reliability || (j.meta && j.meta.reliability) || "ok")
+        : (j.error || "failed");
+      document.getElementById("kVol").textContent = dq.volume_narrative_allowed === false
+        ? "blocked"
+        : dq.volume_narrative_allowed
+          ? "allowed"
+          : "—";
+      document.getElementById("kOpt").textContent = dq.options_actionable
+        ? "actionable"
+        : dq.options && dq.options.options_simulated
+          ? "simulated / n/a"
+          : j.ok
+            ? "check payload"
+            : "n/a";
+
+      setWarns(j.warnings || []);
+
+      if (!j.ok) {
+        setBanner(
+          "bad",
+          `No tradeable conclusion for ${j.ticker || "ticker"}: ${j.error_detail || j.error || "failed"}. Score withheld.`
+        );
+      } else if (j.degraded) {
+        setBanner(
+          "warn",
+          `Result is degraded — read warnings. Primary: ${primary}. Not a multi-signal mix of buy + wait.`
+        );
+      } else {
+        setBanner(
+          "ok",
+          `Primary conclusion: ${primary}${primaryLabel ? " (" + primaryLabel + ")" : ""}. Data quality usable.`
+        );
       }
     }
-    document.getElementById("run").addEventListener("click", runAnalyze);
+
+    async function runAnalyze(opts) {
+      const useSample = opts && opts.sample;
+      const ticker = useSample ? "INTC" : document.getElementById("ticker").value.trim();
+      const sector = document.getElementById("sector").value.trim();
+      if (useSample) document.getElementById("ticker").value = "INTC";
+      const btn = document.getElementById("run");
+      const sampleBtn = document.getElementById("sample");
+      const status = document.getElementById("status");
+      btn.disabled = true;
+      sampleBtn.disabled = true;
+      status.className = "status";
+      status.textContent = useSample ? "Loading guest sample…" : "Analyzing…";
+      setBanner(null, "");
+      try {
+        let r;
+        if (useSample) {
+          r = await fetch("/api/sample");
+        } else {
+          const q = new URLSearchParams({ ticker });
+          if (sector) q.set("sector", sector);
+          r = await fetch("/api/analyze?" + q.toString());
+        }
+        const j = await r.json();
+        renderResult(j);
+        if (!j.ok) {
+          status.className = "status bad";
+          status.textContent = `Failed (${r.status}): ${j.error || "see body"}`;
+        } else if (j.degraded) {
+          status.className = "status warn";
+          status.textContent = "OK (degraded) — see warnings and data quality";
+        } else {
+          status.className = "status ok";
+          status.textContent = "OK — single primary + ENGINE_CONTRACT";
+        }
+      } catch (e) {
+        status.className = "status bad";
+        status.textContent = String(e);
+        setBanner("bad", String(e));
+      } finally {
+        btn.disabled = false;
+        sampleBtn.disabled = false;
+      }
+    }
+
+    document.getElementById("run").addEventListener("click", () => runAnalyze());
+    document.getElementById("sample").addEventListener("click", () => runAnalyze({ sample: true }));
     document.getElementById("ticker").addEventListener("keydown", (e) => {
       if (e.key === "Enter") runAnalyze();
     });

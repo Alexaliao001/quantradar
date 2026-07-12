@@ -11,6 +11,8 @@ from __future__ import annotations
 import json
 import os
 import subprocess
+import threading
+import time
 import urllib.parse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -22,6 +24,39 @@ from app.contract import validate_response
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 STATIC_DIR = REPO_ROOT / "static"
+
+# Simple sliding-window rate limit (per remote address)
+_RATE_LOCK = threading.Lock()
+_RATE_HITS: dict[str, list[float]] = {}
+
+
+def _rate_limit_max() -> int:
+    try:
+        return max(1, int(os.environ.get("QUANTRADAR_RATE_LIMIT", "30")))
+    except ValueError:
+        return 30
+
+
+def _rate_limit_window() -> float:
+    try:
+        return max(1.0, float(os.environ.get("QUANTRADAR_RATE_WINDOW_SEC", "60")))
+    except ValueError:
+        return 60.0
+
+
+def check_rate_limit(client: str) -> bool:
+    """Return True if allowed, False if limited."""
+    now = time.time()
+    window = _rate_limit_window()
+    limit = _rate_limit_max()
+    with _RATE_LOCK:
+        hits = [t for t in _RATE_HITS.get(client, []) if now - t < window]
+        if len(hits) >= limit:
+            _RATE_HITS[client] = hits
+            return False
+        hits.append(now)
+        _RATE_HITS[client] = hits
+        return True
 
 
 def git_sha() -> str | None:
@@ -53,6 +88,7 @@ def health_payload() -> dict[str, Any]:
         "auth": "none",
         "manus_login": False,
         "guest_access": True,
+        "p0_gates": True,
     }
 
 
@@ -83,6 +119,17 @@ def is_manus_auth_path(path: str) -> bool:
     return False
 
 
+def http_code_for_result(result: dict[str, Any]) -> int:
+    if result.get("ok"):
+        return 200
+    err = str(result.get("error") or "")
+    if err in {"invalid_ticker", "artifact_not_found", "no_data"}:
+        return 404
+    if "invalid" in err:
+        return 400
+    return 502
+
+
 class Handler(BaseHTTPRequestHandler):
     server_version = f"QuantRadarShell/{__version__}"
 
@@ -90,7 +137,15 @@ class Handler(BaseHTTPRequestHandler):
         sys_stderr = __import__("sys").stderr
         print(f"[shell] {self.address_string()} {fmt % args}", file=sys_stderr)
 
-    def _send(self, code: int, body: dict[str, Any] | bytes, content_type: str = "application/json") -> None:
+    def _client_id(self) -> str:
+        return self.client_address[0] if self.client_address else "unknown"
+
+    def _send(
+        self,
+        code: int,
+        body: dict[str, Any] | bytes,
+        content_type: str = "application/json",
+    ) -> None:
         if isinstance(body, dict):
             raw = json.dumps(body, ensure_ascii=False, indent=2).encode("utf-8")
         else:
@@ -99,6 +154,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Type", f"{content_type}; charset=utf-8")
         self.send_header("Content-Length", str(len(raw)))
         self.send_header("Cache-Control", "no-store")
+        self.send_header("X-QuantRadar-Auth", "none")
         self.end_headers()
         self.wfile.write(raw)
 
@@ -113,6 +169,41 @@ class Handler(BaseHTTPRequestHandler):
         if not isinstance(data, dict):
             raise ValueError("JSON body must be an object")
         return data
+
+    def _analyze_response(self, result: dict[str, Any]) -> None:
+        errs = validate_response(result)
+        if errs:
+            result = {
+                **result,
+                "warnings": list(result.get("warnings") or [])
+                + [f"contract: {e}" for e in errs],
+            }
+            if result.get("ok") and errs:
+                # structural break on success path → refuse rather than ship bad JSON
+                result = {
+                    **result,
+                    "ok": False,
+                    "error": result.get("error") or "contract_violation",
+                    "error_detail": "; ".join(errs),
+                    "score": {
+                        "final": None,
+                        "base_total": None,
+                        "scale": 100,
+                        "withheld": True,
+                    },
+                    "gate": {
+                        **(result.get("gate") or {}),
+                        "signal": "NO",
+                        "primary": "NO",
+                    },
+                    "primary": {
+                        "action": "NO",
+                        "label": "No / stand aside",
+                        "reason": "contract validation failed",
+                    },
+                    "degraded": True,
+                }
+        self._send(http_code_for_result(result), result)
 
     def do_GET(self) -> None:  # noqa: N802
         parsed = urllib.parse.urlparse(self.path)
@@ -129,22 +220,40 @@ class Handler(BaseHTTPRequestHandler):
             return
 
         if path == "/api/analyze":
+            if not check_rate_limit(self._client_id()):
+                self._send(
+                    429,
+                    {
+                        "ok": False,
+                        "error": "rate_limited",
+                        "error_detail": "too many analyze requests; try again shortly",
+                        "contract_version": CONTRACT_VERSION,
+                    },
+                )
+                return
             ticker = (qs.get("ticker") or [None])[0]
             sector = (qs.get("sector") or [None])[0]
             mode = (qs.get("mode") or [None])[0]
             try:
                 result = analyze(ticker or "", sector=sector, mode=mode)
             except ValueError as exc:
-                self._send(400, {"ok": False, "error": str(exc), "contract_version": CONTRACT_VERSION})
+                self._send(
+                    400,
+                    {
+                        "ok": False,
+                        "error": "invalid_ticker",
+                        "error_detail": str(exc),
+                        "contract_version": CONTRACT_VERSION,
+                        "gate": {"signal": "NO"},
+                        "score": {"final": None, "scale": 100, "withheld": True},
+                        "artifacts": {"charts": {}},
+                        "sources": [],
+                        "warnings": [str(exc)],
+                        "ticker": (ticker or "").upper() or "UNKNOWN",
+                    },
+                )
                 return
-            code = 200 if result.get("ok") else 502
-            # still 200 for degraded-but-mapped artifact success
-            if result.get("ok"):
-                code = 200
-            errs = validate_response(result)
-            if errs and result.get("ok"):
-                result = {**result, "warnings": list(result.get("warnings") or []) + errs}
-            self._send(code, result)
+            self._analyze_response(result)
             return
 
         # Guest sample — no login (QR1-2 direction)
@@ -154,7 +263,7 @@ class Handler(BaseHTTPRequestHandler):
             result["meta"]["guest"] = True
             result["meta"]["auth"] = "none"
             result["sample"] = True
-            self._send(200 if result.get("ok") else 502, result)
+            self._analyze_response(result)
             return
 
         if path in {"/", "/index.html"}:
@@ -193,6 +302,17 @@ class Handler(BaseHTTPRequestHandler):
         if path != "/api/analyze":
             self._send(404, {"ok": False, "error": "not found"})
             return
+        if not check_rate_limit(self._client_id()):
+            self._send(
+                429,
+                {
+                    "ok": False,
+                    "error": "rate_limited",
+                    "error_detail": "too many analyze requests; try again shortly",
+                    "contract_version": CONTRACT_VERSION,
+                },
+            )
+            return
         try:
             body = self._read_json()
         except Exception as exc:
@@ -211,10 +331,23 @@ class Handler(BaseHTTPRequestHandler):
                 request_id=str(request_id) if request_id else None,
             )
         except ValueError as exc:
-            self._send(400, {"ok": False, "error": str(exc), "contract_version": CONTRACT_VERSION})
+            self._send(
+                400,
+                {
+                    "ok": False,
+                    "error": "invalid_ticker",
+                    "error_detail": str(exc),
+                    "contract_version": CONTRACT_VERSION,
+                    "gate": {"signal": "NO"},
+                    "score": {"final": None, "scale": 100, "withheld": True},
+                    "artifacts": {"charts": {}},
+                    "sources": [],
+                    "warnings": [str(exc)],
+                    "ticker": str(ticker or "UNKNOWN").upper(),
+                },
+            )
             return
-        code = 200 if result.get("ok") else 502
-        self._send(code, result)
+        self._analyze_response(result)
 
 
 def main() -> None:

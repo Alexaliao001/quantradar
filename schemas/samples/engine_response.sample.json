@@ -9,12 +9,48 @@
     "state_name": "uptrend_pullback",
     "state_reason": "Weekly MA bullish, pullback 7.1%",
     "signal": "NO",
-    "signal_label": "No / stand aside"
+    "signal_label": "No / stand aside",
+    "primary": "NO",
+    "market_gate": {
+      "status": "pass",
+      "spy_change_pct": 0.43,
+      "market_state": "open"
+    },
+    "sector_gate": {
+      "status": "pass",
+      "sector_etf": "SMH",
+      "sector_change_pct": 2.84
+    }
   },
   "score": {
     "final": 39.0,
     "base_total": 53.0,
-    "scale": 100
+    "scale": 100,
+    "withheld": false
+  },
+  "primary": {
+    "action": "NO",
+    "label": "No / stand aside",
+    "reason": "Weekly MA bullish, pullback 7.1%"
+  },
+  "data_quality": {
+    "usable": true,
+    "reliability": "medium",
+    "volume_narrative_allowed": true,
+    "volume": {
+      "volume_ratio": 0.75,
+      "avg_volume_20": null,
+      "current_volume": null,
+      "volume_unavailable": false,
+      "volume_zero_flag": false
+    },
+    "options_actionable": true,
+    "options": {
+      "option_chain_ok": true,
+      "option_data_source": "live",
+      "options_simulated": false,
+      "options_actionable": true
+    }
   },
   "artifacts": {
     "charts": {
@@ -53,6 +89,9 @@
     "mode": "artifact",
     "fetch_time": "2026-03-21T01:43:25.276639",
     "generated_at": "2026-03-21_01-43-21",
-    "reliability": "medium"
+    "reliability": "medium",
+    "score_withheld": false,
+    "primary": "NO",
+    "disclaimer": "Educational radar only — not investment advice."
   }
 }

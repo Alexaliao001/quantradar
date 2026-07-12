@@ -78,7 +78,17 @@ python3 scripts/validate_contract_sample.py
 | QR0-0 PHASE0 盘点 | ✅ |
 | QR0-4 ENGINE_CONTRACT | ✅ |
 | QR0-2 最小产品壳 | ✅ 可 `python -m app`；**可 Manus pull 发布** |
-| 下一优先 | QR0-SEC / QR0-3 / QR2-1 |
+| **P0 信任门控 v0.2.0** | ✅ 假 ticker / 无数据 fail-closed；量能·期权诚实字段；`scripts/p0_smoke.py` |
+| 下一优先 | **域名 cutover**（[docs/P0_CUTOVER.md](./docs/P0_CUTOVER.md)）→ QR0-SEC / QR2-1 |
+
+### P0 验收
+
+```bash
+python3 -m unittest discover -s tests -v
+python3 scripts/p0_smoke.py
+# 发布到 quantradar.one 后：
+python3 scripts/p0_smoke.py --live
+```
 
 Skill：本地 → 仓库（charts/commands、stock-skills 有用部分）→ 卡住再 X 多方比对（见 `docs/SKILL_INHERIT.md`）。
 
