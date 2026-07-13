@@ -123,3 +123,9 @@ python3 ~/quantradar/scripts/sites_extreme_verify.py
 ```
 
 相关：`LIVE_NOW.md`（QR 单站）· `MULTI_SITE_MIGRATION.md`（迁出底稿）· `PROGRESS_SITES.md`（轮次日志）
+
+## 相关
+
+- 成本：`docs/SITES_COST.md`（SX6）
+- 日检：`docs/SITES_MONITOR.md`
+- 重建：`scripts/rebuild_static.sh`
