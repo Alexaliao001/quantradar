@@ -57,15 +57,28 @@ def normalize_request(
     return out
 
 
+def _public_path(path: str | None) -> str | None:
+    """Never leak developer home paths into public API JSON."""
+    if path is None:
+        return None
+    s = str(path).strip()
+    if not s:
+        return None
+    if s.startswith("/Users/") or s.startswith("/home/"):
+        # basename only — client cannot open the private file anyway
+        return s.rsplit("/", 1)[-1]
+    return s
+
+
 def _chart_paths(indicator_data: dict[str, Any]) -> dict[str, str | None]:
     files = (indicator_data or {}).get("chart_files") or {}
     daily = files.get("daily") or {}
     weekly = files.get("weekly") or {}
     return {
-        "daily_price": daily.get("price"),
-        "daily_indicators": daily.get("indicators"),
-        "weekly_price": weekly.get("price"),
-        "weekly_indicators": weekly.get("indicators"),
+        "daily_price": _public_path(daily.get("price")),
+        "daily_indicators": _public_path(daily.get("indicators")),
+        "weekly_price": _public_path(weekly.get("price")),
+        "weekly_indicators": _public_path(weekly.get("indicators")),
     }
 
 
@@ -116,12 +129,28 @@ def map_charts_payload(
     elif vol.get("volume_unavailable") and vol.get("volume_ratio") is None:
         volume_narrative_allowed = False
 
+    # Copy options snapshot so we can annotate without mutating quality cache
+    opt = dict(opt) if isinstance(opt, dict) else {}
     options_actionable = bool(opt.get("options_actionable"))
+
+    # SX1-4: artifact mode is a frozen snapshot — never claim live options actionable.
+    # Do not add a warnings[] entry solely for this (would force degraded demos).
+    if mode == "artifact":
+        opt = {
+            **opt,
+            "options_actionable": False,
+            "option_data_source": "artifact_snapshot",
+            "options_from_artifact": True,
+        }
+        options_actionable = False
+
     degraded = reliability in {"low", "poor"} or bool(warnings)
     if not volume_narrative_allowed:
         degraded = True
     if opt.get("options_simulated"):
         degraded = True
+    if mode == "artifact" and reliability == "unknown":
+        reliability = "medium"
 
     base = mechanical.get("base_score") or {}
     base_total = base.get("total") if isinstance(base, dict) else None
@@ -143,6 +172,8 @@ def map_charts_payload(
     # Single primary conclusion — never dual buy + wait
     primary_action = signal if signal in SIGNAL_LABELS else "NO"
     primary_label = SIGNAL_LABELS.get(primary_action, primary_action)
+
+    analysis_public = _public_path(analysis_json_path)
 
     return {
         "ok": True,
@@ -204,7 +235,7 @@ def map_charts_payload(
         },
         "artifacts": {
             "charts": _chart_paths(indicator_data if isinstance(indicator_data, dict) else {}),
-            "analysis_json": analysis_json_path,
+            "analysis_json": analysis_public,
             "report_html": None,
         },
         "sources": default_sources,
@@ -229,6 +260,7 @@ def map_charts_payload(
             "score_withheld": False,
             "primary": primary_action,
             "disclaimer": "Educational radar only — not investment advice.",
+            "data_path": "artifact_fixtures" if mode == "artifact" else "charts_engine",
         },
     }
 

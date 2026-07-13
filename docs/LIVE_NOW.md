@@ -34,6 +34,7 @@ bash scripts/cutover_verify.sh https://quantradar.one
 
 - Free 空闲 ~15 分钟休眠，冷启动约 1 分钟
 - `charts_reachable=false` 在 artifact 模式正常（用 fixtures）
+- **SX1 (v0.7+)**：`charts_status` / `data_path` / `product_note` / `artifact_fixtures`；artifact 分析 `options` 标 `artifact_snapshot`（非 live actionable）；UI 展示数据路径
 
 ## 多站点迁出 Manus
 

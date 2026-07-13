@@ -97,6 +97,7 @@
       <button type="button" class="chip" data-demo="NVDA">NVDA <small>if cached</small></button>
       <button type="button" class="chip" data-demo="AAPL">AAPL <small>if cached</small></button>
     </div>
+    <p class="status" id="dataModeLine" style="margin:0.5rem 0 0;max-width:40rem"></p>
   </section>
 
   <main class="wrap">
@@ -217,13 +218,38 @@
     }
 
     async function refreshHealth() {
+      const modeLine = document.getElementById("dataModeLine");
       try {
         const r = await fetch("/health");
         const j = await r.json();
+        const status = j.charts_status || (j.charts_reachable ? "mounted" : "unknown");
+        const fixtures = Array.isArray(j.artifact_fixtures) ? j.artifact_fixtures.join(",") : "";
         document.getElementById("healthLine").textContent =
-          `health auth=${j.auth} manus_login=${j.manus_login} sha=${j.git_sha || "n/a"} v=${j.version}`;
+          `health mode=${j.mode_default || "?"} charts_status=${status} data_path=${j.data_path || "?"} ` +
+          `manus_login=${j.manus_login} sha=${j.git_sha || "n/a"} v=${j.version}`;
+        if (modeLine) {
+          if (status === "artifact_only") {
+            modeLine.className = "status warn";
+            modeLine.textContent =
+              (j.product_note || "Charts engine not mounted — demos use pre-built artifacts.") +
+              (fixtures ? " Fixtures: " + fixtures + "." : "");
+          } else if (status === "mounted") {
+            modeLine.className = "status ok";
+            modeLine.textContent = j.product_note || "Charts engine mounted.";
+          } else if (status === "unavailable") {
+            modeLine.className = "status bad";
+            modeLine.textContent = j.product_note || "No data path available.";
+          } else {
+            modeLine.className = "status";
+            modeLine.textContent = j.product_note || "";
+          }
+        }
       } catch (e) {
-        document.getElementById("healthLine").textContent = "health unreachable";
+        document.getElementById("healthLine").textContent = "health unreachable — service may be waking (Render Free ~1 min)";
+        if (modeLine) {
+          modeLine.className = "status warn";
+          modeLine.textContent = "Service unreachable or cold-starting. Retry in a minute.";
+        }
       }
     }
 
@@ -264,15 +290,18 @@
           : dq.volume_narrative_allowed ? "allowed" : "—";
       document.getElementById("kOpt").textContent = dq.options_actionable
         ? "actionable"
-        : (dq.options && dq.options.options_simulated) ? "simulated / n/a"
-          : j.ok ? "n/a" : "n/a";
+        : (dq.options && dq.options.options_from_artifact) ? "snapshot / n/a"
+          : (dq.options && dq.options.options_simulated) ? "simulated / n/a"
+            : j.ok ? "n/a" : "n/a";
 
       const sum = document.getElementById("summaryLine");
+      const disc = (j.meta && j.meta.disclaimer) || "Educational radar only — not investment advice.";
       if (j.summary) {
         sum.hidden = false;
-        sum.textContent = j.summary + (demo ? " · demo (0 credits)" : "");
+        sum.textContent = j.summary + (demo ? " · demo (0 credits)" : "") + " · " + disc;
       } else {
-        sum.hidden = true;
+        sum.hidden = false;
+        sum.textContent = disc;
       }
 
       setWarns(j.warnings || []);
@@ -280,12 +309,15 @@
       const waitLike = ["WAIT", "NO", "PUT"].includes(String(primary).toUpperCase());
       document.getElementById("notifyBox").hidden = !(j.ok && waitLike);
 
+      const modeHint = (j.meta && j.meta.mode === "artifact")
+        ? " Artifact path — frozen sample, not a live quote."
+        : "";
       if (!j.ok) {
         setBanner("bad", `No tradeable conclusion: ${j.error_detail || j.error || "failed"}. Score withheld.`);
       } else if (j.degraded) {
-        setBanner("warn", `Degraded result — single primary is ${primary}. Read warnings.`);
+        setBanner("warn", `Degraded result — single primary is ${primary}. Read warnings.` + modeHint);
       } else {
-        setBanner("ok", `Primary: ${primary}${primaryLabel ? " (" + primaryLabel + ")" : ""}. One score only.`);
+        setBanner("ok", `Primary: ${primary}${primaryLabel ? " (" + primaryLabel + ")" : ""}. One score only.` + modeHint);
       }
     }
 

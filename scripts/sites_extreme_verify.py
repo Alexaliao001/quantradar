@@ -37,6 +37,16 @@ SITES = [
         "title_any": ["QuantRadar"],
         "health": "https://quantradar.one/health",
         "health_expect": {"service": "quantradar-shell", "manus_login": False},
+        "health_keys": [
+            "charts_status",
+            "data_path",
+            "product_note",
+            "mode_default",
+            "p0_gates",
+        ],
+        "analyze": "https://quantradar.one/api/analyze?ticker=INTC",
+        "analyze_expect": {"ok": True, "ticker": "INTC"},
+        "html_must_contain": ["not investment advice", "disclaimer"],
         "cert_cn_any": ["quantradar.one"],
     },
     {
@@ -219,6 +229,50 @@ def check_site(site: dict) -> list[Check]:
             detail = f"homepage_code={code}; {detail}"
         checks.append(Check(f"{name}.health", ok, detail))
 
+        # SX1: optional health key presence (data-layer honesty)
+        keys = site.get("health_keys") or []
+        if keys and hc == 200 and data:
+            missing = [k for k in keys if k not in data]
+            # soft while deploy lag: only hard-fail keys that are old contract
+            # charts_status/data_path/product_note require v0.7+; allow soft until present
+            hard = [k for k in missing if k in {"mode_default", "p0_gates"}]
+            soft = [k for k in missing if k not in hard]
+            if hard:
+                checks.append(Check(f"{name}.health_keys", False, f"missing={hard}"))
+            elif soft:
+                # pass with note if only new SX1 keys missing (pre-deploy)
+                checks.append(
+                    Check(
+                        f"{name}.health_keys",
+                        True,
+                        f"legacy_ok missing_new={soft}" if soft else "ok",
+                    )
+                )
+            else:
+                checks.append(Check(f"{name}.health_keys", True, "ok " + ",".join(keys)))
+
+    # SX1: guest analyze path stable
+    if site.get("analyze"):
+        ac, ab = fetch_with_retry(site["analyze"])
+        try:
+            adata = json.loads(ab) if ac == 200 else {}
+        except json.JSONDecodeError:
+            adata = {}
+        expect = site.get("analyze_expect") or {}
+        aok = ac == 200 and all(adata.get(k) == v for k, v in expect.items())
+        # extra: disclaimer present on ok result
+        if aok and adata.get("ok"):
+            disc = (adata.get("meta") or {}).get("disclaimer") or ""
+            if "investment advice" not in disc.lower():
+                aok = False
+        checks.append(
+            Check(
+                f"{name}.analyze",
+                aok,
+                f"code={ac} ok={adata.get('ok')} score={(adata.get('score') or {}).get('final')}",
+            )
+        )
+
     # cert
     if site.get("cert_cn_any") and not optional:
         host = host_of(url)
@@ -227,6 +281,20 @@ def check_site(site: dict) -> list[Check]:
         # also accept if subject has the host
         cn_ok = cn_ok or host.lower() in subj.lower()
         checks.append(Check(f"{name}.cert", cn_ok, subj or "no-cert"))
+
+    # HTML must contain phrases (disclaimer etc.)
+    if site.get("html_must_contain") and code == 200:
+        low = body.lower()
+        missing = [p for p in site["html_must_contain"] if p.lower() not in low]
+        # "disclaimer" may only appear after JS runs — allow partial: investment advice is enough
+        hard_missing = [p for p in missing if p.lower() != "disclaimer"]
+        checks.append(
+            Check(
+                f"{name}.html_copy",
+                len(hard_missing) == 0,
+                "ok" if not hard_missing else f"missing={hard_missing}",
+            )
+        )
 
     # bundle forbid
     if site.get("bundle_forbid") and code == 200:

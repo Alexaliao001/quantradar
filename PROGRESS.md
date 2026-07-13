@@ -1,5 +1,6 @@
 # PROGRESS — QuantRadar
 
+2026-07-13 | **SX1 v0.7.0** | 数据层诚实：health charts_status/data_path/product_note；artifact options=snapshot；路径脱敏；UI 展示；SITES EXTREME SX1 | push 后 Render 自动部署
 2026-07-13 | **cutover 完成** | quantradar.one → Render Free 壳 `quantradar-shell`；apex verified；cutover_verify PASS；无 Manus auth | 主站已是新壳
 
 2026-07-12 | **Render Free 上线** | `quantradar-shell` plan=free · https://quantradar-shell.onrender.com · cutover_verify PASS · srv-d99nc357vvec73frpus0 | **域名 quantradar.one 待 DNS 切**

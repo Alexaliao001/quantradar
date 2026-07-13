@@ -96,9 +96,38 @@ def git_sha() -> str | None:
 
 
 def health_payload() -> dict[str, Any]:
+    """Product health — include data-layer honesty fields (SX1)."""
     cdir = charts_dir()
     fetch_all = cdir / "fetch_all.py"
     a = authlib.auth_status_public()
+    fixture_dir = REPO_ROOT / "fixtures" / "charts_sample"
+    fixture_tickers = (
+        sorted(
+            p.name.replace("_analysis.json", "")
+            for p in fixture_dir.glob("*_analysis.json")
+            if p.is_file()
+        )
+        if fixture_dir.is_dir()
+        else []
+    )
+    charts_ok = cdir.is_dir()
+    fetch_ok = fetch_all.is_file()
+    if charts_ok and fetch_ok:
+        charts_status = "mounted"
+        data_path = "charts_engine"
+        product_note = "charts engine mounted; live mode can subprocess fetch_all when signed in."
+    elif fixture_tickers:
+        charts_status = "artifact_only"
+        data_path = "artifact_fixtures"
+        product_note = (
+            "charts_reachable=false is expected on Free artifact deploys; "
+            "guest analyze uses fixtures/charts_sample (not a live market feed)."
+        )
+    else:
+        charts_status = "unavailable"
+        data_path = "none"
+        product_note = "no charts dir and no fixtures — analyze will fail until data is mounted."
+
     return {
         "ok": True,
         "service": "quantradar-shell",
@@ -106,8 +135,12 @@ def health_payload() -> dict[str, Any]:
         "contract_version": CONTRACT_VERSION,
         "git_sha": git_sha(),
         "charts_dir": str(cdir),
-        "charts_reachable": cdir.is_dir(),
-        "fetch_all_present": fetch_all.is_file(),
+        "charts_reachable": charts_ok,
+        "fetch_all_present": fetch_ok,
+        "charts_status": charts_status,
+        "data_path": data_path,
+        "artifact_fixtures": fixture_tickers,
+        "product_note": product_note,
         "mode_default": os.environ.get("QUANTRADAR_MODE", "artifact"),
         # Auth: guest + optional Google session; never Manus
         "auth": a["auth_mode"],

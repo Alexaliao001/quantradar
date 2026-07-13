@@ -27,24 +27,46 @@
 
 ## QuantRadar health（实测）
 
+### SX0 基线（v0.6 · 部署前）
+
 ```json
 {
   "ok": true,
   "service": "quantradar-shell",
   "version": "0.6.0",
-  "contract_version": "1.0.0",
-  "git_sha": "78e40e3",
   "charts_reachable": false,
   "mode_default": "artifact",
   "manus_login": false,
-  "guest_access": true,
-  "login_path": "/login",
   "p0_gates": true
 }
 ```
 
-- `charts_reachable=false` 在 **artifact 模式**下为预期（fixtures），非宕机。
+### SX1 数据层字段（v0.7+ · 目标契约）
+
+| 字段 | 含义 |
+|------|------|
+| `charts_reachable` | `CHARTS_DIR` 是否为目录 |
+| `fetch_all_present` | 是否可 subprocess live |
+| `charts_status` | `mounted` \| `artifact_only` \| `unavailable` |
+| `data_path` | `charts_engine` \| `artifact_fixtures` \| `none` |
+| `artifact_fixtures` | 仓内 fixture ticker 列表（如 `["INTC"]`） |
+| `product_note` | 人话解释：Free 上 `charts_reachable=false` 不等于宕机 |
+
+Render Free 预期：`charts_status=artifact_only`，`data_path=artifact_fixtures`，guest `GET /api/analyze?ticker=INTC` → `ok=true`，`meta.mode=artifact`，`options.option_data_source=artifact_snapshot`（**非 live actionable**）。
+
 - Free 空闲约 15 分钟休眠；冷启动约 1 分钟。
+- UI footer / hero 同步展示 `charts_status` + `product_note`。
+
+### SX1-5 首屏预算（2026-07-13 抽查 · 暖机）
+
+| 资源 | size (bytes) | total time (s) |
+|------|---------------|----------------|
+| `GET /` HTML | ~18 KB | ~0.6 |
+| `/static/site.css` | ~2.3 KB | ~0.5 |
+| `/health` | ~0.4–1 KB | ~0.9 |
+| `/api/analyze?ticker=INTC` | ~3 KB | ~0.6 |
+
+预算：**首屏关键 HTML+CSS < 30 KB**；分析 JSON 单次 < 20 KB（artifact）。冷启动不计入。
 
 ## 证书（openssl s_client · 2026-07-13）
 
