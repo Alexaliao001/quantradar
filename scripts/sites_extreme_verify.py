@@ -54,6 +54,12 @@ SITES = [
         "url": "https://fortunesite.one",
         "title_any": ["Fortune Insight"],
         "cert_cn_any": ["fortunesite.one"],
+        "health": "https://fortunesite.one/health",
+        "health_expect": {"service": "fortune-insight", "manus_login": False},
+        # tarot_preview key only after SX3 deploy — soft via health_keys
+        "health_keys": ["tarot_preview", "service", "ok"],
+        "tarot_preview": "https://fortunesite.one/api/tarot/preview",
+        "free_tarot": "https://fortunesite.one/free-tarot",
     },
     {
         "name": "fortune-www",
@@ -273,6 +279,57 @@ def check_site(site: dict) -> list[Check]:
                 f"code={ac} ok={adata.get('ok')} score={(adata.get('score') or {}).get('final')}",
             )
         )
+
+    # SX3: Fortune tarot preview API + free-tarot page
+    if site.get("tarot_preview"):
+        # POST JSON
+        try:
+            req = urllib.request.Request(
+                site["tarot_preview"],
+                data=json.dumps({"language": "zh", "question": "sites-extreme"}).encode(),
+                headers={"User-Agent": UA, "Content-Type": "application/json"},
+                method="POST",
+            )
+            with urllib.request.urlopen(req, timeout=45, context=CTX) as r:
+                tc, tb = r.status, r.read().decode("utf-8", errors="replace")
+        except urllib.error.HTTPError as e:
+            tc, tb = e.code, e.read().decode("utf-8", errors="replace")
+        except Exception as e:
+            tc, tb = 0, str(e)
+        try:
+            tdata = json.loads(tb) if tb and tb.strip().startswith("{") else {}
+        except json.JSONDecodeError:
+            tdata = {}
+        tok = (
+            tc == 200
+            and tdata.get("ok") is True
+            and tdata.get("source") == "rules"
+            and isinstance(tdata.get("card"), dict)
+            and "disclaimer" in tdata
+        )
+        # soft if not yet deployed (SPA HTML fallback or 404)
+        if not tok and (tc in (0, 404) or "html" in (tb[:80] or "").lower()):
+            checks.append(
+                Check(f"{name}.tarot_preview", True, f"soft pre-sx3 code={tc}")
+            )
+        else:
+            checks.append(
+                Check(
+                    f"{name}.tarot_preview",
+                    tok,
+                    f"code={tc} source={tdata.get('source')} card={(tdata.get('card') or {}).get('name_en')}",
+                )
+            )
+
+    if site.get("free_tarot"):
+        fc, fb = fetch_with_retry(site["free_tarot"])
+        fok = fc == 200 and (
+            "tarot" in fb.lower() or "塔罗" in fb or "free-tarot" in fb.lower()
+        )
+        if not fok and fc in (0, 404):
+            checks.append(Check(f"{name}.free_tarot", True, f"soft code={fc}"))
+        else:
+            checks.append(Check(f"{name}.free_tarot", fok, f"code={fc}"))
 
     # cert
     if site.get("cert_cn_any") and not optional:
