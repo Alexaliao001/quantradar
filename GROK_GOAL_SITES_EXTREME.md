@@ -41,7 +41,7 @@
   · 同时开 Fortune + Drama 两个重后端
 
 SSOT 仓：
-  quantradar / moyu-fortune(+deploy) / fortune-insight-deploy /
+  quantradar / moyu-fortune(+deploy) / fortune-insight(+deploy) /
   rongjian-portfolio(+deploy) / ai-drama-studio(+deploy)
 ```
 
@@ -130,7 +130,7 @@ SSOT 仓：
 |------|-----|--------|
 | QR | `Alexaliao001/quantradar` | 同仓 public |
 | MoYu | `moyu-fortune` | `moyu-fortune-deploy` |
-| Fortune | private / deploy | `fortune-insight-deploy` |
+| Fortune | `fortune-insight` | `fortune-insight-deploy` |
 | Portfolio | `rongjian-portfolio` | `rongjian-portfolio-deploy` |
 | Drama | `ai-drama-studio` | `ai-drama-studio-deploy` |
 

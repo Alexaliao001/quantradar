@@ -176,11 +176,10 @@ Render 域名名额已满，生产自定义域走 **GitHub Pages**（`fortune-in
 源码仍以 private 仓为准；改 UI 后：
 
 ```bash
-# 例：更新 fortune 静态
-cd /path/to/fortune-insight
-pnpm build
-# 同步 dist 到 fortune-insight-deploy 并 push main
-# 再刷新 gh-pages（从 dist/public）
+# Fortune：在 private SSOT 改，再 sync 到 deploy（Render）
+cd ~/fortune-insight
+# …edit…
+bash ~/quantradar/scripts/sync_fortune_deploy.sh
 ```
 
 ---

@@ -5,6 +5,7 @@
 
 | 日期 | SITE-ID | 结果 | 遗留 |
 |------|---------|------|------|
+| 2026-07-13 | — | Fortune private SSOT：`Alexaliao001/fortune-insight` ← Manus `fortune-insight-`@4761dc4 + SX3 overlay；本机 `~/fortune-insight`；`sync_fortune_deploy.sh`；旧仓尾横杠归档 | Render 仍盯 deploy；未改绑 private |
 | 2026-07-13 | SX2-B2 | MoYu 全页 light：feedback/invite/profile + 铜橙状态页；JSON+可选 Turso；FE 接线；分仓：fortune 仅有 deploy 无本地 SSOT | ephemeral 无 Turso；Stripe/OAuth/LLM 不做 |
 | 2026-07-13 | SX2-B | MoYu 路径 B：light API `moyu-light` live；draw/history/leaderboard；gh-pages `a40c2b8`+`VITE_MOYU_API_BASE`；deploy `0bae50e` 修 ESM/dotenv+Render start→`dist/light.js`；health 绿 | 磁盘 ephemeral；冷启动；Stripe/LLM 仍不做 |
 | 2026-07-13 | SX6 | 工程/成本：`SITES_COST`+`SITES_MONITOR`；`rebuild_static.sh`；deploy README×4；`docs/env/*`；修 portfolio `dist/index.js` 零依赖（Render update_failed 根因） | Fortune 非静态重建；onrender 等 redeploy；下一可收官扫 S1–S12 |
