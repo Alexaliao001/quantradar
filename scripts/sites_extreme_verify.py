@@ -115,6 +115,38 @@ def fetch(url: str, timeout: float = 45.0) -> tuple[int, str]:
         return 0, str(e)
 
 
+def is_tls_flake(code: int, body: str) -> bool:
+    if code != 0:
+        return False
+    b = body.lower()
+    return any(
+        k in b
+        for k in (
+            "eof occurred in violation of protocol",
+            "ssl",
+            "certificate",
+            "timed out",
+            "temporary failure",
+            "connection reset",
+            "network is unreachable",
+        )
+    )
+
+
+def fetch_with_retry(url: str, attempts: int = 3, timeout: float = 45.0) -> tuple[int, str]:
+    last = (0, "")
+    for i in range(attempts):
+        last = fetch(url, timeout=timeout)
+        if last[0] == 200:
+            return last
+        if last[0] != 0 and not is_tls_flake(last[0], last[1]):
+            return last
+        if i + 1 < attempts:
+            import time
+            time.sleep(2 + i * 2)
+    return last
+
+
 def title_of(html: str) -> str:
     m = re.search(r"<title>([^<]+)", html, re.I)
     return (m.group(1).strip() if m else "")[:100]
@@ -157,7 +189,7 @@ def check_site(site: dict) -> list[Check]:
     url = site["url"]
     optional = bool(site.get("optional"))
 
-    code, body = fetch(url)
+    code, body = fetch_with_retry(url)
     title = title_of(body) if code == 200 else ""
     title_ok = any(t.lower() in title.lower() for t in site.get("title_any") or [""])
     if code == 200 and (title_ok or not site.get("title_any")):
@@ -174,15 +206,18 @@ def check_site(site: dict) -> list[Check]:
             # soft-fail optional
             checks[-1] = Check(f"{name}.http", True, f"optional soft code={code}")
 
-    if site.get("health") and code == 200:
-        hc, hb = fetch(site["health"])
+    if site.get("health"):
+        hc, hb = fetch_with_retry(site["health"])
         try:
             data = json.loads(hb) if hc == 200 else {}
         except json.JSONDecodeError:
             data = {}
         expect = site.get("health_expect") or {}
         ok = hc == 200 and all(data.get(k) == v for k, v in expect.items())
-        checks.append(Check(f"{name}.health", ok, json.dumps(data)[:200] if data else hb[:120]))
+        detail = json.dumps(data, ensure_ascii=False)[:200] if data else hb[:120]
+        if code != 200 and hc == 200:
+            detail = f"homepage_code={code}; {detail}"
+        checks.append(Check(f"{name}.health", ok, detail))
 
     # cert
     if site.get("cert_cn_any") and not optional:

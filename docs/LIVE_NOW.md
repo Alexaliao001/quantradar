@@ -46,4 +46,7 @@ bash scripts/cutover_verify.sh https://quantradar.one
 ```bash
 python3 scripts/multi_site_verify.py
 python3 scripts/sites_extreme_verify.py
+# 期望 RESULT: PASS — 全站矩阵见 SITES_LIVE.md
 ```
+
+**全站实测矩阵**：**[SITES_LIVE.md](./SITES_LIVE.md)**（SX0）
