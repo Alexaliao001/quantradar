@@ -5,6 +5,7 @@
 
 | 日期 | SITE-ID | 结果 | 遗留 |
 |------|---------|------|------|
+| 2026-07-13 | SX5 | 个人站极致：favicon/OG/sitemap；外链 noopener；IBM Plex+JetBrains 自托管；`build:static` 去 Manus runtime；LH mobile Perf 67（瓶颈记清）；源 `a3b1789` · deploy `d6d23ea`/`dd12706`；sites PASS | ≥90 需更深 SPA 拆包；下一 SX6 |
 | 2026-07-13 | SX4 | Drama 演示层：生成门闸 modal；`/demo` 只读分镜；无 `undefined/app-auth`；`version.json` SX4；gh-pages+onrender 对齐；sites PASS | 全量生成（SX4-4）默认不做；GH `/demo` 可能 404 状态但 SPA shell；下一 SX5/SX6 |
 | 2026-07-13 | SX3 | Fortune 访客塔罗 MVP：`POST /api/tarot/preview` rules+限流；`/health`；`/free-tarot`；deploy `2a1a331` fortunesite 绿 | SPA 整站 trpc 仍静态；LLM/Stripe 需授权 |
 | 2026-07-13 | SX2 | MoYu 路径 A：`MOYU_BACKEND_DECISION`；本地抽签/金句/历史；禁死 OAuth；gh-pages+CNAME 上线 `index-0EAWDXlc` 无 `undefined/app-auth`；sites_extreme PASS | SX2-2 轻后端默认不做 |

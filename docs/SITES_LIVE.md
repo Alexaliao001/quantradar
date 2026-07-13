@@ -12,7 +12,7 @@
 | Fortune | https://fortunesite.one | Render Free `fortune-insight` | SPA + **SX3 最小 API** | 200 | `fortunesite.one` | `/health` · `/api/tarot/preview` · `/free-tarot` |
 | Fortune www | https://www.fortunesite.one | 同上 | 301→apex | 301→200 | `www.fortunesite.one` | 跳转到 apex |
 | MoYu | https://chillworks.ai | GitHub Pages | 静态 SPA · 路径 A | 200 | `chillworks.ai` | SX2：本机抽签/历史；bundle 无 `undefined/app-auth`；`version.json` mode=static |
-| Portfolio | https://rj.fortunesite.one | GitHub Pages | 静态 SPA | 200 | `rj.fortunesite.one` | 子域 GH Pages |
+| Portfolio | https://rj.fortunesite.one | GitHub Pages | 静态 SPA · **SX5** | 200 | `rj.fortunesite.one` | SEO/favicon/self-host fonts；`build:static`；LH mobile Perf **67**（瓶颈见 `~/rongjian-portfolio/docs/SX5_PORTFOLIO.md`） |
 | Drama | https://shorts.fortunesite.one | GitHub Pages | 静态演示层 SX4 | 200 | `shorts.fortunesite.one` | `/demo` 只读分镜；生成门闸；`version.json`；无 `undefined/app-auth` |
 
 ### onrender 备用（optional · 脚本 soft）
