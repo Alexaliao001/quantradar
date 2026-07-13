@@ -11,7 +11,7 @@
 | QuantRadar | https://quantradar.one | Render Free `quantradar-shell` | path-C 壳 | 200 | `quantradar.one` | `/health` 绿；`manus_login:false` |
 | Fortune | https://fortunesite.one | Render + 自定义域 | 静态 SPA | 200 | `fortunesite.one` | Hobby 自定义域组之一 |
 | Fortune www | https://www.fortunesite.one | 同上 | 301→apex | 301→200 | `www.fortunesite.one` | 跳转到 apex |
-| MoYu | https://chillworks.ai | GitHub Pages | 静态 SPA | 200 | `chillworks.ai` | 无 Render 自定义域占用 |
+| MoYu | https://chillworks.ai | GitHub Pages | 静态 SPA · 路径 A | 200 | `chillworks.ai` | SX2：本机抽签/历史；bundle 无 `undefined/app-auth`；`version.json` mode=static |
 | Portfolio | https://rj.fortunesite.one | GitHub Pages | 静态 SPA | 200 | `rj.fortunesite.one` | 子域 GH Pages |
 | Drama | https://shorts.fortunesite.one | GitHub Pages | 静态 SPA | 200 | `shorts.fortunesite.one` | bundle 无 `undefined/app-auth` |
 

@@ -66,6 +66,7 @@ SITES = [
         "url": "https://chillworks.ai",
         "title_any": ["摸了么", "MoYu", "摸鱼"],
         "cert_cn_any": ["chillworks.ai"],
+        "bundle_forbid": ["undefined/app-auth"],
     },
     {
         "name": "portfolio",
