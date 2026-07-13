@@ -86,6 +86,8 @@ SITES = [
         "title_any": ["Drama", "短剧", "AI Drama"],
         "cert_cn_any": ["shorts.fortunesite.one"],
         "bundle_forbid": ["undefined/app-auth"],
+        "demo_url": "https://shorts.fortunesite.one/demo",
+        "version_url": "https://shorts.fortunesite.one/version.json",
     },
     {
         "name": "qr-onrender",
@@ -330,6 +332,35 @@ def check_site(site: dict) -> list[Check]:
             checks.append(Check(f"{name}.free_tarot", True, f"soft code={fc}"))
         else:
             checks.append(Check(f"{name}.free_tarot", fok, f"code={fc}"))
+
+    # SX4: drama demo + version.json
+    if site.get("demo_url"):
+        dc, db = fetch_with_retry(site["demo_url"])
+        # GH Pages SPA: missing path often returns **404** status with custom 404.html = index shell
+        spa_shell = (
+            "drama" in db.lower()
+            or "短剧" in db
+            or 'id="root"' in db
+            or "id='root'" in db
+            or "/assets/" in db
+        )
+        dok = spa_shell and dc in (200, 404)
+        checks.append(Check(f"{name}.demo", dok, f"code={dc} spa_shell={spa_shell}"))
+
+    if site.get("version_url"):
+        vc, vb = fetch_with_retry(site["version_url"])
+        try:
+            vdata = json.loads(vb) if vc == 200 else {}
+        except json.JSONDecodeError:
+            vdata = {}
+        vok = vc == 200 and bool(vdata.get("sha") or vdata.get("mode"))
+        checks.append(
+            Check(
+                f"{name}.version",
+                vok,
+                f"code={vc} mode={vdata.get('mode')} sha={vdata.get('sha')}",
+            )
+        )
 
     # cert
     if site.get("cert_cn_any") and not optional:
