@@ -29,6 +29,7 @@ from app.users import (
     authenticate as password_login,
     ensure_bootstrap_admin,
     register_user,
+    resolve_plan,
 )
 
 # Demo tickers: free artifact sample only (TG-5) — never live, never "credits"
@@ -115,7 +116,10 @@ def health_payload() -> dict[str, Any]:
     if charts_ok and fetch_ok:
         charts_status = "mounted"
         data_path = "charts_engine"
-        product_note = "charts engine mounted; live mode can subprocess fetch_all when signed in."
+        product_note = (
+            "charts engine mounted; live mode can subprocess fetch_all for Pro sessions "
+            "(login + plan=pro). Mount alone does not mean live is sold as ready."
+        )
     elif fixture_tickers:
         charts_status = "artifact_only"
         data_path = "artifact_fixtures"
@@ -190,6 +194,8 @@ def http_code_for_result(result: dict[str, Any]) -> int:
     err = str(result.get("error") or "")
     if err in {"login_required"}:
         return 401
+    if err in {"plan_required"}:
+        return 403
     if err in {"invalid_ticker", "artifact_not_found", "no_data"}:
         return 404
     if "invalid" in err:
@@ -208,7 +214,17 @@ class Handler(BaseHTTPRequestHandler):
         return self.client_address[0] if self.client_address else "unknown"
 
     def _current_user(self) -> dict[str, Any] | None:
-        return authlib.user_from_cookie_header(self.headers.get("Cookie"))
+        user = authlib.user_from_cookie_header(self.headers.get("Cookie"))
+        if not user:
+            return None
+        # Refresh plan from users store when present (Stripe webhook SSOT)
+        email = user.get("email")
+        if email:
+            user = dict(user)
+            user["plan"] = resolve_plan(
+                str(email), session_plan=str(user.get("plan") or "free")
+            )
+        return user
 
     def _send(
         self,
@@ -322,7 +338,7 @@ class Handler(BaseHTTPRequestHandler):
             return
 
         mode_norm = (mode or "").strip().lower() or None
-        # Live mode requires login (uses real charts fetch / keys)
+        # Live mode requires login + Pro plan (uses real charts fetch / keys)
         if mode_norm == "live" and not user:
             self._send(
                 401,
@@ -336,12 +352,35 @@ class Handler(BaseHTTPRequestHandler):
                     "score": {"final": None, "scale": 100, "withheld": True},
                     "artifacts": {"charts": {}},
                     "sources": [],
-                    "warnings": ["live mode requires Google session"],
+                    "warnings": ["live mode requires sign-in and Pro"],
                     "ticker": (ticker or "").upper() or "UNKNOWN",
                 },
                 auth_tag="guest",
             )
             return
+        if mode_norm == "live" and user:
+            plan = str(user.get("plan") or "free").lower()
+            if plan != "pro":
+                self._send(
+                    403,
+                    {
+                        "ok": False,
+                        "error": "plan_required",
+                        "error_detail": "mode=live requires Pro. Upgrade at /pricing.",
+                        "login": "/login",
+                        "pricing": "/pricing",
+                        "plan": plan,
+                        "contract_version": CONTRACT_VERSION,
+                        "gate": {"signal": "NO"},
+                        "score": {"final": None, "scale": 100, "withheld": True},
+                        "artifacts": {"charts": {}},
+                        "sources": [],
+                        "warnings": ["live mode requires Pro plan"],
+                        "ticker": (ticker or "").upper() or "UNKNOWN",
+                    },
+                    auth_tag="session",
+                )
+                return
 
         try:
             result = analyze(
@@ -386,10 +425,14 @@ class Handler(BaseHTTPRequestHandler):
         # --- Auth API (own session, not Manus) ---
         if path in {"/api/auth/status", "/api/me"}:
             user = self._current_user()
+            public = None
+            if user:
+                public = authlib.session_user_public(user)
+                public["plan"] = str(user.get("plan") or "free")
             body = {
                 "ok": True,
                 **authlib.auth_status_public(),
-                "user": authlib.session_user_public(user) if user else None,
+                "user": public,
                 "authenticated": bool(user),
             }
             if path == "/api/me" and not user:
@@ -516,7 +559,13 @@ class Handler(BaseHTTPRequestHandler):
                 {
                     "ok": True,
                     "stripe_configured": stripe_billing.stripe_configured(),
+                    "webhook_configured": bool(stripe_billing.webhook_secret()),
                     "checkout": "/api/billing/checkout",
+                    "intervals": ["monthly", "yearly"],
+                    "prices": {
+                        "monthly": "$29",
+                        "yearly": "$249",
+                    },
                 },
             )
             return
@@ -755,7 +804,7 @@ class Handler(BaseHTTPRequestHandler):
                     {
                         "ok": False,
                         "error": "login_required",
-                        "login": "/login",
+                        "login": "/login?next=checkout",
                         "error_detail": "Sign in before checkout",
                     },
                 )
@@ -766,7 +815,10 @@ class Handler(BaseHTTPRequestHandler):
                     {
                         "ok": False,
                         "error": "stripe_not_configured",
-                        "error_detail": "Set QUANTRADAR_STRIPE_SECRET_KEY",
+                        "error_detail": (
+                            "Stripe is not configured on this host. "
+                            "Set QUANTRADAR_STRIPE_SECRET_KEY (and price IDs)."
+                        ),
                     },
                 )
                 return
@@ -775,9 +827,11 @@ class Handler(BaseHTTPRequestHandler):
             except Exception:
                 body = {}
             try:
+                # Ignore client price_id — only server env Price IDs + interval.
                 session = stripe_billing.create_checkout_session(
                     customer_email=str(user.get("email") or "") or None,
-                    price_id=str(body.get("price_id") or "") or None,
+                    price_id=None,
+                    interval=str(body.get("interval") or "monthly"),
                 )
             except Exception as exc:
                 self._send(
@@ -786,6 +840,53 @@ class Handler(BaseHTTPRequestHandler):
                 )
                 return
             self._send(200, {"ok": True, **session})
+            return
+
+        if path == "/api/billing/webhook":
+            length = int(self.headers.get("Content-Length") or 0)
+            raw = self.rfile.read(length) if length > 0 else b""
+            sig = self.headers.get("Stripe-Signature")
+            # Test bypass: local/unit only — never on quantradar.one or sk_live_*.
+            bypass = False
+            if os.environ.get("QUANTRADAR_STRIPE_WEBHOOK_TEST", "").strip().lower() in {
+                "1",
+                "true",
+                "yes",
+            }:
+                base = os.environ.get("PUBLIC_BASE_URL", "").strip().lower()
+                secret = stripe_billing.stripe_secret()
+                prodish = "quantradar.one" in base or secret.startswith("sk_live")
+                localish = (
+                    not base
+                    or "127.0.0.1" in base
+                    or "localhost" in base
+                    or base.startswith("http://127.")
+                )
+                bypass = localish and not prodish
+            if not bypass and not stripe_billing.verify_webhook_signature(raw, sig):
+                self._send(400, {"ok": False, "error": "invalid_signature"})
+                return
+            try:
+                event = json.loads(raw.decode("utf-8") or "{}")
+            except Exception as exc:
+                self._send(400, {"ok": False, "error": "invalid_json", "error_detail": str(exc)})
+                return
+            if not isinstance(event, dict):
+                self._send(400, {"ok": False, "error": "invalid_event"})
+                return
+            try:
+                result = stripe_billing.apply_webhook_event(event)
+            except Exception as exc:
+                self._send(
+                    500,
+                    {"ok": False, "error": "webhook_apply_failed", "error_detail": str(exc)[:400]},
+                )
+                return
+            # Non-ok apply → 4xx so Stripe retries (e.g. missing email / unpaid).
+            if not result.get("ok"):
+                self._send(422, {"ok": False, **result})
+                return
+            self._send(200, {"ok": True, **result})
             return
 
         if path != "/api/analyze":

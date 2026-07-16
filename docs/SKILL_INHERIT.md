@@ -71,4 +71,19 @@
 
 ---
 
+### 2026-07-16 · QD0-0 · desk-v1 + billing 闭环落库
+
+- 水源：**L1** ship-code / quantradar-stripe-ops（思想）+ Stripe plugin best-practices；**L2** 仓内 `app/stripe_billing.py` 既有 Checkout；explore×2 审查；bugbot verifier
+- 比对：session metadata vs `subscription_data.metadata`（cancel→free）— 采用后者写入；one-time `payment` 回退 vs 强制 Price ID — 强制 Price ID（不卖永久 Pro）
+- 层：Billing / Auth / FE desk
+- 提炼：
+  1. Stripe 不把 session metadata 复制到 subscription → cancel webhook 必须写 `subscription_data[metadata][email]`
+  2. webhook apply `ok:false` 须 4xx 让 Stripe 重试
+  3. `auth=stripe` stub 可被 password register claim 并保留 plan
+  4. live 文案在 QD1-0 前只写「when mounted」
+- 采用档：**技术**（subscription metadata / paid gate）+ **直接**（desk+billing 落库）
+- 落地：`qr(QD0-0)` commit；`tests/test_billing.py`；GROK_GOAL QR4-2/4-3 ✅、QR6-1 🔶
+
+---
+
 *后续轮次追加在上方分隔线之下。*

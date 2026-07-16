@@ -11,86 +11,31 @@
   <meta property="og:type" content="website" />
   <link rel="canonical" href="/" />
   <link rel="stylesheet" href="/static/site.css" />
-  <style>
-    .hero { max-width: 960px; margin: 0 auto; padding: 2rem 1.25rem 0.5rem; }
-    .hero h1 { font-size: clamp(1.6rem, 4vw, 2.2rem); margin: 0 0 0.75rem; line-height: 1.2; }
-    .hero p { color: var(--muted); font-size: 1.05rem; max-width: 40rem; line-height: 1.5; }
-    .badge {
-      display: inline-block; font-size: 0.72rem; letter-spacing: 0.06em; text-transform: uppercase;
-      color: var(--ok); border: 1px solid rgba(62,207,142,.35); border-radius: 999px; padding: 0.2rem 0.6rem; margin-bottom: 0.75rem;
-    }
-    .chips { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 1rem 0; }
-    .chip {
-      background: #0a1018; border: 1px solid var(--border); color: var(--text);
-      border-radius: 999px; padding: 0.4rem 0.85rem; font-family: var(--mono); font-size: 0.85rem; cursor: pointer;
-    }
-    .chip:hover { border-color: var(--accent); }
-    .chip small { color: var(--muted); margin-left: 0.35rem; }
-    main.wrap { max-width: 960px; margin: 0 auto; padding: 1rem 1.25rem 2rem; display: grid; gap: 1rem; }
-    .panel {
-      background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 1.25rem;
-    }
-    .row { display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: end; }
-    label { display: block; color: var(--muted); font-size: 0.8rem; margin-bottom: 0.35rem; }
-    input, select {
-      background: #0a1018; border: 1px solid var(--border); color: var(--text);
-      border-radius: 6px; padding: 0.55rem 0.7rem; font-family: var(--mono); font-size: 0.95rem; min-width: 7.5rem;
-    }
-    button {
-      background: var(--accent); color: #fff; border: 0; border-radius: 6px;
-      padding: 0.6rem 1.1rem; font-weight: 600; cursor: pointer;
-    }
-    button.secondary { background: transparent; border: 1px solid var(--border); color: var(--text); }
-    button:disabled { opacity: 0.5; cursor: wait; }
-    .meta {
-      margin-top: 1rem; display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 0.75rem;
-    }
-    .kpi {
-      background: #0a1018; border: 1px solid var(--border); border-radius: 8px; padding: 0.75rem;
-    }
-    .kpi b { display: block; font-size: 1.25rem; margin-top: 0.2rem; font-family: var(--mono); word-break: break-word; }
-    .kpi small { color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; font-size: 0.7rem; }
-    .kpi.primary-score b { color: var(--accent); font-size: 1.45rem; }
-    .banner {
-      margin-top: 1rem; padding: 0.75rem 0.9rem; border-radius: 8px; border: 1px solid var(--border);
-      background: #0a1018; font-size: 0.9rem; line-height: 1.45;
-    }
-    .banner.ok { border-color: rgba(62, 207, 142, 0.4); color: var(--ok); }
-    .banner.warn { border-color: rgba(240, 180, 41, 0.45); color: var(--warn); }
-    .banner.bad { border-color: rgba(240, 113, 120, 0.45); color: var(--bad); }
-    ul.warns { margin: 0.75rem 0 0; padding-left: 1.1rem; color: var(--muted); font-size: 0.85rem; }
-    pre {
-      margin: 0; background: #0a1018; border: 1px solid var(--border); border-radius: 8px;
-      padding: 1rem; overflow: auto; font-family: var(--mono); font-size: 0.75rem; line-height: 1.45; max-height: 320px;
-    }
-    details summary { cursor: pointer; color: var(--muted); font-size: 0.85rem; margin-bottom: 0.5rem; }
-    .status { margin-top: 0.75rem; color: var(--muted); font-size: 0.85rem; }
-    .status.ok { color: var(--ok); }
-    .status.warn { color: var(--warn); }
-    .status.bad { color: var(--bad); }
-    .notify-row { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.75rem; }
-    .notify-row input { flex: 1; min-width: 12rem; }
-  </style>
 </head>
 <body>
   <header class="top">
-    <a class="brand" href="/">QuantRadar</a>
+    <a class="brand" href="/">Quant<span>Radar</span></a>
     <nav>
       <a href="/methodology">Methodology</a>
       <a href="/pricing">Pricing</a>
       <a id="loginLink" href="/login">Sign in</a>
-      <a id="checkoutLink" href="#" hidden>Upgrade</a>
+      <a id="upgradeNav" href="/pricing">Upgrade</a>
       <a id="logoutLink" href="/api/auth/logout" hidden>Sign out</a>
-      <span class="muted" id="userLine" style="font-size:0.85rem">guest</span>
+      <span class="plan-pill" id="planPill" hidden>Pro</span>
+      <span class="muted" id="userLine" style="font-size:0.8rem">guest</span>
     </nav>
   </header>
 
+  <div class="flash" id="flash" hidden>
+    <div class="banner ok" id="flashBanner"></div>
+  </div>
+
   <section class="hero">
-    <div class="badge">Beta · no fake social proof</div>
+    <p class="eyebrow">Beta · no fake social proof</p>
     <h1>Should you engage this setup?</h1>
-    <p>
+    <p class="lede">
       One mechanical score. One primary action. Market → sector → stock gates with honest data quality.
-      Demo chips are free artifacts (no credits). Educational only — not investment advice.
+      Demo chips are free. Educational only — not investment advice.
     </p>
     <div class="chips" id="demoChips">
       <button type="button" class="chip" data-demo="INTC">INTC <small>demo free</small></button>
@@ -101,87 +46,108 @@
   </section>
 
   <main class="wrap">
-    <section class="panel">
+    <section class="panel desk" id="desk" data-state="idle">
       <div class="row">
-        <div>
+        <div class="field">
           <label for="ticker">Ticker</label>
           <input id="ticker" value="INTC" maxlength="10" autocomplete="off" spellcheck="false" />
         </div>
-        <div>
-          <label for="sector">Sector ETF (optional)</label>
+        <div class="field">
+          <label for="sector">Sector ETF</label>
           <input id="sector" placeholder="SMH" maxlength="8" autocomplete="off" spellcheck="false" />
         </div>
-        <div>
+        <div class="field">
           <label for="mode">Mode</label>
           <select id="mode">
             <option value="artifact" selected>artifact (guest OK)</option>
-            <option value="live">live (sign-in)</option>
+            <option value="live">live (Pro)</option>
           </select>
         </div>
-        <button id="run" type="button">Analyze</button>
-        <button id="sample" type="button" class="secondary">Demo INTC free</button>
+        <button class="btn" id="run" type="button">Analyze</button>
+        <button class="btn secondary" id="sample" type="button">Demo INTC</button>
       </div>
-      <p class="status" id="status">Ready — demo chips never charge. Live requires sign-in.</p>
+      <p class="status" id="status">Ready — try a free demo chip. Live requires Pro.</p>
 
-      <div class="meta" id="kpis" hidden>
-        <div class="kpi primary-score"><small>Score (only one)</small><b id="kScore">—</b></div>
-        <div class="kpi"><small>Primary</small><b id="kPrimary">—</b></div>
-        <div class="kpi"><small>State</small><b id="kGate">—</b></div>
-        <div class="kpi"><small>Data quality</small><b id="kDq">—</b></div>
-        <div class="kpi"><small>Volume narrative</small><b id="kVol">—</b></div>
-        <div class="kpi"><small>Options</small><b id="kOpt">—</b></div>
-      </div>
-      <p id="summaryLine" class="status" hidden></p>
-      <div id="banner" class="banner" hidden></div>
-      <ul class="warns" id="warnList" hidden></ul>
-
-      <div id="notifyBox" class="panel" style="margin-top:1rem;padding:1rem;background:#0a1018" hidden>
-        <strong>Wait &amp; watch?</strong>
-        <p class="muted" style="margin:0.35rem 0 0;font-size:0.9rem">
-          Get an email if you want a reminder when you re-check this ticker (waitlist only — we do not invent urgency).
-        </p>
-        <div class="notify-row">
-          <input id="notifyEmail" type="email" placeholder="you@email.com" />
-          <button type="button" id="notifyBtn" class="secondary">Remind me</button>
+      <div class="verdict-block" id="verdictBlock" hidden>
+        <div>
+          <p class="verdict-action" id="kPrimary" data-tone="neutral">—</p>
+          <p class="verdict-label" id="kPrimaryLabel"></p>
+          <p class="verdict-why" id="summaryLine"></p>
         </div>
-        <p class="status" id="notifyStatus"></p>
+        <div class="score-orb">
+          <small>Score (only one)</small>
+          <b id="kScore">—</b>
+        </div>
       </div>
 
-      <details style="margin-top:1rem">
+      <div class="evidence-strip" id="evidenceStrip" hidden>
+        <div class="ev"><small>Market</small><b id="kMarket">—</b></div>
+        <div class="ev"><small>Sector</small><b id="kSector">—</b></div>
+        <div class="ev"><small>Stock gate</small><b id="kGate">—</b></div>
+      </div>
+
+      <div class="freshness" id="freshness" hidden>
+        <div id="freshnessText"></div>
+        <ul class="src-list" id="srcList"></ul>
+        <ul class="warns" id="warnList" hidden></ul>
+      </div>
+
+      <div class="next-block" id="nextBlock" hidden>
+        <h3 id="nextTitle">Next</h3>
+        <p id="nextCopy"></p>
+        <div class="next-actions" id="nextActions"></div>
+        <div id="notifyBox" hidden>
+          <div class="notify-row">
+            <input id="notifyEmail" type="email" placeholder="you@email.com" />
+            <button type="button" id="notifyBtn" class="btn secondary">Remind me</button>
+          </div>
+          <p class="status" id="notifyStatus"></p>
+        </div>
+      </div>
+
+      <details class="raw-block" id="rawBlock" hidden>
         <summary>Raw ENGINE_CONTRACT JSON (debug)</summary>
         <pre id="out">{}</pre>
       </details>
     </section>
-
-    <section class="panel">
-      <h2 style="margin:0 0 0.5rem;font-size:1.05rem">Pricing (honest)</h2>
-      <p class="muted" style="margin:0 0 0.75rem;font-size:0.9rem">
-        Free demo artifacts · Pro $29/mo or $249/yr · No Elite shelf without public track record.
-        <a href="/pricing">Full pricing →</a>
-      </p>
-      <p class="muted" style="margin:0;font-size:0.85rem">
-        How the score works: <a href="/methodology">Methodology</a>.
-        Legal: <a href="/terms">Terms</a> · <a href="/privacy">Privacy</a> · <a href="/refund">Refund</a>.
-      </p>
-    </section>
   </main>
 
   <footer class="foot">
-    Fortune Insight, LLC · Path-C shell · No fabricated testimonials or user counts · Educational only — not investment advice.
-    <span id="healthLine" style="display:block;margin-top:0.35rem"></span>
+    Fortune Insight, LLC · Educational only — not investment advice.
+    <a href="/pricing">Pricing</a> ·
+    <a href="/methodology">Methodology</a> ·
+    <a href="/terms">Terms</a> ·
+    <a href="/privacy">Privacy</a> ·
+    <a href="/refund">Refund</a>
+    <details style="margin-top:0.5rem">
+      <summary>System status</summary>
+      <span id="healthLine"></span>
+    </details>
   </footer>
 
   <script>
-    let authState = { authenticated: false, user: null };
+    let authState = { authenticated: false, user: null, plan: "free", stripe: false };
     let lastTicker = "INTC";
+    let lastPrimary = "";
 
-    function setBanner(kind, text) {
-      const el = document.getElementById("banner");
-      if (!text) { el.hidden = true; el.textContent = ""; return; }
-      el.hidden = false;
-      el.className = "banner " + (kind || "");
-      el.textContent = text;
+    const desk = document.getElementById("desk");
+
+    function isPro() {
+      return String(authState.plan || "free").toLowerCase() === "pro";
     }
+
+    function setDeskState(state) {
+      desk.dataset.state = state;
+    }
+
+    function toneForPrimary(primary) {
+      const p = String(primary || "").toUpperCase();
+      if (["FULL", "BUILD", "PROBE"].includes(p)) return "ok";
+      if (["WAIT"].includes(p)) return "warn";
+      if (["NO", "PUT", "PUT-BIAS"].includes(p) || p.startsWith("PUT")) return "bad";
+      return "neutral";
+    }
+
     function setWarns(list) {
       const ul = document.getElementById("warnList");
       ul.innerHTML = "";
@@ -194,25 +160,229 @@
       });
     }
 
+    function showFlash(kind, text) {
+      const wrap = document.getElementById("flash");
+      const el = document.getElementById("flashBanner");
+      if (!text) { wrap.hidden = true; return; }
+      wrap.hidden = false;
+      el.className = "banner " + (kind || "ok");
+      el.textContent = text;
+    }
+
+    async function startCheckout(interval) {
+      if (!authState.authenticated) {
+        location.href = "/login?next=checkout&interval=" + encodeURIComponent(interval || "monthly");
+        return;
+      }
+      try {
+        const r = await fetch("/api/billing/checkout", {
+          method: "POST",
+          credentials: "same-origin",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ interval: interval || "monthly" }),
+        });
+        const j = await r.json();
+        if (j.url) { location.href = j.url; return; }
+        showFlash("warn", j.error_detail || j.error || "Checkout unavailable — Stripe not configured on this host.");
+      } catch (ex) {
+        showFlash("bad", String(ex));
+      }
+    }
+
+    function renderNext(j, { demo }) {
+      const block = document.getElementById("nextBlock");
+      const title = document.getElementById("nextTitle");
+      const copy = document.getElementById("nextCopy");
+      const actions = document.getElementById("nextActions");
+      const notify = document.getElementById("notifyBox");
+      actions.innerHTML = "";
+      notify.hidden = true;
+      block.hidden = false;
+
+      const primary = String(lastPrimary || "").toUpperCase();
+      const waitLike = ["WAIT", "NO", "PUT"].includes(primary) || primary.startsWith("PUT");
+
+      if (!j.ok) {
+        if (j.error === "plan_required") {
+          title.textContent = "Upgrade for live";
+          copy.textContent =
+            "Live analyze is Pro. Unlock when charts keys are mounted — $29/mo or $249/yr.";
+          const btn = document.createElement("button");
+          btn.type = "button";
+          btn.className = "btn";
+          btn.textContent = "Upgrade to Pro";
+          btn.onclick = () => startCheckout("monthly");
+          actions.appendChild(btn);
+          const price = document.createElement("a");
+          price.className = "btn secondary";
+          price.href = "/pricing";
+          price.textContent = "See pricing";
+          actions.appendChild(price);
+          return;
+        }
+        title.textContent = "Blocked";
+        copy.textContent = "No tradeable conclusion. Fix data path or try a demo artifact.";
+        return;
+      }
+
+      if (!isPro()) {
+        title.textContent = demo ? "Liked the read?" : "Unlock live desk";
+        copy.textContent = demo
+          ? "This was a free frozen demo. Pro unlocks live analyze when charts keys are mounted — $29/mo or $249/yr."
+          : "Artifact path is free. Live quotes + higher limits are Pro.";
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "btn";
+        btn.textContent = authState.authenticated ? "Upgrade to Pro" : "Sign in & upgrade";
+        btn.onclick = () => {
+          if (authState.authenticated) startCheckout("monthly");
+          else location.href = "/login?next=checkout&interval=monthly";
+        };
+        actions.appendChild(btn);
+        const price = document.createElement("a");
+        price.className = "btn secondary";
+        price.href = "/pricing";
+        price.textContent = "See pricing";
+        actions.appendChild(price);
+      } else {
+        title.textContent = "Pro active";
+        copy.textContent = "Live mode is unlocked. Switch Mode → live when the charts engine is mounted.";
+        const liveBtn = document.createElement("button");
+        liveBtn.type = "button";
+        liveBtn.className = "btn";
+        liveBtn.textContent = "Run live";
+        liveBtn.onclick = () => {
+          document.getElementById("mode").value = "live";
+          runAnalyze();
+        };
+        actions.appendChild(liveBtn);
+      }
+
+      if (waitLike) {
+        notify.hidden = false;
+        if (!copy.textContent.includes("remind")) {
+          copy.textContent += " Optional: leave an email for a setup re-check reminder (waitlist only).";
+        }
+      }
+    }
+
+    function renderResult(j, { demo }) {
+      document.getElementById("out").textContent = JSON.stringify(j, null, 2);
+      document.getElementById("verdictBlock").hidden = false;
+      document.getElementById("evidenceStrip").hidden = false;
+      document.getElementById("freshness").hidden = false;
+      document.getElementById("rawBlock").hidden = false;
+      lastTicker = j.ticker || lastTicker;
+
+      const primary = (j.primary && j.primary.action) || (j.gate && j.gate.signal) || "—";
+      const primaryLabel = (j.primary && j.primary.label) || (j.gate && j.gate.signal_label) || "";
+      lastPrimary = primary;
+
+      const kPrimary = document.getElementById("kPrimary");
+      kPrimary.textContent = primary;
+      kPrimary.dataset.tone = toneForPrimary(primary);
+      document.getElementById("kPrimaryLabel").textContent = primaryLabel || "";
+
+      const ps = j.primary_score;
+      const scoreEl = document.getElementById("kScore");
+      if (ps && ps.withheld) scoreEl.textContent = "withheld";
+      else if (ps && ps.value != null) scoreEl.textContent = `${ps.value}/${ps.scale || 100}`;
+      else if (j.score && j.score.withheld) scoreEl.textContent = "withheld";
+      else if (j.score && j.score.final != null) scoreEl.textContent = `${j.score.final}/${j.score.scale || 100}`;
+      else scoreEl.textContent = "—";
+
+      const mg = (j.gate && j.gate.market_gate) || {};
+      const sg = (j.gate && j.gate.sector_gate) || {};
+      const mkt = j.market || {};
+      const spy = mg.spy_change_pct != null ? mg.spy_change_pct : mkt.spy_change_pct;
+      const mState = mg.market_state || mkt.market_state || mg.status || "—";
+      document.getElementById("kMarket").textContent =
+        spy != null ? `${mState} · SPY ${Number(spy).toFixed(2)}%` : String(mState);
+
+      const etf = sg.sector_etf || mkt.sector_etf || j.sector || "—";
+      const sch = sg.sector_change_pct != null ? sg.sector_change_pct : mkt.sector_change_pct;
+      document.getElementById("kSector").textContent =
+        sch != null ? `${etf} · ${Number(sch).toFixed(2)}%` : String(etf);
+
+      document.getElementById("kGate").textContent =
+        (j.gate && (j.gate.state_name || j.gate.state_code)) || "—";
+
+      const sum = document.getElementById("summaryLine");
+      const disc = (j.meta && j.meta.disclaimer) || "Educational radar only — not investment advice.";
+      const why = (j.primary && j.primary.reason) || (j.gate && j.gate.state_reason) || j.summary || "";
+      sum.textContent = (why ? why + " · " : "") + (demo ? "demo (0 credits) · " : "") + disc;
+
+      const fresh = document.getElementById("freshness");
+      const freshText = document.getElementById("freshnessText");
+      const dq = j.data_quality || {};
+      const mode = (j.meta && j.meta.mode) || "—";
+      const rel = dq.reliability || (j.meta && j.meta.reliability) || (j.ok ? "ok" : "failed");
+      const opt = dq.options_actionable
+        ? "options actionable"
+        : (dq.options && dq.options.options_simulated) ? "options simulated / n/a"
+          : "options n/a";
+      if (!j.ok) {
+        fresh.className = "freshness bad";
+        freshText.textContent = `No conclusion: ${j.error_detail || j.error || "failed"}. Score withheld.`;
+        setDeskState("blocked");
+      } else if (j.degraded) {
+        fresh.className = "freshness warn";
+        freshText.textContent = `Degraded · mode=${mode} · reliability=${rel} · ${opt}. Read warnings before acting.`;
+        setDeskState("ready");
+      } else {
+        fresh.className = "freshness ok";
+        freshText.textContent = `Freshness OK · mode=${mode} · reliability=${rel} · ${opt}.`;
+        setDeskState("ready");
+      }
+
+      const srcList = document.getElementById("srcList");
+      srcList.innerHTML = "";
+      (j.sources || []).forEach((s) => {
+        const li = document.createElement("li");
+        const name = typeof s === "string" ? s : (s.name || s.role || "source");
+        const st = typeof s === "object" && s.status ? ` · ${s.status}` : "";
+        li.textContent = name + st;
+        srcList.appendChild(li);
+      });
+      setWarns(j.warnings || []);
+      renderNext(j, { demo });
+    }
+
     async function refreshAuth() {
       try {
         const r = await fetch("/api/auth/status", { credentials: "same-origin" });
         const j = await r.json();
-        authState = { authenticated: !!j.authenticated, user: j.user || null };
+        authState = {
+          authenticated: !!j.authenticated,
+          user: j.user || null,
+          plan: (j.user && j.user.plan) || "free",
+          stripe: !!j.stripe_checkout,
+        };
         const userLine = document.getElementById("userLine");
         const loginLink = document.getElementById("loginLink");
         const logoutLink = document.getElementById("logoutLink");
-        const checkoutLink = document.getElementById("checkoutLink");
+        const upgradeNav = document.getElementById("upgradeNav");
+        const planPill = document.getElementById("planPill");
+        const modeSel = document.getElementById("mode");
+
         if (authState.authenticated && authState.user) {
           userLine.textContent = authState.user.email || "signed in";
           loginLink.hidden = true;
           logoutLink.hidden = false;
-          checkoutLink.hidden = false;
         } else {
           userLine.textContent = "guest";
           loginLink.hidden = false;
           logoutLink.hidden = true;
-          checkoutLink.hidden = true;
+        }
+
+        if (isPro()) {
+          planPill.hidden = false;
+          upgradeNav.hidden = true;
+          modeSel.querySelector('option[value="live"]').disabled = false;
+        } else {
+          planPill.hidden = true;
+          upgradeNav.hidden = false;
+          /* keep live selectable so CTA can redirect, but analyze will gate */
         }
       } catch (e) { /* guest */ }
     }
@@ -225,13 +395,13 @@
         const status = j.charts_status || (j.charts_reachable ? "mounted" : "unknown");
         const fixtures = Array.isArray(j.artifact_fixtures) ? j.artifact_fixtures.join(",") : "";
         document.getElementById("healthLine").textContent =
-          `health mode=${j.mode_default || "?"} charts_status=${status} data_path=${j.data_path || "?"} ` +
+          `mode=${j.mode_default || "?"} charts=${status} path=${j.data_path || "?"} ` +
           `manus_login=${j.manus_login} sha=${j.git_sha || "n/a"} v=${j.version}`;
         if (modeLine) {
           if (status === "artifact_only") {
             modeLine.className = "status warn";
             modeLine.textContent =
-              (j.product_note || "Charts engine not mounted — demos use pre-built artifacts.") +
+              (j.product_note || "Demos use pre-built artifacts.") +
               (fixtures ? " Fixtures: " + fixtures + "." : "");
           } else if (status === "mounted") {
             modeLine.className = "status ok";
@@ -245,79 +415,11 @@
           }
         }
       } catch (e) {
-        document.getElementById("healthLine").textContent = "health unreachable — service may be waking (Render Free ~1 min)";
+        document.getElementById("healthLine").textContent = "health unreachable — service may be waking";
         if (modeLine) {
           modeLine.className = "status warn";
-          modeLine.textContent = "Service unreachable or cold-starting. Retry in a minute.";
+          modeLine.textContent = "Service unreachable or cold-starting.";
         }
-      }
-    }
-
-    function renderResult(j, { demo }) {
-      document.getElementById("out").textContent = JSON.stringify(j, null, 2);
-      document.getElementById("kpis").hidden = false;
-      lastTicker = j.ticker || lastTicker;
-
-      const primary = (j.primary && j.primary.action) || (j.gate && j.gate.signal) || "—";
-      const primaryLabel = (j.primary && j.primary.label) || (j.gate && j.gate.signal_label) || "";
-      document.getElementById("kPrimary").textContent = primaryLabel
-        ? `${primary} · ${primaryLabel}`
-        : primary;
-
-      // TG-1: only primary_score / score.final
-      const ps = j.primary_score;
-      if (ps && ps.withheld) {
-        document.getElementById("kScore").textContent = "withheld";
-      } else if (ps && ps.value != null) {
-        document.getElementById("kScore").textContent = `${ps.value}/${ps.scale || 100}`;
-      } else if (j.score && j.score.withheld) {
-        document.getElementById("kScore").textContent = "withheld";
-      } else if (j.score && j.score.final != null) {
-        document.getElementById("kScore").textContent = `${j.score.final}/${j.score.scale || 100}`;
-      } else {
-        document.getElementById("kScore").textContent = "—";
-      }
-
-      document.getElementById("kGate").textContent =
-        (j.gate && (j.gate.state_code || j.gate.state_name)) || "—";
-
-      const dq = j.data_quality || {};
-      document.getElementById("kDq").textContent = j.ok
-        ? (dq.reliability || (j.meta && j.meta.reliability) || "ok")
-        : (j.error || "failed");
-      document.getElementById("kVol").textContent =
-        dq.volume_narrative_allowed === false ? "blocked"
-          : dq.volume_narrative_allowed ? "allowed" : "—";
-      document.getElementById("kOpt").textContent = dq.options_actionable
-        ? "actionable"
-        : (dq.options && dq.options.options_from_artifact) ? "snapshot / n/a"
-          : (dq.options && dq.options.options_simulated) ? "simulated / n/a"
-            : j.ok ? "n/a" : "n/a";
-
-      const sum = document.getElementById("summaryLine");
-      const disc = (j.meta && j.meta.disclaimer) || "Educational radar only — not investment advice.";
-      if (j.summary) {
-        sum.hidden = false;
-        sum.textContent = j.summary + (demo ? " · demo (0 credits)" : "") + " · " + disc;
-      } else {
-        sum.hidden = false;
-        sum.textContent = disc;
-      }
-
-      setWarns(j.warnings || []);
-
-      const waitLike = ["WAIT", "NO", "PUT"].includes(String(primary).toUpperCase());
-      document.getElementById("notifyBox").hidden = !(j.ok && waitLike);
-
-      const modeHint = (j.meta && j.meta.mode === "artifact")
-        ? " Artifact path — frozen sample, not a live quote."
-        : "";
-      if (!j.ok) {
-        setBanner("bad", `No tradeable conclusion: ${j.error_detail || j.error || "failed"}. Score withheld.`);
-      } else if (j.degraded) {
-        setBanner("warn", `Degraded result — single primary is ${primary}. Read warnings.` + modeHint);
-      } else {
-        setBanner("ok", `Primary: ${primary}${primaryLabel ? " (" + primaryLabel + ")" : ""}. One score only.` + modeHint);
       }
     }
 
@@ -327,21 +429,23 @@
       const status = document.getElementById("status");
       status.className = "status";
       status.textContent = `Loading free demo for ${t}…`;
-      setBanner(null, "");
+      setDeskState("loading");
       try {
         const r = await fetch("/api/sample?ticker=" + encodeURIComponent(t), { credentials: "same-origin" });
         const j = await r.json();
         renderResult(j, { demo: true });
         if (!j.ok) {
           status.className = "status warn";
-          status.textContent = `Demo unavailable for ${t} (no artifact). Try INTC or sign in for live.`;
+          status.textContent = `Demo unavailable for ${t}. Try INTC.`;
+          setDeskState("blocked");
         } else {
           status.className = "status ok";
-          status.textContent = `Demo OK — 0 credits charged · artifact mode`;
+          status.textContent = `Demo OK — 0 credits · artifact`;
         }
       } catch (e) {
         status.className = "status bad";
         status.textContent = String(e);
+        setDeskState("blocked");
       }
     }
 
@@ -350,8 +454,33 @@
       const sector = document.getElementById("sector").value.trim();
       const mode = document.getElementById("mode").value;
       if (mode === "live" && !authState.authenticated) {
-        setBanner("warn", "Live mode needs sign-in. Redirecting…");
-        setTimeout(() => { location.href = "/login"; }, 400);
+        showFlash("warn", "Live needs sign-in. Redirecting…");
+        setTimeout(() => { location.href = "/login?next=live"; }, 350);
+        return;
+      }
+      if (mode === "live" && !isPro()) {
+        showFlash("warn", "Live analyze is a Pro feature.");
+        setDeskState("blocked");
+        document.getElementById("nextBlock").hidden = false;
+        document.getElementById("nextTitle").textContent = "Upgrade for live";
+        document.getElementById("nextCopy").textContent =
+          "You're signed in on Free. Pro unlocks live when charts keys are mounted — $29/mo or $249/yr.";
+        const actions = document.getElementById("nextActions");
+        actions.innerHTML = "";
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "btn";
+        btn.textContent = "Upgrade to Pro";
+        btn.onclick = () => startCheckout("monthly");
+        actions.appendChild(btn);
+        const price = document.createElement("a");
+        price.className = "btn secondary";
+        price.href = "/pricing";
+        price.textContent = "See pricing";
+        actions.appendChild(price);
+        const status = document.getElementById("status");
+        status.className = "status warn";
+        status.textContent = "Pro plan required for live";
         return;
       }
       const btn = document.getElementById("run");
@@ -359,7 +488,7 @@
       btn.disabled = true;
       status.className = "status";
       status.textContent = "Analyzing…";
-      setBanner(null, "");
+      setDeskState("loading");
       try {
         const q = new URLSearchParams({ ticker, mode });
         if (sector) q.set("sector", sector);
@@ -369,6 +498,11 @@
         if (r.status === 401 || j.error === "login_required") {
           status.className = "status warn";
           status.textContent = "Login required for live mode";
+          setDeskState("blocked");
+        } else if (j.error === "plan_required") {
+          status.className = "status warn";
+          status.textContent = "Pro plan required for live";
+          setDeskState("blocked");
         } else if (!j.ok) {
           status.className = "status bad";
           status.textContent = `Failed (${r.status}): ${j.error || "see body"}`;
@@ -382,6 +516,7 @@
       } catch (e) {
         status.className = "status bad";
         status.textContent = String(e);
+        setDeskState("blocked");
       } finally {
         btn.disabled = false;
       }
@@ -412,25 +547,34 @@
         st.textContent = String(e);
       }
     });
-    document.getElementById("checkoutLink").addEventListener("click", async (e) => {
-      e.preventDefault();
-      try {
-        const r = await fetch("/api/billing/checkout", {
-          method: "POST",
-          credentials: "same-origin",
-          headers: { "content-type": "application/json" },
-          body: "{}",
-        });
-        const j = await r.json();
-        if (j.url) location.href = j.url;
-        else setBanner("warn", j.error_detail || j.error || "checkout unavailable");
-      } catch (ex) {
-        setBanner("bad", String(ex));
-      }
+    document.getElementById("upgradeNav").addEventListener("click", (e) => {
+      /* default go pricing */
     });
 
+    const params = new URLSearchParams(location.search);
+    if (params.get("checkout") === "success") {
+      showFlash("ok", "Checkout complete. If webhook is configured, Pro unlocks within seconds — refresh if the pill does not appear.");
+    } else if (params.get("signed_in") === "1") {
+      showFlash(
+        "ok",
+        params.get("want") === "live"
+          ? "Signed in. Live needs Pro — upgrade or try a free demo."
+          : "Signed in. Try a demo, or upgrade for live."
+      );
+    }
+
     refreshHealth();
-    refreshAuth();
+    refreshAuth().then(() => {
+      if (params.get("checkout") === "success") {
+        /* re-poll plan after webhook latency */
+        setTimeout(refreshAuth, 1500);
+        setTimeout(refreshAuth, 4000);
+      }
+      if (params.get("want") === "live") {
+        document.getElementById("mode").value = "live";
+        if (authState.authenticated) runAnalyze();
+      }
+    });
   </script>
 </body>
 </html>

@@ -1,87 +1,25 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Sign in — QuantRadar</title>
   <meta name="description" content="QuantRadar own login — email and password. No Manus platform account." />
-  <style>
-    :root {
-      --bg: #0b0f14; --panel: #121a24; --text: #e7eef7; --muted: #8b9bb0;
-      --accent: #3d8bfd; --ok: #3ecf8e; --warn: #f0b429; --bad: #f07178; --border: #1e2a3a;
-      --sans: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
-    }
-    * { box-sizing: border-box; }
-    body {
-      margin: 0; min-height: 100vh; font-family: var(--sans);
-      background: radial-gradient(1000px 500px at 50% -20%, #1a2740 0%, var(--bg) 55%);
-      color: var(--text); display: flex; flex-direction: column;
-    }
-    header {
-      padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--border);
-      display: flex; justify-content: space-between; align-items: baseline;
-    }
-    header a { color: var(--muted); text-decoration: none; font-size: 0.9rem; }
-    main { flex: 1; display: flex; align-items: center; justify-content: center; padding: 2rem 1rem; }
-    .card {
-      width: 100%; max-width: 420px; background: var(--panel);
-      border: 1px solid var(--border); border-radius: 12px; padding: 1.75rem;
-    }
-    h1 { margin: 0 0 0.35rem; font-size: 1.25rem; font-weight: 600; }
-    .lede { margin: 0 0 1.25rem; color: var(--muted); font-size: 0.92rem; line-height: 1.5; }
-    label { display: block; color: var(--muted); font-size: 0.8rem; margin-bottom: 0.35rem; }
-    input {
-      width: 100%; background: #0a1018; border: 1px solid var(--border); color: var(--text);
-      border-radius: 8px; padding: 0.7rem 0.8rem; font-size: 0.95rem; margin-bottom: 0.75rem;
-    }
-    .btn {
-      display: flex; align-items: center; justify-content: center; gap: 0.6rem;
-      width: 100%; padding: 0.75rem 1rem; border-radius: 8px; border: 0;
-      font-weight: 600; font-size: 0.95rem; cursor: pointer; text-decoration: none; color: #fff;
-      background: var(--accent);
-    }
-    .btn:hover { filter: brightness(1.06); }
-    .btn:disabled { opacity: 0.45; cursor: wait; }
-    .btn.secondary {
-      margin-top: 0.65rem; background: transparent; border: 1px solid var(--border); color: var(--text);
-    }
-    .divider {
-      display: flex; align-items: center; gap: 0.75rem; margin: 1rem 0;
-      color: var(--muted); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em;
-    }
-    .divider::before, .divider::after {
-      content: ""; flex: 1; height: 1px; background: var(--border);
-    }
-    .note { margin-top: 1rem; font-size: 0.8rem; color: var(--muted); line-height: 1.45; }
-    .banner {
-      margin-bottom: 1rem; padding: 0.7rem 0.85rem; border-radius: 8px;
-      font-size: 0.85rem; line-height: 1.4; border: 1px solid var(--border); background: #0a1018;
-    }
-    .banner.warn { color: var(--warn); border-color: rgba(240,180,41,.4); }
-    .banner.bad { color: var(--bad); border-color: rgba(240,113,120,.4); }
-    .banner.ok { color: var(--ok); border-color: rgba(62,207,142,.4); }
-    .tabs { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
-    .tabs button {
-      flex: 1; background: transparent; border: 1px solid var(--border); color: var(--muted);
-      border-radius: 8px; padding: 0.45rem; font-weight: 600; cursor: pointer;
-    }
-    .tabs button.active { border-color: var(--accent); color: var(--text); background: #0a1018; }
-    .hint {
-      margin: 0 0 0.75rem; padding: 0.55rem 0.7rem; border-radius: 8px;
-      background: #0a1018; border: 1px solid var(--border); color: var(--muted); font-size: 0.78rem;
-    }
-  </style>
+  <link rel="stylesheet" href="/static/site.css" />
 </head>
-<body>
-  <header>
-    <strong>QuantRadar</strong>
-    <a href="/">← Back to radar</a>
+<body class="auth-shell">
+  <header class="top">
+    <a class="brand" href="/">Quant<span>Radar</span></a>
+    <nav>
+      <a href="/pricing">Pricing</a>
+      <a href="/">← Back to radar</a>
+    </nav>
   </header>
   <main>
-    <section class="card">
+    <section class="auth-card">
       <h1 id="title">Sign in</h1>
-      <p class="lede">
-        Own account — email + password. No Manus. Google can be enabled later via env.
+      <p class="lede" id="lede">
+        Own account — email + password. No Manus.
         Guest demo radar stays open without signing in.
       </p>
       <div id="banner" class="banner" hidden></div>
@@ -118,12 +56,27 @@
     </section>
   </main>
   <script>
-    let mode = "login"; // login | register
+    let mode = "login";
     const banner = document.getElementById("banner");
     const pwBtn = document.getElementById("pwBtn");
     const title = document.getElementById("title");
     const nameWrap = document.getElementById("nameWrap");
     const statusNote = document.getElementById("statusNote");
+    const params = new URLSearchParams(location.search);
+    const next = params.get("next") || "";
+    const interval = params.get("interval") || "monthly";
+
+    function redirectAfterAuth() {
+      if (next === "checkout") {
+        location.href = "/pricing?authed=1&interval=" + encodeURIComponent(interval);
+        return;
+      }
+      if (next === "live") {
+        location.href = "/?signed_in=1&want=live";
+        return;
+      }
+      location.href = "/?signed_in=1";
+    }
 
     function showBanner(kind, text) {
       banner.hidden = false;
@@ -140,6 +93,14 @@
       nameWrap.hidden = m !== "register";
       document.getElementById("password").autocomplete =
         m === "login" ? "current-password" : "new-password";
+    }
+
+    if (next === "checkout") {
+      document.getElementById("lede").textContent =
+        "Create an account to unlock Pro checkout. After sign-in you will return to pricing to complete payment.";
+    } else if (next === "live") {
+      document.getElementById("lede").textContent =
+        "Sign in to use the desk. Live analyze requires Pro after sign-in.";
     }
 
     document.getElementById("tabLogin").onclick = () => setMode("login");
@@ -165,7 +126,7 @@
           return;
         }
         showBanner("ok", "Signed in as " + (j.user && j.user.email) + ". Redirecting…");
-        setTimeout(() => { location.href = "/?signed_in=1"; }, 400);
+        setTimeout(redirectAfterAuth, 350);
       } catch (ex) {
         showBanner("bad", String(ex));
       } finally {
@@ -200,7 +161,7 @@
           return;
         }
         if (j.login_url) {
-          showBanner("ok", "Magic link ready (console delivery). Opening…");
+          showBanner("ok", "Magic link ready. Opening…");
           statusNote.textContent = j.login_url;
           setTimeout(() => { location.href = j.login_url; }, 400);
         } else {
@@ -219,7 +180,7 @@
         const j = await r.json();
         if (j.authenticated && j.user) {
           showBanner("ok", "Already signed in as " + j.user.email);
-          setTimeout(() => { location.href = "/"; }, 500);
+          setTimeout(redirectAfterAuth, 400);
           return;
         }
         if (j.google_oauth) {
@@ -233,20 +194,22 @@
           "auth=" + (j.auth_mode || "?") +
           " · password=" + !!j.password_auth +
           " · magic=" + !!j.magic_link +
-          " · google=" + !!j.google_oauth;
+          " · google=" + !!j.google_oauth +
+          " · stripe=" + !!j.stripe_checkout;
 
-        // Bootstrap hint when demo admin likely exists
         if (j.user_count === 1 || j.user_count === 0) {
           const h = document.getElementById("bootstrapHint");
           h.hidden = false;
           h.textContent =
-            "First-run tip: if no account yet, register above — or use bootstrap admin@local.test / quantradar when QUANTRADAR_BOOTSTRAP_DEMO=1.";
+            "First-run tip: register above — or bootstrap admin@local.test / quantradar when QUANTRADAR_BOOTSTRAP_DEMO=1.";
         }
       } catch (e) {
         statusNote.textContent = String(e);
       }
-      const params = new URLSearchParams(location.search);
       if (params.get("error")) showBanner("bad", "Error: " + params.get("error"));
+      if (params.get("checkout") === "cancel") {
+        showBanner("warn", "Checkout canceled. You can try again from Pricing.");
+      }
     }
     boot();
   </script>

@@ -103,7 +103,24 @@ class PasswordHttpTests(unittest.TestCase):
         self.assertTrue(me.get("authenticated"))
         self.assertEqual(me["user"]["email"], "desk@test.local")
 
-        # live allowed when cookie present (may 502 without charts live)
+        # free plan → live requires Pro
+        req = urllib.request.Request(
+            f"http://127.0.0.1:{self.port}/api/analyze?ticker=INTC&mode=live",
+            headers={"Cookie": f"qr_session={token}"},
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=5) as r:
+                code = r.status
+                j = json.loads(r.read().decode())
+        except urllib.error.HTTPError as e:
+            code = e.code
+            j = json.loads(e.read().decode())
+        self.assertEqual(code, 403, j)
+        self.assertEqual(j.get("error"), "plan_required")
+
+        from app.users import set_plan
+
+        set_plan("desk@test.local", "pro")
         req = urllib.request.Request(
             f"http://127.0.0.1:{self.port}/api/analyze?ticker=INTC&mode=live",
             headers={"Cookie": f"qr_session={token}"},
@@ -116,7 +133,9 @@ class PasswordHttpTests(unittest.TestCase):
             code = e.code
             j = json.loads(e.read().decode())
         self.assertNotEqual(j.get("error"), "login_required")
+        self.assertNotEqual(j.get("error"), "plan_required")
         self.assertNotEqual(code, 401)
+        self.assertNotEqual(code, 403)
 
 
 if __name__ == "__main__":

@@ -134,8 +134,27 @@ def register_user(
     salt_hex, hash_hex = _hash_password(password)
     with _LOCK:
         store = _load()
-        if email_n in store["users"]:
-            raise ValueError("email already registered")
+        existing = store["users"].get(email_n)
+        if isinstance(existing, dict):
+            # Billing stub from webhook (auth=stripe, no password) — claim & keep plan.
+            is_stub = (
+                str(existing.get("auth") or "") == "stripe"
+                and not existing.get("password_hash")
+            )
+            if not is_stub:
+                raise ValueError("email already registered")
+            rec = dict(existing)
+            rec["name"] = (name or rec.get("name") or email_n.split("@")[0]).strip()[:80]
+            rec["salt"] = salt_hex
+            rec["password_hash"] = hash_hex
+            rec["auth"] = "password"
+            rec["claimed_at"] = time.time()
+            # Keep existing plan (likely pro from checkout); only set if missing.
+            if not rec.get("plan"):
+                rec["plan"] = plan or "free"
+            store["users"][email_n] = rec
+            _save(store)
+            return public_user(rec)
         rec = {
             "email": email_n,
             "name": (name or email_n.split("@")[0]).strip()[:80],
@@ -213,3 +232,43 @@ def ensure_bootstrap_admin() -> dict[str, Any] | None:
 def count_users() -> int:
     with _LOCK:
         return len(_load().get("users") or {})
+
+
+def resolve_plan(email: str | None, *, session_plan: str | None = None) -> str:
+    """Plan SSOT: users store when present; else session claim (dev/magic/google)."""
+    if email:
+        u = get_user(email)
+        if u:
+            plan = str(u.get("plan") or "free").strip().lower()
+            return plan if plan in {"free", "pro"} else "free"
+    plan = str(session_plan or "free").strip().lower()
+    return plan if plan in {"free", "pro"} else "free"
+
+
+def set_plan(email: str, plan: str) -> dict[str, Any]:
+    """Set plan for email; creates a billing stub user if missing."""
+    email_n = normalize_email(email)
+    if not _EMAIL_RE.match(email_n):
+        raise ValueError("invalid email")
+    plan_n = (plan or "free").strip().lower()
+    if plan_n not in {"free", "pro"}:
+        raise ValueError("invalid plan")
+    with _LOCK:
+        store = _load()
+        u = store["users"].get(email_n)
+        if not isinstance(u, dict):
+            u = {
+                "email": email_n,
+                "name": email_n.split("@")[0][:80],
+                "plan": plan_n,
+                "created_at": time.time(),
+                "auth": "stripe",
+            }
+            store["users"][email_n] = u
+        else:
+            u = dict(u)
+            u["plan"] = plan_n
+            u["plan_updated_at"] = time.time()
+            store["users"][email_n] = u
+        _save(store)
+        return public_user(u)

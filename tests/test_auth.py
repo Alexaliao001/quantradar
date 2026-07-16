@@ -132,11 +132,25 @@ class HttpAuthTests(unittest.TestCase):
         else:
             self.assertTrue(body["authenticated"])
 
-        # live with cookie should not be 401 (engine may 502 if charts missing — force empty CHARTS_DIR)
+        # free session → live blocked with plan_required
+        token_free = authlib.mint_session(sub="dev", email="dev@test.local", plan="free")
+        req = urllib.request.Request(
+            self._url("/api/analyze?ticker=INTC&mode=live"),
+            headers={"Cookie": f"{authlib.COOKIE_NAME}={token_free}"},
+        )
+        try:
+            urllib.request.urlopen(req, timeout=5)
+            self.fail("free plan live should 403")
+        except urllib.error.HTTPError as e:
+            self.assertEqual(e.code, 403)
+            body = json.loads(e.read().decode())
+            self.assertEqual(body.get("error"), "plan_required")
+
+        # pro session → live should not be 401/403 login/plan (engine may 502)
         prev_charts = os.environ.get("CHARTS_DIR")
         os.environ["CHARTS_DIR"] = str(REPO / "fixtures" / "no_such_charts_dir")
         try:
-            token = authlib.mint_session(sub="dev", email="dev@test.local")
+            token = authlib.mint_session(sub="dev", email="dev-pro@test.local", plan="pro")
             req = urllib.request.Request(
                 self._url("/api/analyze?ticker=INTC&mode=live"),
                 headers={"Cookie": f"{authlib.COOKIE_NAME}={token}"},
@@ -155,6 +169,7 @@ class HttpAuthTests(unittest.TestCase):
                 os.environ["CHARTS_DIR"] = prev_charts
         self.assertNotEqual(code, 401, body)
         self.assertNotEqual(body.get("error"), "login_required")
+        self.assertNotEqual(body.get("error"), "plan_required")
 
     def test_magic_link_flow(self) -> None:
         import urllib.request

@@ -10,14 +10,15 @@
 | 访客分析 `/api/analyze`（默认 artifact） | **公开**，无登录 |
 | 访客样例 `/api/sample` | **公开** |
 | Health `/health` | **公开** |
-| Live 分析 `mode=live` | **需登录**（session cookie） |
+| Live 分析 `mode=live` | **需登录 + Pro**（session cookie；`plan` 以 users 库 / Stripe webhook 为准） |
 | 产品登录 | **`/login`** → **邮箱+密码** 注册/登录 |
 | Magic link | 可选（无 SMTP 时控制台/文件交付） |
 | Google OAuth | 仅当配置 `GOOGLE_CLIENT_*` 时显示 |
 | Session | HttpOnly cookie `qr_session`（HMAC 签名） |
 | 用户库 | `data/users.json`（PBKDF2-SHA256） |
 | Manus OAuth `/api/oauth/*` | **410** |
-| Stripe checkout | 登录后 `POST /api/billing/checkout` |
+| Stripe checkout | 登录后 `POST /api/billing/checkout` body `{interval:"monthly"|"yearly"}` |
+| Stripe webhook | `POST /api/billing/webhook` → 写 `plan=pro`；`subscription.deleted/paused` 回 `free`（依赖 checkout 写入的 `subscription_data.metadata.email`） |
 
 ## 自有登录 API
 

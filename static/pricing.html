@@ -10,16 +10,24 @@
 </head>
 <body>
   <header class="top">
-    <a class="brand" href="/">QuantRadar</a>
+    <a class="brand" href="/">Quant<span>Radar</span></a>
     <nav>
       <a href="/methodology">Methodology</a>
-      <a href="/pricing">Pricing</a>
+      <a href="/pricing" aria-current="page">Pricing</a>
       <a href="/login">Sign in</a>
     </nav>
   </header>
   <main class="prose">
     <h1>Pricing</h1>
-    <p class="muted">Beta. No fabricated “1,247 analyses”. Numbers below are product intent — Stripe checkout when enabled on the host.</p>
+    <p class="muted">
+      Clear Free vs Pro. No fabricated user counts. Checkout via Stripe when configured on the host.
+    </p>
+    <div id="banner" class="banner" hidden></div>
+
+    <div class="interval-toggle" id="intervalToggle" role="group" aria-label="Billing interval">
+      <button type="button" class="active" data-interval="monthly">Monthly</button>
+      <button type="button" data-interval="yearly">Yearly <span class="muted">save ~28%</span></button>
+    </div>
 
     <div class="price-grid">
       <section class="card">
@@ -28,29 +36,31 @@
         <ul>
           <li>Demo tickers (artifact) — <strong>never bill credits</strong></li>
           <li>Single mechanical score + primary action</li>
-          <li>Data-quality flags (volume / options honesty)</li>
-          <li>No actionable options claims on free tier</li>
+          <li>Data-quality &amp; freshness flags</li>
+          <li>No live fetch · options not sold as actionable</li>
         </ul>
-        <a class="btn" href="/">Try demo radar</a>
+        <a class="btn secondary" href="/">Try demo radar</a>
       </section>
       <section class="card highlight">
         <h2>Pro</h2>
-        <p class="price">$29<span>/mo</span></p>
-        <p class="muted">or $249/year (integer price — no $266.58 residue)</p>
+        <p class="price" id="proPrice">$29<span>/mo</span></p>
+        <p class="muted" id="proSub">Billed monthly. Cancel anytime via Stripe.</p>
         <ul>
-          <li>Sign-in session (Google / magic link)</li>
-          <li>Live analyze mode (when charts keys configured)</li>
+          <li>Sign-in session (email / magic / Google when enabled)</li>
+          <li><strong>Live analyze</strong> when charts keys are mounted</li>
           <li>Higher rate limits</li>
           <li>Setup-alert waitlist for your tickers</li>
+          <li>Options only when live chain is OK (honesty gate)</li>
         </ul>
-        <a class="btn" href="/login">Sign in</a>
+        <button class="btn" type="button" id="proCta">Get Pro</button>
+        <p class="muted" id="ctaHint" style="margin-top:0.65rem;font-size:0.8rem"></p>
       </section>
     </div>
 
     <h2>What we do not sell (yet)</h2>
     <p>
       No “Elite institutional” tier without a public track record. If we add a mid tier later, it will be
-      clearly scoped (batch limits / API lite) — not a 13× prestige jump.
+      clearly scoped (batch limits / API lite) — not a prestige jump.
     </p>
 
     <h2>Consistency table</h2>
@@ -58,7 +68,7 @@
       <thead><tr><th></th><th>Free</th><th>Pro</th></tr></thead>
       <tbody>
         <tr><td>Demo artifact</td><td>Yes</td><td>Yes</td></tr>
-        <tr><td>Live fetch</td><td>No</td><td>Yes</td></tr>
+        <tr><td>Live fetch</td><td>No</td><td>When charts mounted</td></tr>
         <tr><td>Options as actionable</td><td>No</td><td>Only when live chain OK</td></tr>
         <tr><td>Pattern labels</td><td>If present in artifact</td><td>Same rules + live</td></tr>
       </tbody>
@@ -70,5 +80,113 @@
     <a href="/terms">Terms</a> · <a href="/privacy">Privacy</a> · <a href="/refund">Refund</a>
     · Fortune Insight, LLC
   </footer>
+  <script>
+    let interval = "monthly";
+    let auth = { authenticated: false, plan: "free", stripe: false };
+
+    const params = new URLSearchParams(location.search);
+    if (params.get("interval") === "yearly") interval = "yearly";
+
+    function showBanner(kind, text) {
+      const el = document.getElementById("banner");
+      if (!text) { el.hidden = true; return; }
+      el.hidden = false;
+      el.className = "banner " + kind;
+      el.textContent = text;
+    }
+
+    function syncIntervalUI() {
+      document.querySelectorAll("#intervalToggle button").forEach((b) => {
+        b.classList.toggle("active", b.dataset.interval === interval);
+      });
+      const price = document.getElementById("proPrice");
+      const sub = document.getElementById("proSub");
+      if (interval === "yearly") {
+        price.innerHTML = '$249<span>/yr</span>';
+        sub.textContent = "Billed yearly (~$20.75/mo). Integer price — no residue.";
+      } else {
+        price.innerHTML = '$29<span>/mo</span>';
+        sub.textContent = "Billed monthly. Cancel anytime via Stripe.";
+      }
+    }
+
+    function syncCta() {
+      const cta = document.getElementById("proCta");
+      const hint = document.getElementById("ctaHint");
+      if (String(auth.plan).toLowerCase() === "pro") {
+        cta.textContent = "Pro active — open desk";
+        cta.onclick = () => { location.href = "/"; };
+        hint.textContent = "You already have Pro on this account.";
+        return;
+      }
+      if (!auth.authenticated) {
+        cta.textContent = interval === "yearly" ? "Sign in · Pro yearly" : "Sign in · Pro monthly";
+        cta.onclick = () => {
+          location.href = "/login?next=checkout&interval=" + encodeURIComponent(interval);
+        };
+        hint.textContent = auth.stripe
+          ? "Sign in first, then Stripe Checkout opens."
+          : "Sign in first. Stripe may be unavailable until keys are configured.";
+        return;
+      }
+      cta.textContent = interval === "yearly" ? "Checkout · $249/yr" : "Checkout · $29/mo";
+      cta.onclick = () => startCheckout();
+      hint.textContent = auth.stripe
+        ? "Secure Stripe Checkout. Success returns you to the desk."
+        : "Stripe is not configured on this host — CTA will show an honest error.";
+    }
+
+    async function startCheckout() {
+      try {
+        const r = await fetch("/api/billing/checkout", {
+          method: "POST",
+          credentials: "same-origin",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ interval }),
+        });
+        const j = await r.json();
+        if (j.url) { location.href = j.url; return; }
+        if (j.error === "login_required") {
+          location.href = "/login?next=checkout&interval=" + encodeURIComponent(interval);
+          return;
+        }
+        showBanner("warn", j.error_detail || j.error || "Checkout unavailable");
+      } catch (e) {
+        showBanner("bad", String(e));
+      }
+    }
+
+    document.querySelectorAll("#intervalToggle button").forEach((b) => {
+      b.addEventListener("click", () => {
+        interval = b.dataset.interval;
+        syncIntervalUI();
+        syncCta();
+      });
+    });
+
+    if (params.get("checkout") === "cancel") {
+      showBanner("warn", "Checkout canceled. Pick a plan when you are ready.");
+    }
+    if (params.get("authed") === "1") {
+      showBanner("ok", "Signed in. Choose monthly or yearly, then Checkout.");
+    }
+
+    syncIntervalUI();
+
+    fetch("/api/auth/status", { credentials: "same-origin" })
+      .then((r) => r.json())
+      .then((j) => {
+        auth = {
+          authenticated: !!j.authenticated,
+          plan: (j.user && j.user.plan) || "free",
+          stripe: !!j.stripe_checkout,
+        };
+        syncCta();
+        if (params.get("authed") === "1" && auth.authenticated && auth.stripe) {
+          /* optional auto-start — keep manual click for clarity */
+        }
+      })
+      .catch(() => syncCta());
+  </script>
 </body>
 </html>

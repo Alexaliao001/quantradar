@@ -2,6 +2,7 @@
 
 > **唯一主任务源**（产品仓 SSOT）：本文件 `Alexaliao001/quantradar/GROK_GOAL.md`  
 > **镜像**：`~/charts/GROK_GOAL_QUANTRADAR.md`  
+> **商业子战役**：`GROK_GOAL_COMMERCIAL.md`（Desk→Revenue v1 · 2026-07-16 · QD 轨道，完成回写本文件）  
 > **产品**：https://quantradar.one · 发布：**Manus**（你 pull GitHub 后发布）  
 > **恢复路径（已锁定 · 2026-07-10 用户确认）**：**C = 混合**  
 > - **分析核 / 图表 / 扫描 / 数据抓取**：复用并演进 `~/charts`（stock-charts）  
@@ -314,8 +315,8 @@ quantradar App (本仓)
 | ID | 状态 | 任务 | 验收 |
 |----|------|------|------|
 | QR4-1 | ⬜ | design-taste + guidelines 审计 | UI_AUDIT.md |
-| QR4-2 | ⬜ | Analysis 首屏 30 秒可读 | 验收描述 |
-| QR4-3 | ⬜ | 四态 UI | checklist |
+| QR4-2 | ✅ | Analysis 首屏 30 秒可读 | →QD0-0 desk Verdict→Why→证据→Next |
+| QR4-3 | ✅ | 四态 UI | →QD0-0 idle/loading/ready/blocked |
 | QR4-4 | ⬜ | 克制动效 | 不挡操作 |
 | QR4-5 | ⬜ | 与营销站品牌对齐 | token |
 
@@ -332,7 +333,7 @@ quantradar App (本仓)
 
 | ID | 状态 | 任务 | 验收 |
 |----|------|------|------|
-| QR6-1 | ⬜ | Stripe/mailto | 诚实可用 |
+| QR6-1 | 🔶 | Stripe/mailto | →QD0-0 checkout+webhook 入库；生产 Price/Portal 见 QD1 |
 | QR6-2 | ⬜ | 定价与 free/hybrid/pro | 一致 |
 | QR6-3 | ⬜ | MANUS_RELEASE_CHECKLIST | 你跑通 |
 | QR6-4 | ⬜ | 发布烟雾 | checklist |
