@@ -37,6 +37,17 @@ class TrustGateContractTests(unittest.TestCase):
         self.assertIn("primary_score", html)  # or Score only one
         self.assertIn("demo free", html.lower())
 
+    def test_pro_value_copy_not_selling_live_air(self) -> None:
+        """QD1-0: pricing must not claim live desk is available now."""
+        pricing = (REPO / "static" / "pricing.html").read_text(encoding="utf-8")
+        self.assertNotIn("Pro for live desk", pricing)
+        self.assertIn("supporter", pricing.lower())
+        self.assertIn("when charts are mounted", pricing.lower())
+        self.assertTrue((REPO / "docs" / "PRO_VALUE.md").is_file())
+        body = (REPO / "docs" / "PRO_VALUE.md").read_text(encoding="utf-8")
+        self.assertIn("Verdict: B", body)
+        self.assertIn("supporter_until_mount", body)
+
     def test_legal_pages_exist(self) -> None:
         for name in (
             "methodology.html",

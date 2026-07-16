@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Pricing — QuantRadar</title>
-  <meta name="description" content="Honest QuantRadar pricing: free demo artifacts, Pro for live desk. No fake social proof. Educational only." />
+  <meta name="description" content="Honest QuantRadar pricing: free demo artifacts; Pro is a supporter plan. Live unlocks automatically when the charts engine is mounted. No fake social proof. Educational only." />
   <meta property="og:image" content="/static/og-default.svg" />
   <link rel="stylesheet" href="/static/site.css" />
 </head>
@@ -20,7 +20,9 @@
   <main class="prose">
     <h1>Pricing</h1>
     <p class="muted">
-      Clear Free vs Pro. No fabricated user counts. Checkout via Stripe when configured on the host.
+      Clear Free vs Pro. No fabricated user counts. On today’s production host, demos are frozen artifacts —
+      Pro is a supporter price; live auto-unlocks when charts are mounted.
+      Checkout via Stripe when configured on the host.
     </p>
     <div id="banner" class="banner" hidden></div>
 
@@ -45,9 +47,12 @@
         <h2>Pro</h2>
         <p class="price" id="proPrice">$29<span>/mo</span></p>
         <p class="muted" id="proSub">Billed monthly. Cancel anytime via Stripe.</p>
+        <p class="muted" id="proValueNote" style="font-size:0.85rem">
+          Supporter plan on this host — paying does not enable live quotes until charts are mounted.
+        </p>
         <ul>
           <li>Sign-in session (email / magic / Google when enabled)</li>
-          <li><strong>Live analyze</strong> when charts keys are mounted</li>
+          <li><strong>Supporter price</strong> — higher limits now; live unlocks automatically when charts are mounted</li>
           <li>Higher rate limits</li>
           <li>Setup-alert waitlist for your tickers</li>
           <li>Options only when live chain is OK (honesty gate)</li>
@@ -68,9 +73,9 @@
       <thead><tr><th></th><th>Free</th><th>Pro</th></tr></thead>
       <tbody>
         <tr><td>Demo artifact</td><td>Yes</td><td>Yes</td></tr>
-        <tr><td>Live fetch</td><td>No</td><td>When charts mounted</td></tr>
+        <tr><td>Live fetch</td><td>No</td><td>Not on this host yet · auto-unlock when mounted</td></tr>
         <tr><td>Options as actionable</td><td>No</td><td>Only when live chain OK</td></tr>
-        <tr><td>Pattern labels</td><td>If present in artifact</td><td>Same rules + live</td></tr>
+        <tr><td>Pattern labels</td><td>If present in artifact</td><td>Same rules (+ live when mounted)</td></tr>
       </tbody>
     </table>
 
@@ -172,6 +177,23 @@
     }
 
     syncIntervalUI();
+
+    fetch("/api/billing/status", { credentials: "same-origin" })
+      .then((r) => r.json())
+      .then((j) => {
+        const note = document.getElementById("proValueNote");
+        if (!note) return;
+        if (j.live_available) {
+          note.textContent =
+            j.pro_value_note ||
+            "Charts engine is mounted on this host — Pro includes live analyze.";
+        } else {
+          note.textContent =
+            j.pro_value_note ||
+            "Supporter plan on this host — paying does not enable live quotes until charts are mounted.";
+        }
+      })
+      .catch(() => {});
 
     fetch("/api/auth/status", { credentials: "same-origin" })
       .then((r) => r.json())

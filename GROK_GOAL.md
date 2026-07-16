@@ -334,7 +334,7 @@ quantradar App (本仓)
 | ID | 状态 | 任务 | 验收 |
 |----|------|------|------|
 | QR6-1 | 🔶 | Stripe/mailto | →QD0-0 checkout+webhook 入库；生产 Price/Portal 见 QD1 |
-| QR6-2 | ⬜ | 定价与 free/hybrid/pro | 一致 |
+| QR6-2 | ✅ | 定价与 free/hybrid/pro | →QD1-0 支持者价；live 仅 mounted 后解锁 |
 | QR6-3 | ⬜ | MANUS_RELEASE_CHECKLIST | 你跑通 |
 | QR6-4 | ⬜ | 发布烟雾 | checklist |
 

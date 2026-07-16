@@ -19,6 +19,13 @@ class HealthDataLayer(unittest.TestCase):
         self.assertIsInstance(h["artifact_fixtures"], list)
         self.assertTrue(h.get("product_note"))
         self.assertIn("INTC", h["artifact_fixtures"])
+        self.assertIn(h.get("pro_value"), {"supporter_until_mount", "live_ready"})
+        self.assertIn("live_available", h)
+        self.assertEqual(bool(h["live_available"]), h["charts_status"] == "mounted")
+        self.assertTrue(h.get("pro_value_note"))
+        if h["charts_status"] != "mounted":
+            self.assertEqual(h["pro_value"], "supporter_until_mount")
+            self.assertFalse(h["live_available"])
 
 
 class ArtifactHonesty(unittest.TestCase):

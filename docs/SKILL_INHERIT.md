@@ -71,6 +71,15 @@
 
 ---
 
+### 2026-07-16 · QD1-0 · Pro 价值裁决 B（supporter_until_mount）
+
+- 水源：**L1** quantradar-manus-ops / ship-code；**L2** `docs/SITES_LIVE.md`、`render.yaml`、`charts/fetch_all.py`、`research/data_provider_comparison.md`；explore×2 + 线上 `/health` 探针
+- 比对：A 挂载 charts 卖 live vs B 支持者价 — **选 B**（Free 无 charts 树、无 Polygon、冷启动不适配）
+- 层：Commercial / Ops / FE copy
+- 提炼：`pro_value=supporter_until_mount|live_ready` 进 `/health` 与 billing status；Pro 门控保留，文案不卖空气
+- 采用档：**直接**（裁决）+ **技术**（health 字段）
+- 落地：`docs/PRO_VALUE.md`；pricing/desk 文案；QR6-2 ✅
+
 ### 2026-07-16 · QD0-0 · desk-v1 + billing 闭环落库
 
 - 水源：**L1** ship-code / quantradar-stripe-ops（思想）+ Stripe plugin best-practices；**L2** 仓内 `app/stripe_billing.py` 既有 Checkout；explore×2 审查；bugbot verifier

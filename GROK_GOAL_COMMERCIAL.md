@@ -18,8 +18,9 @@
 | 计费后端 | checkout 支持 interval；`/api/billing/webhook` 写 `plan=pro/free`；plan SSOT=`data/users.json`；live 需登录+Pro（403 `plan_required`） |
 | 测试 | `tests/test_billing.py` 新增；auth/password/contract 合计 24 绿 |
 
-⚠️ 以上全部处于工作区未提交状态 → **QD0-0 必须最先执行**。  
-⚠️ 线上 quantradar.one 仍是旧壳，本战役每轮 push 后都要提示「可 Manus pull 发布」。
+✅ QD0-0 / QD1-0 已落库。线上仍须 Manus pull 后才有新文案。  
+⚠️ 本战役每轮 push 后都要提示「可 Manus pull 发布」。  
+⚠️ **Pro 价值裁决 B**（`docs/PRO_VALUE.md`）：当前 host 不卖 live；支持者价至 `charts_status=mounted`。
 
 ---
 
@@ -85,7 +86,7 @@
 
 | ID | 状态 | 任务 | 验收 |
 |----|------|------|------|
-| QD1-0 | ⬜ | **裁决 Pro 价值真实性**：host 能否 mount charts 跑 live？能→写部署路径并实施；不能→Pro 文案降级为「支持者价，live 上线自动解锁」 | `docs/PRO_VALUE.md`；线上文案一致；不卖空气 |
+| QD1-0 | ✅ | **裁决 Pro 价值真实性**：host 能否 mount charts 跑 live？能→写部署路径并实施；不能→Pro 文案降级为「支持者价，live 上线自动解锁」 | `docs/PRO_VALUE.md`；线上文案一致；不卖空气 |
 | QD1-1 | ⬜ | Stripe 生产配置：用 `quantradar-stripe-ops` skill + `~/charts/stripe_payment_links.py` 建 product/price(月$29/年$249)；host 注入 env；注册 webhook + `STRIPE_WEBHOOK_SECRET` | test mode 端到端一单；webhook 写 plan=pro 留脱敏证据 |
 | QD1-2 | ⬜ | Customer Portal：`POST /api/billing/portal` + 「Manage billing」入口；退订→webhook 降 free | 退订路径演练通过；无 cancel 迷宫 |
 | QD1-3 | ⬜ | webhook 幂等 + 欠费态：event id 去重；`invoice.payment_failed` → 标 `billing_state=past_due` + UI 提示 | 单测覆盖重放与欠费 |

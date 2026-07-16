@@ -118,7 +118,11 @@ def health_payload() -> dict[str, Any]:
         data_path = "charts_engine"
         product_note = (
             "charts engine mounted; live mode can subprocess fetch_all for Pro sessions "
-            "(login + plan=pro). Mount alone does not mean live is sold as ready."
+            "(login + plan=pro)."
+        )
+        pro_value = "live_ready"
+        pro_value_note = (
+            "Pro includes live analyze on this host (login + plan=pro). See docs/PRO_VALUE.md."
         )
     elif fixture_tickers:
         charts_status = "artifact_only"
@@ -127,10 +131,19 @@ def health_payload() -> dict[str, Any]:
             "charts_reachable=false is expected on Free artifact deploys; "
             "guest analyze uses fixtures/charts_sample (not a live market feed)."
         )
+        pro_value = "supporter_until_mount"
+        pro_value_note = (
+            "Pro is a supporter plan on this host; live unlocks automatically when "
+            "charts_status=mounted. See docs/PRO_VALUE.md."
+        )
     else:
         charts_status = "unavailable"
         data_path = "none"
         product_note = "no charts dir and no fixtures — analyze will fail until data is mounted."
+        pro_value = "supporter_until_mount"
+        pro_value_note = (
+            "Pro is a supporter plan until a charts engine is mounted. See docs/PRO_VALUE.md."
+        )
 
     return {
         "ok": True,
@@ -145,6 +158,9 @@ def health_payload() -> dict[str, Any]:
         "data_path": data_path,
         "artifact_fixtures": fixture_tickers,
         "product_note": product_note,
+        "live_available": charts_status == "mounted",
+        "pro_value": pro_value,
+        "pro_value_note": pro_value_note,
         "mode_default": os.environ.get("QUANTRADAR_MODE", "artifact"),
         # Auth: guest + optional Google session; never Manus
         "auth": a["auth_mode"],
@@ -153,6 +169,7 @@ def health_payload() -> dict[str, Any]:
         "google_oauth": a["google_oauth"],
         "login_path": "/login",
         "live_requires_login": True,
+        "live_requires_pro": True,
         "p0_gates": True,
     }
 
@@ -554,6 +571,7 @@ class Handler(BaseHTTPRequestHandler):
             return
 
         if path == "/api/billing/status":
+            health = health_payload()
             self._send(
                 200,
                 {
@@ -566,6 +584,9 @@ class Handler(BaseHTTPRequestHandler):
                         "monthly": "$29",
                         "yearly": "$249",
                     },
+                    "live_available": bool(health.get("live_available")),
+                    "pro_value": health.get("pro_value"),
+                    "pro_value_note": health.get("pro_value_note"),
                 },
             )
             return

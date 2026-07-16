@@ -160,6 +160,9 @@ class BillingHttpTests(unittest.TestCase):
         self.assertTrue(body.get("ok"))
         self.assertIn("monthly", body.get("intervals") or [])
         self.assertEqual(body["prices"]["yearly"], "$249")
+        self.assertIn(body.get("pro_value"), {"supporter_until_mount", "live_ready"})
+        self.assertIn("live_available", body)
+        self.assertTrue(body.get("pro_value_note"))
 
 
 class ApplyEventUnitTests(unittest.TestCase):

@@ -1,5 +1,6 @@
 # PROGRESS — QuantRadar
 
+2026-07-16 | **QD1-0** | Pro 价值裁决 B：Render Free 不能 live → 支持者价 + mounted 自动解锁；`docs/PRO_VALUE.md` + health `pro_value`；文案对齐；47 测绿 | 可 Manus pull 发布 · 下一 QD2-0
 2026-07-16 | **QD0-0** | desk-v1 + billing 闭环落库：Verdict Desk 四态、月/年 checkout、webhook plan SSOT、cancel→free metadata、live Pro 门控诚实文案；unittest 46 绿 | 可 Manus pull 发布 · 下一 QD1-0
 2026-07-13 | **SX1 v0.7.0** | 数据层诚实：health charts_status/data_path/product_note；artifact options=snapshot；路径脱敏；UI 展示；SITES EXTREME SX1 | push 后 Render 自动部署
 2026-07-13 | **cutover 完成** | quantradar.one → Render Free 壳 `quantradar-shell`；apex verified；cutover_verify PASS；无 Manus auth | 主站已是新壳

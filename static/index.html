@@ -66,7 +66,7 @@
         <button class="btn" id="run" type="button">Analyze</button>
         <button class="btn secondary" id="sample" type="button">Demo INTC</button>
       </div>
-      <p class="status" id="status">Ready — try a free demo chip. Live requires Pro.</p>
+      <p class="status" id="status">Ready — try a free demo chip. Live needs Pro + a mounted charts engine.</p>
 
       <div class="verdict-block" id="verdictBlock" hidden>
         <div>
@@ -129,11 +129,16 @@
     let authState = { authenticated: false, user: null, plan: "free", stripe: false };
     let lastTicker = "INTC";
     let lastPrimary = "";
+    let healthState = { charts_status: "", live_available: false, pro_value: "" };
 
     const desk = document.getElementById("desk");
 
     function isPro() {
       return String(authState.plan || "free").toLowerCase() === "pro";
+    }
+
+    function liveReady() {
+      return !!healthState.live_available || healthState.charts_status === "mounted";
     }
 
     function setDeskState(state) {
@@ -204,9 +209,9 @@
 
       if (!j.ok) {
         if (j.error === "plan_required") {
-          title.textContent = "Upgrade for live";
+          title.textContent = "Supporter plan for live";
           copy.textContent =
-            "Live analyze is Pro. Unlock when charts keys are mounted — $29/mo or $249/yr.";
+            "Pro is the supporter plan ($29/mo or $249/yr). Live unlocks automatically when charts are mounted on this host.";
           const btn = document.createElement("button");
           btn.type = "button";
           btn.className = "btn";
@@ -226,10 +231,10 @@
       }
 
       if (!isPro()) {
-        title.textContent = demo ? "Liked the read?" : "Unlock live desk";
+        title.textContent = demo ? "Liked the read?" : "Support the desk";
         copy.textContent = demo
-          ? "This was a free frozen demo. Pro unlocks live analyze when charts keys are mounted — $29/mo or $249/yr."
-          : "Artifact path is free. Live quotes + higher limits are Pro.";
+          ? "This was a free frozen demo. Pro is a supporter plan — higher limits now; live auto-unlocks when charts are mounted ($29/mo or $249/yr)."
+          : "Artifact path is free. Pro is the supporter plan: higher limits now; live when charts are mounted.";
         const btn = document.createElement("button");
         btn.type = "button";
         btn.className = "btn";
@@ -244,9 +249,9 @@
         price.href = "/pricing";
         price.textContent = "See pricing";
         actions.appendChild(price);
-      } else {
+      } else if (liveReady()) {
         title.textContent = "Pro active";
-        copy.textContent = "Live mode is unlocked. Switch Mode → live when the charts engine is mounted.";
+        copy.textContent = "Live analyze is available on this host. Switch Mode → live to run.";
         const liveBtn = document.createElement("button");
         liveBtn.type = "button";
         liveBtn.className = "btn";
@@ -256,6 +261,15 @@
           runAnalyze();
         };
         actions.appendChild(liveBtn);
+      } else {
+        title.textContent = "Pro active";
+        copy.textContent =
+          "Supporter benefits on. Live analyze will work when /health shows charts mounted — not available on this host yet.";
+        const price = document.createElement("a");
+        price.className = "btn secondary";
+        price.href = "/pricing";
+        price.textContent = "Pricing details";
+        actions.appendChild(price);
       }
 
       if (waitLike) {
@@ -393,22 +407,28 @@
         const r = await fetch("/health");
         const j = await r.json();
         const status = j.charts_status || (j.charts_reachable ? "mounted" : "unknown");
+        healthState = {
+          charts_status: status,
+          live_available: !!j.live_available,
+          pro_value: j.pro_value || "",
+        };
         const fixtures = Array.isArray(j.artifact_fixtures) ? j.artifact_fixtures.join(",") : "";
         document.getElementById("healthLine").textContent =
-          `mode=${j.mode_default || "?"} charts=${status} path=${j.data_path || "?"} ` +
+          `mode=${j.mode_default || "?"} charts=${status} live=${j.live_available ? "yes" : "no"} ` +
+          `pro_value=${j.pro_value || "?"} path=${j.data_path || "?"} ` +
           `manus_login=${j.manus_login} sha=${j.git_sha || "n/a"} v=${j.version}`;
         if (modeLine) {
           if (status === "artifact_only") {
             modeLine.className = "status warn";
             modeLine.textContent =
-              (j.product_note || "Demos use pre-built artifacts.") +
+              (j.pro_value_note || j.product_note || "Demos use pre-built artifacts.") +
               (fixtures ? " Fixtures: " + fixtures + "." : "");
           } else if (status === "mounted") {
             modeLine.className = "status ok";
-            modeLine.textContent = j.product_note || "Charts engine mounted.";
+            modeLine.textContent = j.pro_value_note || j.product_note || "Charts engine mounted.";
           } else if (status === "unavailable") {
             modeLine.className = "status bad";
-            modeLine.textContent = j.product_note || "No data path available.";
+            modeLine.textContent = j.pro_value_note || j.product_note || "No data path available.";
           } else {
             modeLine.className = "status";
             modeLine.textContent = j.product_note || "";
@@ -459,12 +479,12 @@
         return;
       }
       if (mode === "live" && !isPro()) {
-        showFlash("warn", "Live analyze is a Pro feature.");
+        showFlash("warn", "Live analyze requires the Pro supporter plan.");
         setDeskState("blocked");
         document.getElementById("nextBlock").hidden = false;
-        document.getElementById("nextTitle").textContent = "Upgrade for live";
+        document.getElementById("nextTitle").textContent = "Supporter plan for live";
         document.getElementById("nextCopy").textContent =
-          "You're signed in on Free. Pro unlocks live when charts keys are mounted — $29/mo or $249/yr.";
+          "You're signed in on Free. Pro is a supporter plan — live auto-unlocks when charts are mounted ($29/mo or $249/yr).";
         const actions = document.getElementById("nextActions");
         actions.innerHTML = "";
         const btn = document.createElement("button");
@@ -481,6 +501,19 @@
         const status = document.getElementById("status");
         status.className = "status warn";
         status.textContent = "Pro plan required for live";
+        return;
+      }
+      if (mode === "live" && isPro() && !liveReady()) {
+        showFlash("warn", "Charts engine is not mounted on this host.");
+        setDeskState("blocked");
+        document.getElementById("nextBlock").hidden = false;
+        document.getElementById("nextTitle").textContent = "Pro active — live pending";
+        document.getElementById("nextCopy").textContent =
+          "You have Pro. Live analyze unlocks automatically when this host mounts the charts engine. Demo artifacts remain available.";
+        document.getElementById("nextActions").innerHTML = "";
+        const status = document.getElementById("status");
+        status.className = "status warn";
+        status.textContent = "Live unavailable — engine not mounted";
         return;
       }
       const btn = document.getElementById("run");
@@ -558,8 +591,8 @@
       showFlash(
         "ok",
         params.get("want") === "live"
-          ? "Signed in. Live needs Pro — upgrade or try a free demo."
-          : "Signed in. Try a demo, or upgrade for live."
+          ? "Signed in. Live needs Pro + mounted charts — try a free demo meantime."
+          : "Signed in. Try a demo, or upgrade as a supporter."
       );
     }
 
