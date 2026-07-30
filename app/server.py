@@ -20,11 +20,15 @@ from typing import Any
 
 from app import CONTRACT_VERSION, __version__
 from app import auth as authlib
-from app.charts_facade import analyze, charts_dir
+from app.charts_facade import analyze, charts_dir, resolve_chart_asset
 from app.contract import validate_response
 from app.envload import load_dotenv
+from app import funnel
+from app.public_surface import harden_public_analyze
 from app import stripe_billing
 from app.notify import save_waitlist
+from app.share_page import render_share_html
+from app.track_record import load_track_record
 from app.users import (
     authenticate as password_login,
     ensure_bootstrap_admin,
@@ -151,7 +155,9 @@ def health_payload() -> dict[str, Any]:
         "version": __version__,
         "contract_version": CONTRACT_VERSION,
         "git_sha": git_sha(),
-        "charts_dir": str(cdir),
+        # Never publish host filesystem paths (clone / recon surface)
+        "charts_dir": None,
+        "charts_dir_configured": bool(str(cdir)),
         "charts_reachable": charts_ok,
         "fetch_all_present": fetch_ok,
         "charts_status": charts_status,
@@ -283,6 +289,9 @@ class Handler(BaseHTTPRequestHandler):
         length = int(self.headers.get("Content-Length") or 0)
         if length <= 0:
             return {}
+        # Cap body size (register/notify/analyze) — avoid disk/CPU DoS
+        if length > 64_000:
+            raise ValueError("request body too large")
         raw = self.rfile.read(length)
         if not raw:
             return {}
@@ -290,6 +299,26 @@ class Handler(BaseHTTPRequestHandler):
         if not isinstance(data, dict):
             raise ValueError("JSON body must be an object")
         return data
+
+    def _send_rate_limited(self) -> None:
+        self._send(
+            429,
+            {
+                "ok": False,
+                "error": "rate_limited",
+                "error_detail": "too many requests; try again shortly",
+                "contract_version": CONTRACT_VERSION,
+            },
+        )
+
+    def _check_rate_or_reject(self, *, authenticated: bool | None = None) -> bool:
+        """Return True if allowed. On limit, send 429 and return False."""
+        if authenticated is None:
+            authenticated = bool(self._current_user())
+        if check_rate_limit(self._client_id(), authenticated=authenticated):
+            return True
+        self._send_rate_limited()
+        return False
 
     def _analyze_response(self, result: dict[str, Any], *, user: dict[str, Any] | None) -> None:
         errs = validate_response(result)
@@ -328,9 +357,51 @@ class Handler(BaseHTTPRequestHandler):
             result["meta"]["auth"] = "session" if user else "guest"
             if user:
                 result["meta"]["user_email"] = user.get("email")
+        try:
+            meta = result.get("meta") if isinstance(result.get("meta"), dict) else {}
+            primary = (
+                (result.get("primary") or {}).get("action")
+                if isinstance(result.get("primary"), dict)
+                else None
+            )
+            is_demo = bool(result.get("demo") or result.get("sample") or meta.get("demo"))
+            mode = str(meta.get("mode") or "")
+            plan = str((user or {}).get("plan") or "guest")
+            if is_demo:
+                funnel.track(
+                    "demo_run",
+                    ticker=str(result.get("ticker") or ""),
+                    mode=mode or "artifact",
+                    primary=str(primary or ""),
+                    plan=plan,
+                    ok=bool(result.get("ok")),
+                    demo=True,
+                )
+            else:
+                funnel.track(
+                    "analyze_run",
+                    ticker=str(result.get("ticker") or ""),
+                    mode=mode or "artifact",
+                    primary=str(primary or ""),
+                    plan=plan,
+                    ok=bool(result.get("ok")),
+                    demo=False,
+                )
+                if mode == "live" and result.get("ok"):
+                    funnel.track(
+                        "live_run",
+                        ticker=str(result.get("ticker") or ""),
+                        mode="live",
+                        primary=str(primary or ""),
+                        plan=plan,
+                        ok=True,
+                    )
+        except Exception:
+            pass
+        public = harden_public_analyze(result, user=user)
         self._send(
-            http_code_for_result(result),
-            result,
+            http_code_for_result(public),
+            public,
             auth_tag="session" if user else "guest",
         )
 
@@ -601,6 +672,9 @@ class Handler(BaseHTTPRequestHandler):
         # Guest sample / demo chips — free, artifact only (TG-5)
         if path in {"/api/sample", "/sample"}:
             user = self._current_user()
+            # Same sliding-window limit as analyze — funnel / demo abuse
+            if not self._check_rate_or_reject(authenticated=bool(user)):
+                return
             ticker = (qs.get("ticker") or ["INTC"])[0] or "INTC"
             t = str(ticker).strip().upper()
             if t not in DEMO_TICKERS:
@@ -630,6 +704,32 @@ class Handler(BaseHTTPRequestHandler):
             )
             return
 
+        if path == "/api/track":
+            self._send(200, load_track_record())
+            return
+
+        # QD2-0: serve chart PNGs by basename (fixtures/assets or CHARTS_DIR)
+        if path.startswith("/api/charts/"):
+            raw_name = path[len("/api/charts/") :].strip("/")
+            # single segment only
+            if "/" in raw_name or "\\" in raw_name or not raw_name:
+                self._send(404, {"ok": False, "error": "not_found"})
+                return
+            target = resolve_chart_asset(raw_name)
+            if target is None or not target.is_file():
+                self._send(404, {"ok": False, "error": "chart_not_found", "name": raw_name})
+                return
+            suffix = target.suffix.lower()
+            ctype = {
+                ".png": "image/png",
+                ".jpg": "image/jpeg",
+                ".jpeg": "image/jpeg",
+                ".webp": "image/webp",
+                ".svg": "image/svg+xml",
+            }.get(suffix, "application/octet-stream")
+            self._send(200, target.read_bytes(), content_type=ctype)
+            return
+
         if path in {"/", "/index.html"}:
             index = STATIC_DIR / "index.html"
             if not index.is_file():
@@ -638,14 +738,45 @@ class Handler(BaseHTTPRequestHandler):
             self._send(200, index.read_bytes(), content_type="text/html")
             return
 
+        # Read-only share card /r/{TICKER} (attract → desk via ?demo=)
+        if path.startswith("/r/"):
+            raw_t = path[len("/r/") :].strip("/").split("/")[0].strip().upper()
+            if not raw_t or not raw_t.replace("-", "").replace(".", "").isalnum():
+                self._send(404, {"ok": False, "error": "invalid_share_ticker"})
+                return
+            if raw_t not in DEMO_TICKERS:
+                miss = {
+                    "ok": False,
+                    "error": "not_a_demo_ticker",
+                    "error_detail": (
+                        f"{raw_t} is not a published demo share. "
+                        f"Try /r/INTC or open /?demo=INTC."
+                    ),
+                    "ticker": raw_t,
+                }
+                self._send(404, render_share_html(raw_t, miss), content_type="text/html")
+                return
+            # Share pages are public HTML — do not burn analyze rate budget
+            result = analyze(raw_t, mode="artifact")
+            result["meta"] = dict(result.get("meta") or {})
+            result["meta"]["demo"] = True
+            result["meta"]["credits_charged"] = 0
+            result["sample"] = True
+            result["demo"] = True
+            html = render_share_html(raw_t, result)
+            self._send(200 if result.get("ok") else 404, html, content_type="text/html")
+            return
+
         # Marketing / legal pages (TG-8/9)
         page_map = {
             "/login": "login.html",
             "/methodology": "methodology.html",
             "/pricing": "pricing.html",
+            "/track": "track.html",
             "/terms": "terms.html",
             "/privacy": "privacy.html",
             "/refund": "refund.html",
+            "/btn-demos": "btn-demos.html",  # internal preview; noindex
         }
         if path in page_map:
             page = STATIC_DIR / page_map[path]
@@ -659,15 +790,23 @@ class Handler(BaseHTTPRequestHandler):
             body = (
                 "User-agent: *\n"
                 "Allow: /\n"
+                "Allow: /methodology\n"
+                "Allow: /pricing\n"
+                "Allow: /track\n"
+                "Disallow: /api/\n"
                 "Disallow: /api/auth/\n"
+                "Disallow: /btn-demos\n"
                 "Sitemap: /sitemap.txt\n"
             ).encode()
             self._send(200, body, content_type="text/plain")
             return
 
         if path == "/sitemap.txt":
+            share_lines = "".join(f"/r/{t}\n" for t in sorted(DEMO_TICKERS))
             body = (
-                "/\n/methodology\n/pricing\n/terms\n/privacy\n/refund\n/login\n"
+                "/\n/methodology\n/pricing\n/track\n"
+                "/terms\n/privacy\n/refund\n/login\n"
+                + share_lines
             ).encode()
             self._send(200, body, content_type="text/plain")
             return
@@ -686,6 +825,16 @@ class Handler(BaseHTTPRequestHandler):
                 ctype = "application/javascript"
             elif target.suffix == ".html":
                 ctype = "text/html"
+            elif target.suffix == ".svg":
+                ctype = "image/svg+xml"
+            elif target.suffix == ".png":
+                ctype = "image/png"
+            elif target.suffix in {".jpg", ".jpeg"}:
+                ctype = "image/jpeg"
+            elif target.suffix == ".webp":
+                ctype = "image/webp"
+            elif target.suffix == ".woff2":
+                ctype = "font/woff2"
             self._send(200, target.read_bytes(), content_type=ctype)
             return
 
@@ -708,6 +857,9 @@ class Handler(BaseHTTPRequestHandler):
             return
 
         if path == "/api/auth/register":
+            # Guest bucket — signup spam / funnel poisoning
+            if not self._check_rate_or_reject(authenticated=False):
+                return
             try:
                 body = self._read_json()
             except Exception as exc:
@@ -731,6 +883,14 @@ class Handler(BaseHTTPRequestHandler):
                 name=user.get("name"),
                 plan=str(user.get("plan") or "free"),
             )
+            try:
+                funnel.track(
+                    "signup",
+                    plan=str(user.get("plan") or "free"),
+                    email=str(user.get("email") or ""),
+                )
+            except Exception:
+                pass
             self._send(
                 200,
                 {
@@ -781,6 +941,9 @@ class Handler(BaseHTTPRequestHandler):
             return
 
         if path == "/api/notify":
+            user = self._current_user()
+            if not self._check_rate_or_reject(authenticated=bool(user)):
+                return
             try:
                 body = self._read_json()
             except Exception as exc:
@@ -796,6 +959,16 @@ class Handler(BaseHTTPRequestHandler):
             except ValueError as exc:
                 self._send(400, {"ok": False, "error": "invalid_email", "error_detail": str(exc)})
                 return
+            try:
+                funnel.track(
+                    "notify_save",
+                    ticker=out.get("ticker"),
+                    kind=str(out.get("kind") or "setup_alert"),
+                    email=str(out.get("email") or ""),
+                    ok=True,
+                )
+            except Exception:
+                pass
             self._send(200, out)
             return
 
@@ -847,12 +1020,13 @@ class Handler(BaseHTTPRequestHandler):
                 body = self._read_json()
             except Exception:
                 body = {}
+            interval = str(body.get("interval") or "monthly")
             try:
                 # Ignore client price_id — only server env Price IDs + interval.
                 session = stripe_billing.create_checkout_session(
                     customer_email=str(user.get("email") or "") or None,
                     price_id=None,
-                    interval=str(body.get("interval") or "monthly"),
+                    interval=interval,
                 )
             except Exception as exc:
                 self._send(
@@ -860,6 +1034,16 @@ class Handler(BaseHTTPRequestHandler):
                     {"ok": False, "error": "stripe_error", "error_detail": str(exc)[:500]},
                 )
                 return
+            try:
+                funnel.track(
+                    "checkout_start",
+                    plan=str(user.get("plan") or "free"),
+                    interval=interval,
+                    email=str(user.get("email") or ""),
+                    ok=True,
+                )
+            except Exception:
+                pass
             self._send(200, {"ok": True, **session})
             return
 
@@ -907,6 +1091,17 @@ class Handler(BaseHTTPRequestHandler):
             if not result.get("ok"):
                 self._send(422, {"ok": False, **result})
                 return
+            if result.get("action") == "plan_pro":
+                try:
+                    funnel.track(
+                        "pro_active",
+                        plan="pro",
+                        email=str(result.get("email") or ""),
+                        ok=True,
+                        extra={"source": "stripe_webhook"},
+                    )
+                except Exception:
+                    pass
             self._send(200, {"ok": True, **result})
             return
 

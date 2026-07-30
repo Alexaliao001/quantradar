@@ -9,21 +9,28 @@
   <link rel="stylesheet" href="/static/site.css" />
 </head>
 <body>
+  <div class="page-mosaic is-soft" aria-hidden="true">
+    <div class="hero-mosaic-wave" id="heroMosaicWave"></div>
+  </div>
   <header class="top">
     <a class="brand" href="/">Quant<span>Radar</span></a>
     <nav>
       <a href="/methodology">Methodology</a>
+      <a href="/track">Track</a>
       <a href="/pricing" aria-current="page">Pricing</a>
       <a href="/login">Sign in</a>
     </nav>
   </header>
   <main class="prose">
-    <h1>Pricing</h1>
-    <p class="muted">
-      Clear Free vs Pro. No fabricated user counts. On today’s production host, demos are frozen artifacts —
-      Pro is a supporter price; live auto-unlocks when charts are mounted.
-      Checkout via Stripe when configured on the host.
-    </p>
+    <div class="price-hero">
+      <p class="brand-mark">Quant<span>Radar</span></p>
+      <h1>Pricing</h1>
+      <p class="muted">
+        Clear Free vs Pro. No fabricated user counts. On today’s production host, demos are frozen artifacts —
+        Pro is a supporter price; live auto-unlocks when charts are mounted.
+        Checkout via Stripe when configured on the host.
+      </p>
+    </div>
     <div id="banner" class="banner" hidden></div>
 
     <div class="interval-toggle" id="intervalToggle" role="group" aria-label="Billing interval">
@@ -31,6 +38,7 @@
       <button type="button" data-interval="yearly">Yearly <span class="muted">save ~28%</span></button>
     </div>
 
+    <!-- D-P0: exactly two interactive cards — Free + Pro. No Elite. -->
     <div class="price-grid">
       <section class="card">
         <h2>Free / Guest</h2>
@@ -57,7 +65,10 @@
           <li>Setup-alert waitlist for your tickers</li>
           <li>Options only when live chain is OK (honesty gate)</li>
         </ul>
-        <button class="btn" type="button" id="proCta">Get Pro</button>
+        <p class="muted" style="font-size:0.8rem;margin:0.75rem 0 0">
+          Anchor: one avoided −8% on a $3k trade ≈ 8 months of Pro. Yearly $249 saves ~28% vs monthly.
+        </p>
+        <button class="btn btn-mag" type="button" id="proCta">Get Pro</button>
         <p class="muted" id="ctaHint" style="margin-top:0.65rem;font-size:0.8rem"></p>
       </section>
     </div>
@@ -78,6 +89,30 @@
         <tr><td>Pattern labels</td><td>If present in artifact</td><td>Same rules (+ live when mounted)</td></tr>
       </tbody>
     </table>
+
+    <h2>FAQ</h2>
+    <div class="faq">
+      <details open>
+        <summary>Why isn’t live free?</summary>
+        <p>Live fetch burns host capacity and market-data paths. Free keeps honest frozen demos. Pro is a supporter plan — live auto-unlocks when charts are mounted on this host.</p>
+      </details>
+      <details>
+        <summary>Why no Elite tier?</summary>
+        <p>No public track record, no institutional narrative. We refuse prestige pricing without evidence.</p>
+      </details>
+      <details>
+        <summary>How do refunds work?</summary>
+        <p>See the <a href="/refund">refund policy</a>. Cancel anytime via Stripe when billing is configured — no cancel maze.</p>
+      </details>
+      <details>
+        <summary>How is this different from hype tools?</summary>
+        <p>One score, one primary action, fail-closed on bad data, no fake testimonials. Most days the radar tells you <em>not</em> to engage.</p>
+      </details>
+      <details>
+        <summary>Is $29/mo worth it before live exists?</summary>
+        <p>It’s a supporter price. Anchoring check: one avoided −8% move on a $3k position ≈ eight months of Pro. Live is a promised unlock, not sold as available on this host today.</p>
+      </details>
+    </div>
 
     <p class="muted"><a href="/refund">Refund policy</a> · <a href="/terms">Terms</a></p>
   </main>
@@ -115,17 +150,22 @@
       }
     }
 
+    function setCtaLabel(cta, text) {
+      if (window.QuantMagnetic) window.QuantMagnetic.setLabel(cta, text);
+      else cta.textContent = text;
+    }
+
     function syncCta() {
       const cta = document.getElementById("proCta");
       const hint = document.getElementById("ctaHint");
       if (String(auth.plan).toLowerCase() === "pro") {
-        cta.textContent = "Pro active — open desk";
+        setCtaLabel(cta, "Pro active — open desk");
         cta.onclick = () => { location.href = "/"; };
         hint.textContent = "You already have Pro on this account.";
         return;
       }
       if (!auth.authenticated) {
-        cta.textContent = interval === "yearly" ? "Sign in · Pro yearly" : "Sign in · Pro monthly";
+        setCtaLabel(cta, interval === "yearly" ? "Sign in · Pro yearly" : "Sign in · Pro monthly");
         cta.onclick = () => {
           location.href = "/login?next=checkout&interval=" + encodeURIComponent(interval);
         };
@@ -134,7 +174,7 @@
           : "Sign in first. Stripe may be unavailable until keys are configured.";
         return;
       }
-      cta.textContent = interval === "yearly" ? "Checkout · $249/yr" : "Checkout · $29/mo";
+      setCtaLabel(cta, interval === "yearly" ? "Checkout · $249/yr" : "Checkout · $29/mo");
       cta.onclick = () => startCheckout();
       hint.textContent = auth.stripe
         ? "Secure Stripe Checkout. Success returns you to the desk."
@@ -210,5 +250,7 @@
       })
       .catch(() => syncCta());
   </script>
+  <script src="/static/mosaic.js" defer></script>
+  <script src="/static/magnetic-btn.js" defer></script>
 </body>
 </html>

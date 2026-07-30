@@ -49,6 +49,7 @@
 | `fetch_all_present` | 是否可 subprocess live |
 | `charts_status` | `mounted` \| `artifact_only` \| `unavailable` |
 | `data_path` | `charts_engine` \| `artifact_fixtures` \| `none` |
+| `charts_dir` | 恒为 `null`（不暴露主机路径）；用 `charts_dir_configured` |
 | `artifact_fixtures` | 仓内 fixture ticker 列表（如 `["INTC"]`） |
 | `product_note` | 人话解释：Free 上 `charts_reachable=false` 不等于宕机 |
 

@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -17,6 +18,10 @@ from app.quality import assess_charts_payload, fail_response
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_FIXTURE_DIR = REPO_ROOT / "fixtures" / "charts_sample"
+_CHART_NAME_RE = re.compile(
+    r"^[A-Za-z0-9][A-Za-z0-9._-]{0,180}\.(png|jpg|jpeg|webp|svg)$",
+    re.I,
+)
 
 
 def charts_dir() -> Path:
@@ -31,6 +36,35 @@ def resolve_mode(explicit: str | None = None) -> str:
         return explicit
     env = os.environ.get("QUANTRADAR_MODE", "artifact").strip().lower()
     return env if env in {"live", "artifact"} else "artifact"
+
+
+def resolve_chart_asset(basename: str) -> Path | None:
+    """Resolve a public chart basename to an on-disk image (fixtures first, then CHARTS_DIR).
+
+    Security: basename only — no path separators, no ``..``. Used by GET /api/charts/{name}.
+    """
+    name = Path(str(basename or "")).name.strip()
+    if not name or not _CHART_NAME_RE.match(name):
+        return None
+    fixture = (DEFAULT_FIXTURE_DIR / "assets" / name).resolve()
+    if fixture.is_file():
+        return fixture
+    cdir = charts_dir()
+    if not cdir.is_dir():
+        return None
+    direct = (cdir / name).resolve()
+    try:
+        direct.relative_to(cdir.resolve())
+    except ValueError:
+        direct = None  # type: ignore[assignment]
+    if direct is not None and direct.is_file():
+        return direct
+    reports = cdir / "reports"
+    if reports.is_dir():
+        hits = [p for p in reports.glob(f"**/assets/{name}") if p.is_file()][:12]
+        if hits:
+            return sorted(hits, key=lambda p: p.stat().st_mtime, reverse=True)[0].resolve()
+    return None
 
 
 def find_analysis_artifact(ticker: str, root: Path | None = None) -> Path | None:

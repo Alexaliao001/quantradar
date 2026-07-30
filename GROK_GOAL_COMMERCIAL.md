@@ -91,17 +91,17 @@
 | QD1-2 | ⬜ | Customer Portal：`POST /api/billing/portal` + 「Manage billing」入口；退订→webhook 降 free | 退订路径演练通过；无 cancel 迷宫 |
 | QD1-3 | ⬜ | webhook 幂等 + 欠费态：event id 去重；`invoice.payment_failed` → 标 `billing_state=past_due` + UI 提示 | 单测覆盖重放与欠费 |
 | QD1-4 | ⬜ | Pro 限流差异化：`QUANTRADAR_RATE_LIMIT_PRO`；`/api/billing/status` 暴露限额 | 单测 |
-| QD1-5 | ⬜ | 漏斗诚实计数：服务端 JSONL（demo_run/signup/checkout_start/pro_active/live_run）+ `scripts/funnel_report.py` | 本地演练出报表；无 PII 泄漏 |
+| QD1-5 | ✅ | 漏斗诚实计数：服务端 JSONL（demo_run/signup/checkout_start/pro_active/live_run）+ `scripts/funnel_report.py` | 本地演练出报表；无 PII 泄漏 |
 
 ### QD2 — 前端高级化（desk → Bloomberg-lite）
 
 | ID | 状态 | 任务 | 验收 |
 |----|------|------|------|
-| QD2-0 | ⬜ | **结果区渲染真实图表**：`artifacts.charts` 的 daily_price / daily_indicators 出图（artifact 模式静态路由），点击放大 — 最大 wow 缺口 | INTC demo 显示两图；404 时优雅降级 |
-| QD2-1 | ⬜ | 单分仪表：score dial（纯 SVG 无依赖），withheld 态禁用样式 | 四态截图 |
-| QD2-2 | ⬜ | 三重门可视化：Market→Sector→Stock 关卡条（pass/unknown/fail 三色 + reason），stock-agent 门控思想产品化 | 与 contract 字段一一对应 |
+| QD2-0 | ✅ | **结果区渲染真实图表**：`artifacts.charts` 的 daily_price / daily_indicators 出图（`/api/charts/` + fixtures assets），404 优雅降级 | INTC demo 显示两图；路径穿越拒绝 |
+| QD2-1 | ✅ | 单分仪表：score dial（纯 SVG 无依赖），withheld 态禁用样式 | 四态截图 |
+| QD2-2 | ✅ | 三重门可视化：Market→Sector→Stock 关卡条（pass/unknown/fail 三色 + reason），stock-agent 门控思想产品化 | 与 contract 字段一一对应 |
 | QD2-3 | ⬜ | 品牌签名动效：雷达扫描线一次扫过 verdict（≤700ms；respect prefers-reduced-motion） | 不挡操作；可关 |
-| QD2-4 | ⬜ | 移动端专项：376px 修复、触控热区 ≥44px、粘性 Analyze 按钮 | 375 截图过 UI_AUDIT P0 |
+| QD2-4 | 🔶 | 移动端专项：376px 修复、触控热区 ≥44px、粘性 Analyze 按钮 | 375 截图过 UI_AUDIT P0 |
 | QD2-5 | ⬜ | 分享卡：`/r/{ticker}` 只读 demo 永链 + 服务端逐票 OG 卡（SVG 模板）+ X 分享按钮 | 卡片含 verdict/score/免责；预览美观 |
 
 ### QD3 — 获客增长（诚实增长循环）
@@ -119,8 +119,8 @@
 | ID | 状态 | 任务 | 验收 |
 |----|------|------|------|
 | QD4-0 | ⬜ | `docs/ICP.md`：ICP 卡片 + 反 ICP + 每页文案对照 ICP 语言 | 文件 + 首页/定价对照表 |
-| QD4-1 | ⬜ | §2.2 杠杆逐条落地：NO/WAIT 的「帮你避开」句式、锚定对照、demo 冻结时间戳 vs live 锁 | 逐页 copy diff + before/after 截图 |
-| QD4-2 | ⬜ | 定价页异议处理：FAQ（为何不免费/为何无 Elite/退款怎么算/与 hype 工具差异）+ refund 前置 | FAQ JSON-LD 同步 QD3-0 |
+| QD4-1 | ✅ | §2.2 杠杆逐条落地：NO/WAIT 的「帮你避开」句式、锚定对照、demo 冻结时间戳 vs live 锁 | 逐页 copy diff + before/after 截图 |
+| QD4-2 | ✅ | 定价页异议处理：FAQ（为何不免费/为何无 Elite/退款怎么算/与 hype 工具差异）+ refund 前置 | FAQ JSON-LD 同步 QD3-0 |
 | QD4-3 | ⬜ | `docs/VOICE.md`（一页反 hype 语气规范）；全站 status/banner 文案过一遍 | 抽查 10 处一致 |
 
 ### QD5 — live 价值与数据（付费墙后的真货）

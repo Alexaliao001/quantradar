@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Track notes — QuantRadar</title>
+  <meta name="description" content="Operator-published QuantRadar track notes. No invented win rates. Educational only." />
+  <meta property="og:image" content="/static/og-default.svg" />
+  <link rel="stylesheet" href="/static/site.css" />
+</head>
+<body>
+  <div class="page-mosaic is-soft" aria-hidden="true">
+    <div class="hero-mosaic-wave" id="heroMosaicWave"></div>
+  </div>
+  <header class="top">
+    <a class="brand" href="/">Quant<span>Radar</span></a>
+    <nav>
+      <a href="/methodology">Methodology</a>
+      <a href="/track" aria-current="page">Track</a>
+      <a href="/pricing">Pricing</a>
+      <a href="/login">Sign in</a>
+    </nav>
+  </header>
+  <main class="prose">
+    <h1 id="trackTitle">Operator track notes</h1>
+    <p class="muted" id="trackDisclaimer">Loading…</p>
+    <p class="muted">We publish sparse, dated notes — never fabricated user counts or win-rate badges.</p>
+    <div id="trackEmpty" class="banner" hidden>No entries yet. Honesty over theater.</div>
+    <div id="trackList"></div>
+    <p class="muted" style="margin-top:1.5rem">
+      <a href="/?demo=INTC">Try INTC demo</a> ·
+      <a href="/methodology">Methodology</a> ·
+      <a href="/pricing">Pricing</a>
+    </p>
+  </main>
+  <footer class="foot">
+    <a href="/methodology">Methodology</a> ·
+    <a href="/track">Track</a> ·
+    <a href="/pricing">Pricing</a> ·
+    <a href="/terms">Terms</a> ·
+    <a href="/privacy">Privacy</a> ·
+    <a href="/refund">Refund</a>
+    <span class="muted" style="display:block;margin-top:0.45rem;font-size:0.75rem">
+      Machine-readable: <a href="/api/track">/api/track</a>
+    </span>
+  </footer>
+  <script>
+    (async () => {
+      const title = document.getElementById("trackTitle");
+      const disc = document.getElementById("trackDisclaimer");
+      const list = document.getElementById("trackList");
+      const empty = document.getElementById("trackEmpty");
+      try {
+        const r = await fetch("/api/track");
+        const j = await r.json();
+        if (title && j.label) title.textContent = j.label;
+        if (disc) disc.textContent = j.disclaimer || "";
+        const entries = Array.isArray(j.entries) ? j.entries : [];
+        if (!entries.length) {
+          if (empty) empty.hidden = false;
+          return;
+        }
+        entries.forEach((e) => {
+          const sec = document.createElement("section");
+          sec.className = "card";
+          sec.style.marginTop = "1rem";
+          const h = document.createElement("h2");
+          h.style.fontSize = "1.1rem";
+          h.textContent = (e.ticker || "?") + " · " + (e.primary_at_publish || "—") +
+            (e.score_at_publish != null ? " · " + e.score_at_publish + "/100" : "");
+          const meta = document.createElement("p");
+          meta.className = "muted";
+          meta.textContent = "as of " + (e.as_of || "—");
+          const note = document.createElement("p");
+          note.textContent = e.note || "";
+          const out = document.createElement("p");
+          out.className = "muted";
+          out.textContent = e.outcome_note || (e.outcome != null ? String(e.outcome) : "Outcome: not claimed");
+          sec.appendChild(h);
+          sec.appendChild(meta);
+          if (e.note) sec.appendChild(note);
+          sec.appendChild(out);
+          list.appendChild(sec);
+        });
+      } catch (err) {
+        if (disc) disc.textContent = String(err);
+      }
+    })();
+  </script>
+  <script src="/static/mosaic.js" defer></script>
+</body>
+</html>

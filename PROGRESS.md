@@ -1,5 +1,11 @@
 # PROGRESS — QuantRadar
 
+2026-07-27 | **GRAPH-P0** | 导览 SSOT：产品顶栏 Meth·Track·Pricing·Sign in；法律回流；share footer；robots Disallow /btn-demos；Remind 诚实未发信 | 补边完成 · 邮件/Portal/三长文另刀
+2026-07-26 | **SELF** | 弃 Manus 自部署文档 + QD2-0 真图（fixtures assets + /api/charts + desk）；LOCAL_POLISH/SELF_DEPLOY；local_polish_check | 本机打磨 → push → Render
+2026-07-26 | **FULL_FUNNEL** | `docs/FULL_FUNNEL_DESIGN.md` SSOT（含研究 D-P0）；ready→verdict 滚动；375 sticky 防挡 Next；methodology Trust 文案；`/r/{ticker}` 分享摘要+OG；tokens/focus；unittest | 未 commit · 下一 Manus pull / QD1-1 / QD2-0
+2026-07-26 | **P0+SEC** | stock-agent MAP + `gate.entry_timing` + desk 姿态文案；funnel/sample/notify/register 限流 + funnel 体积帽；Gate UI 禁 spy 启发式；unittest 全绿 | 未 commit · 下一 QD2-0 / charts PNG
+2026-07-26 | **QD2-3** | 统一 motion（CSS vars/keyframes）+ 封面雷达 hero + desk loading/ready wow + pricing 轻对齐；`prefers-reduced-motion`；`docs/ENGAGEMENT.md` 动效节 | 可演示 · 未 commit · 下一 QD2-0 / QD1-1
+2026-07-17 | **ENGAGE** | 商业闭环参与度：funnel JSONL + report；desk score dial/gates/breakdown/avoided+freeze；Next 回流钩；pricing FAQ；`docs/ENGAGEMENT.md`；unittest | 可 Manus pull 发布 · 下一 QD2-0 / QD1-1
 2026-07-16 | **QD1-0** | Pro 价值裁决 B：Render Free 不能 live → 支持者价 + mounted 自动解锁；`docs/PRO_VALUE.md` + health `pro_value`；文案对齐；47 测绿 | 可 Manus pull 发布 · 下一 QD2-0
 2026-07-16 | **QD0-0** | desk-v1 + billing 闭环落库：Verdict Desk 四态、月/年 checkout、webhook plan SSOT、cancel→free metadata、live Pro 门控诚实文案；unittest 46 绿 | 可 Manus pull 发布 · 下一 QD1-0
 2026-07-13 | **SX1 v0.7.0** | 数据层诚实：health charts_status/data_path/product_note；artifact options=snapshot；路径脱敏；UI 展示；SITES EXTREME SX1 | push 后 Render 自动部署

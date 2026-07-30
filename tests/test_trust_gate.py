@@ -36,6 +36,17 @@ class TrustGateContractTests(unittest.TestCase):
             self.assertNotIn(bad, html)
         self.assertIn("primary_score", html)  # or Score only one
         self.assertIn("demo free", html.lower())
+        # Gate tone helper must not invent pass from pct presence (display text may still show SPY %)
+        start = html.find("function gateStatusFromResult")
+        self.assertGreater(start, 0)
+        end = html.find("\n    function ", start + 10)
+        gate_fn = html[start:end] if end > start else html[start : start + 800]
+        self.assertNotIn("spy_change_pct", gate_fn)
+        self.assertNotIn("sector_change_pct", gate_fn)
+        self.assertIn("Trust server statuses only", gate_fn)
+        self.assertIn("Mechanical posture", html)
+        self.assertIn("PUT ≠ sell", html)
+        self.assertTrue((REPO / "docs" / "STOCK_AGENT_MAP.md").is_file())
 
     def test_pro_value_copy_not_selling_live_air(self) -> None:
         """QD1-0: pricing must not claim live desk is available now."""

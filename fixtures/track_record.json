@@ -1,0 +1,16 @@
+{
+  "label": "Operator track notes",
+  "updated": "2026-07-26",
+  "disclaimer": "Operator-published snapshots only. Not audited returns, not a live P&L feed, and not social proof. Educational only — not investment advice. Outcomes stay null until we publish a verified follow-up.",
+  "entries": [
+    {
+      "as_of": "2026-03-21",
+      "ticker": "INTC",
+      "primary_at_publish": "WAIT",
+      "score_at_publish": 53,
+      "note": "Frozen demo artifact used on the public desk. Illustrates posture + freeze honesty — not a live call.",
+      "outcome": null,
+      "outcome_note": "No outcome claimed. Demo snapshot only."
+    }
+  ]
+}

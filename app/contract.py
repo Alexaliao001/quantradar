@@ -6,6 +6,7 @@ No scoring formulas here. Scores and gates come only from charts JSON.
 from __future__ import annotations
 
 import re
+from pathlib import Path
 from typing import Any
 
 from app.quality import (
@@ -26,7 +27,8 @@ SIGNAL_LABELS = {
     "PROBE": "Probe",
     "WAIT": "Wait",
     "NO": "No / stand aside",
-    "PUT": "Put / hedge bias",
+    # charts PUT = hedge bias label — NOT a sell / short order (NO_IS_NOT_SELL)
+    "PUT": "Put / hedge bias — not a sell order",
 }
 
 
@@ -58,16 +60,13 @@ def normalize_request(
 
 
 def _public_path(path: str | None) -> str | None:
-    """Never leak developer home paths into public API JSON."""
+    """Never leak host paths into public API JSON — basename only."""
     if path is None:
         return None
     s = str(path).strip()
     if not s:
         return None
-    if s.startswith("/Users/") or s.startswith("/home/"):
-        # basename only — client cannot open the private file anyway
-        return s.rsplit("/", 1)[-1]
-    return s
+    return Path(s).name
 
 
 def _chart_paths(indicator_data: dict[str, Any]) -> dict[str, str | None]:
@@ -80,6 +79,25 @@ def _chart_paths(indicator_data: dict[str, Any]) -> dict[str, str | None]:
         "weekly_price": _public_path(weekly.get("price")),
         "weekly_indicators": _public_path(weekly.get("indicators")),
     }
+
+
+def _map_entry_timing(mechanical: dict[str, Any]) -> dict[str, Any] | None:
+    """Map charts mechanical_scores.entry_timing — omit when absent (never invent)."""
+    et = mechanical.get("entry_timing") if isinstance(mechanical, dict) else None
+    if not isinstance(et, dict) or not et:
+        return None
+    out: dict[str, Any] = {}
+    grade = et.get("grade")
+    if grade is not None and str(grade).strip():
+        out["grade"] = str(grade).strip().upper()[:8]
+    for key in ("total", "max"):
+        if et.get(key) is None:
+            continue
+        try:
+            out[key] = float(et[key])
+        except (TypeError, ValueError):
+            continue
+    return out or None
 
 
 def map_charts_payload(
@@ -161,6 +179,22 @@ def map_charts_payload(
             warnings.append("score missing from charts payload")
             degraded = True
 
+    breakdown: list[dict[str, Any]] = []
+    if isinstance(base, dict):
+        for key in ("volume_price", "momentum", "trend", "risk"):
+            part = base.get(key)
+            if not isinstance(part, dict):
+                continue
+            if part.get("total") is None or part.get("max") is None:
+                continue
+            breakdown.append(
+                {
+                    "name": key,
+                    "value": float(part["total"]),
+                    "max": float(part["max"]),
+                }
+            )
+
     default_sources = sources or [
         {
             "name": "charts",
@@ -173,7 +207,58 @@ def map_charts_payload(
     primary_action = signal if signal in SIGNAL_LABELS else "NO"
     primary_label = SIGNAL_LABELS.get(primary_action, primary_action)
 
-    analysis_public = _public_path(analysis_json_path)
+    # Never expose on-disk analysis paths to clients (clone surface).
+    _ = analysis_json_path
+
+    fetch_time = payload.get("fetch_time")
+    freeze_label = None
+    if mode == "artifact" and fetch_time:
+        freeze_label = f"Frozen demo snapshot · {str(fetch_time)[:10]}"
+    elif mode == "artifact":
+        freeze_label = "Frozen demo snapshot · not a live feed"
+    elif mode == "live":
+        freeze_label = "Live path · freshness follows data_quality"
+
+    # Honest engagement copy (loss-aversion without dark patterns)
+    if primary_action in {"WAIT"}:
+        avoided_line = (
+            "Radar says stand aside — often that avoids chasing a half-formed setup."
+        )
+    elif primary_action in {"NO"} or str(primary_action).startswith("PUT"):
+        avoided_line = (
+            "Standing aside here can spare you a bad entry. Re-check when setup improves."
+        )
+    elif primary_action in {"FULL", "BUILD", "PROBE"}:
+        avoided_line = (
+            "Gates allow engagement — still size risk yourself. Educational only."
+        )
+    else:
+        avoided_line = "One mechanical read. Educational only — not investment advice."
+
+    gate_obj: dict[str, Any] = {
+        "state_code": state.get("code"),
+        "state_name": state.get("name"),
+        "state_reason": state.get("reason"),
+        "signal": signal,
+        "signal_label": SIGNAL_LABELS.get(signal, signal),
+        "primary": primary_action,
+        "market_gate": {
+            "status": "pass" if market_env else "unknown",
+            "spy_change_pct": market_env.get("spy_change_pct"),
+            "market_state": market_env.get("market_state"),
+        },
+        "sector_gate": {
+            "status": "pass"
+            if market_env.get("sector_etf") or market_env.get("sector_change_pct") is not None
+            else "unavailable",
+            "sector_etf": market_env.get("sector_etf"),
+            "sector_change_pct": market_env.get("sector_change_pct"),
+        },
+    }
+    # P0: map charts entry_timing when present — never invent
+    entry_timing = _map_entry_timing(mechanical if isinstance(mechanical, dict) else {})
+    if entry_timing:
+        gate_obj["entry_timing"] = entry_timing
 
     return {
         "ok": True,
@@ -181,31 +266,13 @@ def map_charts_payload(
         "ticker": ticker,
         "company_name": fundamentals.get("company_name") or ticker,
         "sector": fundamentals.get("sector") or market_env.get("sector_etf"),
-        "gate": {
-            "state_code": state.get("code"),
-            "state_name": state.get("name"),
-            "state_reason": state.get("reason"),
-            "signal": signal,
-            "signal_label": SIGNAL_LABELS.get(signal, signal),
-            "primary": primary_action,
-            "market_gate": {
-                "status": "pass" if market_env else "unknown",
-                "spy_change_pct": market_env.get("spy_change_pct"),
-                "market_state": market_env.get("market_state"),
-            },
-            "sector_gate": {
-                "status": "pass"
-                if market_env.get("sector_etf") or market_env.get("sector_change_pct") is not None
-                else "unavailable",
-                "sector_etf": market_env.get("sector_etf"),
-                "sector_change_pct": market_env.get("sector_change_pct"),
-            },
-        },
+        "gate": gate_obj,
         "score": {
             "final": float(final),
             "base_total": float(base_total) if base_total is not None else None,
             "scale": 100,
             "withheld": False,
+            "breakdown": breakdown,
         },
         # TG-1: only public-facing composite. UI must not invent sibling "Composite" scores.
         "primary_score": {
@@ -213,7 +280,10 @@ def map_charts_payload(
             "scale": 100,
             "label": "Mechanical posture score",
             "withheld": False,
-            "note": "Single authoritative score from charts. Not a multi-panel composite mix.",
+            "note": (
+                "Single authoritative posture score from charts — not a direction call "
+                "and not a multi-panel composite mix."
+            ),
         },
         "primary": {
             "action": primary_action,
@@ -221,10 +291,16 @@ def map_charts_payload(
             "reason": state.get("reason") or primary_label,
         },
         "summary": (
-            f"{ticker} — Score: {float(final):.0f}/100 · "
+            f"{ticker} — Posture score: {float(final):.0f}/100 · "
             f"Primary: {primary_label}"
             + (f" · {state.get('name')}" if state.get("name") else "")
         ),
+        "engagement": {
+            "avoided_line": avoided_line,
+            "freeze_label": freeze_label,
+            "loop": "verdict → why → gates → next (remind / upgrade / re-check)",
+            "posture_note": "Mechanical posture ≠ trade direction. PUT ≠ sell order.",
+        },
         "data_quality": {
             "usable": True,
             "reliability": reliability,
@@ -235,7 +311,7 @@ def map_charts_payload(
         },
         "artifacts": {
             "charts": _chart_paths(indicator_data if isinstance(indicator_data, dict) else {}),
-            "analysis_json": analysis_public,
+            "analysis_json": None,
             "report_html": None,
         },
         "sources": default_sources,
@@ -252,7 +328,7 @@ def map_charts_payload(
         "meta": {
             "engine": "charts",
             "mode": mode,
-            "fetch_time": payload.get("fetch_time"),
+            "fetch_time": fetch_time,
             "generated_at": (indicator_data or {}).get("generated_at")
             if isinstance(indicator_data, dict)
             else None,

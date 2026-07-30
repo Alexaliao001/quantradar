@@ -13,10 +13,14 @@
   <link rel="stylesheet" href="/static/site.css" />
 </head>
 <body>
+  <div class="page-mosaic" aria-hidden="true">
+    <div class="hero-mosaic-wave" id="heroMosaicWave"></div>
+  </div>
   <header class="top">
     <a class="brand" href="/">Quant<span>Radar</span></a>
     <nav>
       <a href="/methodology">Methodology</a>
+      <a href="/track">Track</a>
       <a href="/pricing">Pricing</a>
       <a id="loginLink" href="/login">Sign in</a>
       <a id="upgradeNav" href="/pricing">Upgrade</a>
@@ -30,24 +34,68 @@
     <div class="banner ok" id="flashBanner"></div>
   </div>
 
-  <section class="hero">
-    <p class="eyebrow">Beta · no fake social proof</p>
-    <h1>Should you engage this setup?</h1>
-    <p class="lede">
-      One mechanical score. One primary action. Market → sector → stock gates with honest data quality.
-      Demo chips are free. Educational only — not investment advice.
-    </p>
-    <div class="chips" id="demoChips">
-      <button type="button" class="chip" data-demo="INTC">INTC <small>demo free</small></button>
-      <button type="button" class="chip" data-demo="NVDA">NVDA <small>if cached</small></button>
-      <button type="button" class="chip" data-demo="AAPL">AAPL <small>if cached</small></button>
+  <section class="hero" aria-label="QuantRadar cover">
+    <div class="hero-stage">
+      <div class="hero-radar" aria-hidden="true">
+        <svg viewBox="0 0 400 400" role="img">
+          <defs>
+            <radialGradient id="radarGlow" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stop-color="rgba(61,214,140,0.34)" />
+              <stop offset="50%" stop-color="rgba(61,214,140,0.1)" />
+              <stop offset="100%" stop-color="rgba(61,214,140,0)" />
+            </radialGradient>
+            <linearGradient id="sweepGrad" x1="200" y1="200" x2="360" y2="80" gradientUnits="userSpaceOnUse">
+              <stop offset="0%" stop-color="rgba(61,214,140,0.58)" />
+              <stop offset="40%" stop-color="rgba(61,214,140,0.18)" />
+              <stop offset="100%" stop-color="rgba(61,214,140,0)" />
+            </linearGradient>
+          </defs>
+          <circle cx="200" cy="200" r="175" fill="url(#radarGlow)" />
+          <circle class="ring ring-pulse" cx="200" cy="200" r="168" />
+          <circle class="ring ring-strong ring-pulse" cx="200" cy="200" r="118" style="animation-delay:0.6s" />
+          <circle class="ring ring-pulse" cx="200" cy="200" r="72" style="animation-delay:1.1s" />
+          <circle class="ring" cx="200" cy="200" r="28" />
+          <line class="cross" x1="200" y1="22" x2="200" y2="378" />
+          <line class="cross" x1="22" y1="200" x2="378" y2="200" />
+          <g class="sweep-g">
+            <path class="sweep" d="M200 200 L200 32 A168 168 0 0 1 355 145 Z" />
+            <line class="sweep-beam" x1="200" y1="200" x2="200" y2="28" />
+          </g>
+          <circle class="blip" cx="286" cy="118" r="5.5" />
+          <circle class="blip" cx="132" cy="250" r="4" style="animation-delay:0.8s" />
+          <circle class="blip" cx="248" cy="292" r="3.4" style="animation-delay:1.5s" />
+          <circle class="hub" cx="200" cy="200" r="6" />
+        </svg>
+      </div>
+      <div class="hero-copy">
+        <p class="eyebrow">Beta · no fake social proof</p>
+        <p class="brand-mark">Quant<span>Radar</span></p>
+        <h1>Should you engage this setup?</h1>
+        <p class="lede">
+          One mechanical score. Market → sector → stock gates. Honest freeze — never fake live.
+        </p>
+        <div class="hero-cta">
+          <button type="button" class="btn btn-mag" id="heroDemo">Try demo</button>
+          <a class="btn secondary" href="/pricing">Pricing</a>
+        </div>
+      </div>
     </div>
-    <p class="status" id="dataModeLine" style="margin:0.5rem 0 0;max-width:40rem"></p>
+    <div class="hero-samples">
+      <div class="chips" id="demoChips">
+        <button type="button" class="chip" data-demo="INTC">INTC <small>demo free</small></button>
+        <button type="button" class="chip" data-demo="NVDA">NVDA <small>if cached</small></button>
+        <button type="button" class="chip" data-demo="AAPL">AAPL <small>if cached</small></button>
+      </div>
+      <p class="status" id="dataModeLine" style="margin:0.5rem 0 0;max-width:40rem"></p>
+    </div>
   </section>
 
   <main class="wrap">
     <section class="panel desk" id="desk" data-state="idle">
-      <div class="row">
+      <div class="desk-scan" id="deskScan" aria-hidden="true">
+        <div class="desk-scan-beam"></div>
+      </div>
+      <div class="row desk-controls">
         <div class="field">
           <label for="ticker">Ticker</label>
           <input id="ticker" value="INTC" maxlength="10" autocomplete="off" spellcheck="false" />
@@ -63,7 +111,7 @@
             <option value="live">live (Pro)</option>
           </select>
         </div>
-        <button class="btn" id="run" type="button">Analyze</button>
+        <button class="btn btn-mag" id="run" type="button">Analyze</button>
         <button class="btn secondary" id="sample" type="button">Demo INTC</button>
       </div>
       <p class="status" id="status">Ready — try a free demo chip. Live needs Pro + a mounted charts engine.</p>
@@ -73,17 +121,56 @@
           <p class="verdict-action" id="kPrimary" data-tone="neutral">—</p>
           <p class="verdict-label" id="kPrimaryLabel"></p>
           <p class="verdict-why" id="summaryLine"></p>
+          <p class="avoided-line" id="avoidedLine" hidden></p>
         </div>
         <div class="score-orb">
-          <small>Score (only one)</small>
+          <small>Mechanical posture</small>
+          <div class="score-dial" id="scoreDial" data-lit="0" aria-hidden="true">
+            <svg viewBox="0 0 120 72" width="120" height="72">
+              <path class="dial-track" d="M14 62 A46 46 0 0 1 106 62" fill="none" stroke-width="8" stroke-linecap="round" />
+              <path class="dial-value" id="dialArc" d="M14 62 A46 46 0 0 1 106 62" fill="none" stroke-width="8" stroke-linecap="round" />
+            </svg>
+          </div>
           <b id="kScore">—</b>
+          <p class="posture-note" id="postureNote">Posture ≠ direction · PUT ≠ sell</p>
         </div>
       </div>
 
       <div class="evidence-strip" id="evidenceStrip" hidden>
-        <div class="ev"><small>Market</small><b id="kMarket">—</b></div>
-        <div class="ev"><small>Sector</small><b id="kSector">—</b></div>
-        <div class="ev"><small>Stock gate</small><b id="kGate">—</b></div>
+        <div class="ev" id="evMarket" data-gate="unknown">
+          <small>Market</small><b id="kMarket">—</b>
+          <span class="gate-status" id="gsMarket">—</span>
+        </div>
+        <div class="ev" id="evSector" data-gate="unknown">
+          <small>Sector</small><b id="kSector">—</b>
+          <span class="gate-status" id="gsSector">—</span>
+        </div>
+        <div class="ev" id="evStock" data-gate="unknown">
+          <small>Stock gate</small><b id="kGate">—</b>
+          <span class="gate-status" id="gsStock">—</span>
+        </div>
+        <div class="ev" id="evTiming" data-gate="unknown" hidden>
+          <small>Entry timing</small><b id="kTiming">—</b>
+          <span class="gate-status" id="gsTiming">—</span>
+        </div>
+      </div>
+
+      <div class="radar-panel" id="radarPanel" hidden>
+        <div class="radar-head">
+          <h3>Posture breakdown</h3>
+          <span class="freeze-pill" id="freezePill"></span>
+        </div>
+        <div class="breakdown" id="breakdownBars"></div>
+        <p class="radar-note" id="radarNote">Mechanical components from the same score — not a second composite.</p>
+      </div>
+
+      <div class="chart-panel" id="chartPanel" hidden>
+        <div class="radar-head">
+          <h3>Charts</h3>
+          <span class="freeze-pill">Artifact images · educational</span>
+        </div>
+        <div class="chart-grid" id="chartGrid"></div>
+        <p class="radar-note" id="chartNote">Daily price / indicators when present. Missing files degrade quietly.</p>
       </div>
 
       <div class="freshness" id="freshness" hidden>
@@ -101,6 +188,9 @@
             <input id="notifyEmail" type="email" placeholder="you@email.com" />
             <button type="button" id="notifyBtn" class="btn secondary">Remind me</button>
           </div>
+          <p class="muted" id="notifyHonest" style="font-size:0.78rem;margin:0.35rem 0 0">
+            Waitlist archive only for now — email delivery is not enabled yet. We will not pretend a reminder was sent.
+          </p>
           <p class="status" id="notifyStatus"></p>
         </div>
       </div>
@@ -116,6 +206,7 @@
     Fortune Insight, LLC · Educational only — not investment advice.
     <a href="/pricing">Pricing</a> ·
     <a href="/methodology">Methodology</a> ·
+    <a href="/track">Track</a> ·
     <a href="/terms">Terms</a> ·
     <a href="/privacy">Privacy</a> ·
     <a href="/refund">Refund</a>
@@ -124,6 +215,17 @@
       <span id="healthLine"></span>
     </details>
   </footer>
+
+  <div class="lightbox" id="chartLightbox" data-open="0" hidden aria-hidden="true">
+    <div class="lightbox-panel" role="dialog" aria-modal="true" aria-labelledby="lightboxTitle">
+      <div class="lightbox-head">
+        <h3 id="lightboxTitle">Chart</h3>
+        <button type="button" class="lightbox-close" id="lightboxClose" aria-label="Close chart">Close</button>
+      </div>
+      <img class="lightbox-img" id="lightboxImg" src="" alt="" />
+      <p class="lightbox-note">Frozen artifact · educational only — not a live feed.</p>
+    </div>
+  </div>
 
   <script>
     let authState = { authenticated: false, user: null, plan: "free", stripe: false };
@@ -142,7 +244,18 @@
     }
 
     function setDeskState(state) {
+      if (state === "ready" && desk.dataset.state === "ready") {
+        desk.dataset.state = "loading";
+        void desk.offsetWidth;
+      }
       desk.dataset.state = state;
+      const busy = state === "loading";
+      ["run", "sample", "heroDemo"].forEach((id) => {
+        const btn = document.getElementById(id);
+        if (btn) btn.classList.toggle("is-busy", busy);
+      });
+      const statusEl = document.getElementById("status");
+      if (statusEl) statusEl.classList.toggle("status-busy", busy);
     }
 
     function toneForPrimary(primary) {
@@ -151,6 +264,224 @@
       if (["WAIT"].includes(p)) return "warn";
       if (["NO", "PUT", "PUT-BIAS"].includes(p) || p.startsWith("PUT")) return "bad";
       return "neutral";
+    }
+
+    function prefersReducedMotion() {
+      return window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    }
+
+    function setDial(value, scale, withheld) {
+      const arc = document.getElementById("dialArc");
+      const dial = document.getElementById("scoreDial");
+      const orb = document.querySelector(".score-orb");
+      if (!arc || !dial) return;
+      const len = 144.51; /* π × 46 */
+      /* Full semicircle path; reveal via stroke-dashoffset */
+      arc.setAttribute("d", "M14 62 A46 46 0 0 1 106 62");
+      if (withheld || value == null || !scale) {
+        dial.style.setProperty("--dial-offset", String(len));
+        dial.dataset.tone = "neutral";
+        dial.dataset.lit = "0";
+        if (orb) orb.dataset.tone = "neutral";
+        return;
+      }
+      const pct = Math.max(0, Math.min(1, Number(value) / Number(scale)));
+      const offset = len * (1 - pct);
+      const tone = pct >= 0.65 ? "ok" : pct >= 0.4 ? "warn" : "bad";
+      dial.dataset.tone = tone;
+      if (orb) orb.dataset.tone = tone;
+      dial.dataset.lit = "0";
+      dial.style.setProperty("--dial-offset", String(len));
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          dial.style.setProperty("--dial-offset", offset.toFixed(2));
+          dial.dataset.lit = "1";
+        });
+      });
+    }
+
+    function setGateTone(el, status, labelEl) {
+      if (!el) return;
+      const s = String(status || "unknown").toLowerCase();
+      let tone = "unknown";
+      if (["pass", "ok", "open"].includes(s)) tone = "pass";
+      else if (["warn", "caution", "wait"].includes(s)) tone = "warn";
+      else if (["fail", "closed", "no", "blocked"].includes(s)) tone = "fail";
+      else if (["unavailable", "unknown"].includes(s)) tone = "unknown";
+      el.dataset.gate = tone;
+      if (labelEl) {
+        labelEl.textContent =
+          tone === "pass" ? "Pass" : tone === "warn" ? "Warn" : tone === "fail" ? "Fail" : "Unknown";
+      }
+    }
+
+    function openChartLightbox(src, title, alt) {
+      const box = document.getElementById("chartLightbox");
+      const img = document.getElementById("lightboxImg");
+      const h = document.getElementById("lightboxTitle");
+      if (!box || !img || !h) return;
+      img.src = src;
+      img.alt = alt || title || "Chart";
+      h.textContent = title || "Chart";
+      box.hidden = false;
+      box.dataset.open = "1";
+      box.setAttribute("aria-hidden", "false");
+      const closeBtn = document.getElementById("lightboxClose");
+      if (closeBtn) closeBtn.focus();
+    }
+
+    function closeChartLightbox() {
+      const box = document.getElementById("chartLightbox");
+      const img = document.getElementById("lightboxImg");
+      if (!box) return;
+      box.dataset.open = "0";
+      box.setAttribute("aria-hidden", "true");
+      box.hidden = true;
+      if (img) img.removeAttribute("src");
+    }
+
+    function gateStatusFromResult(j) {
+      /* Trust server statuses only — never invent pass from spy/sector pct presence. */
+      const mg = (j.gate && j.gate.market_gate) || {};
+      const sg = (j.gate && j.gate.sector_gate) || {};
+      const primary = String((j.primary && j.primary.action) || (j.gate && j.gate.signal) || "").toUpperCase();
+      let market = String(mg.status || "unknown").toLowerCase();
+      if (!["pass", "warn", "fail", "unknown"].includes(market)) market = "unknown";
+      let sector = String(sg.status || "unknown").toLowerCase();
+      if (sector === "unavailable") sector = "unknown";
+      if (!["pass", "warn", "fail", "unknown"].includes(sector)) sector = "unknown";
+      let stock = "unknown";
+      if (["FULL", "BUILD", "PROBE"].includes(primary)) stock = "pass";
+      else if (primary === "WAIT") stock = "warn";
+      else if (primary === "NO" || primary.startsWith("PUT")) stock = "fail";
+      return { market, sector, stock };
+    }
+
+    function renderBreakdown(j) {
+      const panel = document.getElementById("radarPanel");
+      const bars = document.getElementById("breakdownBars");
+      const freeze = document.getElementById("freezePill");
+      const note = document.getElementById("radarNote");
+      const eng = j.engagement || {};
+      const parts = (j.score && Array.isArray(j.score.breakdown)) ? j.score.breakdown : [];
+      freeze.textContent = eng.freeze_label
+        || ((j.meta && j.meta.mode === "artifact")
+          ? ("Frozen demo · " + String((j.meta && j.meta.fetch_time) || "sample").slice(0, 10))
+          : (liveReady() ? "Live path available" : "Live locked until charts mount"));
+      bars.innerHTML = "";
+      if (!parts.length) {
+        panel.hidden = false;
+        note.textContent = eng.freeze_label
+          || "No component breakdown in this payload — score still single-source.";
+        return;
+      }
+      panel.hidden = false;
+      note.textContent = "Same mechanical score, split by component — not a second composite.";
+      parts.forEach((p) => {
+        const max = Number(p.max) || 1;
+        const val = Number(p.value) || 0;
+        const pct = Math.max(0, Math.min(100, (val / max) * 100));
+        const row = document.createElement("div");
+        row.className = "bd-row";
+        const name = String(p.name || "").replace(/_/g, " ");
+        const nameEl = document.createElement("span");
+        nameEl.className = "bd-name";
+        nameEl.textContent = name;
+        const track = document.createElement("div");
+        track.className = "bd-track";
+        const fill = document.createElement("i");
+        fill.style.setProperty("--bd-pct", pct.toFixed(1) + "%");
+        track.appendChild(fill);
+        const valEl = document.createElement("span");
+        valEl.className = "bd-val";
+        valEl.textContent = val + "/" + max;
+        row.appendChild(nameEl);
+        row.appendChild(track);
+        row.appendChild(valEl);
+        bars.appendChild(row);
+      });
+    }
+
+    function renderCharts(j) {
+      const panel = document.getElementById("chartPanel");
+      const grid = document.getElementById("chartGrid");
+      const note = document.getElementById("chartNote");
+      if (!panel || !grid) return;
+      grid.innerHTML = "";
+      const charts = (j.artifacts && j.artifacts.charts) || {};
+      const keys = [
+        ["daily_price", "Daily price"],
+        ["daily_indicators", "Daily indicators"],
+      ];
+      let shown = 0;
+      keys.forEach(([key, label]) => {
+        const name = charts[key];
+        if (!name || typeof name !== "string") return;
+        const base = name.split("/").pop();
+        if (!base) return;
+        const fig = document.createElement("figure");
+        fig.className = "chart-fig";
+        const cap = document.createElement("figcaption");
+        cap.textContent = label;
+        const zoom = document.createElement("button");
+        zoom.type = "button";
+        zoom.className = "chart-zoom";
+        zoom.setAttribute("aria-label", "Enlarge " + label);
+        const img = document.createElement("img");
+        const src = "/api/charts/" + encodeURIComponent(base);
+        img.src = src;
+        img.alt = (j.ticker || "Ticker") + " " + label;
+        img.loading = "lazy";
+        img.decoding = "async";
+        img.addEventListener("error", () => {
+          fig.hidden = true;
+          if (![...grid.querySelectorAll(".chart-fig")].some((f) => !f.hidden)) {
+            panel.hidden = true;
+            if (note) note.textContent = "Chart images unavailable for this artifact.";
+          }
+        });
+        img.addEventListener("load", () => {
+          shown += 1;
+          panel.hidden = false;
+          if (note) note.textContent = "Frozen artifact charts — tap to enlarge · educational only.";
+        });
+        zoom.addEventListener("click", () => {
+          openChartLightbox(src, label, img.alt);
+        });
+        zoom.appendChild(img);
+        fig.appendChild(cap);
+        fig.appendChild(zoom);
+        grid.appendChild(fig);
+      });
+      if (!grid.children.length) {
+        panel.hidden = true;
+      }
+    }
+
+    function focusDesk() {
+      const el = document.getElementById("desk");
+      if (!el) return;
+      const behavior = prefersReducedMotion() ? "auto" : "smooth";
+      window.scrollTo({ top: Math.max(0, el.offsetTop - 72), behavior });
+    }
+
+    /** D-P0-2: after ready, land on Verdict so mobile users don't lose the answer. */
+    function focusVerdict() {
+      const verdict = document.getElementById("verdictBlock");
+      const deskEl = document.getElementById("desk");
+      const target = (verdict && !verdict.hidden) ? verdict : deskEl;
+      if (!target) return;
+      const behavior = prefersReducedMotion() ? "auto" : "smooth";
+      const headerOffset = 80;
+      const top = Math.max(0, target.getBoundingClientRect().top + window.scrollY - headerOffset);
+      window.scrollTo({ top, behavior });
+      try {
+        const action = document.getElementById("kPrimary");
+        if (action) {
+          action.setAttribute("tabindex", "-1");
+          action.focus({ preventScroll: true });
+        }
+      } catch (_) { /* ignore */ }
     }
 
     function setWarns(list) {
@@ -206,77 +537,95 @@
 
       const primary = String(lastPrimary || "").toUpperCase();
       const waitLike = ["WAIT", "NO", "PUT"].includes(primary) || primary.startsWith("PUT");
+      const eng = j.engagement || {};
+
+      function addBtn(label, className, onClick) {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = className || "btn";
+        btn.textContent = label;
+        btn.onclick = onClick;
+        if (/\bbtn\b/.test(btn.className) && !/\bsecondary\b/.test(btn.className)) {
+          btn.classList.add("btn-mag");
+          if (window.QuantMagnetic) window.QuantMagnetic.enhance(btn);
+        }
+        actions.appendChild(btn);
+        return btn;
+      }
+      function addLink(label, href, className) {
+        const a = document.createElement("a");
+        a.className = className || "btn secondary";
+        a.href = href;
+        a.textContent = label;
+        actions.appendChild(a);
+        return a;
+      }
 
       if (!j.ok) {
         if (j.error === "plan_required") {
           title.textContent = "Supporter plan for live";
           copy.textContent =
             "Pro is the supporter plan ($29/mo or $249/yr). Live unlocks automatically when charts are mounted on this host.";
-          const btn = document.createElement("button");
-          btn.type = "button";
-          btn.className = "btn";
-          btn.textContent = "Upgrade to Pro";
-          btn.onclick = () => startCheckout("monthly");
-          actions.appendChild(btn);
-          const price = document.createElement("a");
-          price.className = "btn secondary";
-          price.href = "/pricing";
-          price.textContent = "See pricing";
-          actions.appendChild(price);
+          addBtn("Upgrade to Pro", "btn", () => startCheckout("monthly"));
+          addLink("See pricing", "/pricing");
           return;
         }
         title.textContent = "Blocked";
         copy.textContent = "No tradeable conclusion. Fix data path or try a demo artifact.";
+        addBtn("Try INTC demo", "btn secondary", () => runDemo("INTC"));
+        return;
+      }
+
+      const shareTicker = String(lastTicker || "INTC").toUpperCase();
+      const shareHref = "/r/" + encodeURIComponent(shareTicker);
+
+      if (waitLike) {
+        title.textContent = "Next — stay in the loop";
+        copy.textContent = eng.avoided_line
+          ? eng.avoided_line + " Optional waitlist email (archived only — outbound mail not enabled yet)."
+          : "Optional waitlist email for a later re-check (archived only — we do not email yet).";
+        notify.hidden = false;
+        addBtn("Analyze another", "btn secondary", () => {
+          document.getElementById("ticker").focus();
+          focusDesk();
+        });
+        if (!isPro()) {
+          addBtn(authState.authenticated ? "Upgrade to Pro" : "Sign in & upgrade", "btn", () => {
+            if (authState.authenticated) startCheckout("monthly");
+            else location.href = "/login?next=checkout&interval=monthly";
+          });
+        }
+        addLink("Share this read", shareHref, "btn secondary");
+        addLink("How the score works", "/methodology");
         return;
       }
 
       if (!isPro()) {
         title.textContent = demo ? "Liked the read?" : "Support the desk";
+        const freeze = eng.freeze_label || "This was a frozen demo snapshot.";
         copy.textContent = demo
-          ? "This was a free frozen demo. Pro is a supporter plan — higher limits now; live auto-unlocks when charts are mounted ($29/mo or $249/yr)."
+          ? freeze + " Pro is a supporter plan — higher limits now; live auto-unlocks when charts are mounted ($29/mo · $249/yr ≈ one avoided −8% on a $3k trade)."
           : "Artifact path is free. Pro is the supporter plan: higher limits now; live when charts are mounted.";
-        const btn = document.createElement("button");
-        btn.type = "button";
-        btn.className = "btn";
-        btn.textContent = authState.authenticated ? "Upgrade to Pro" : "Sign in & upgrade";
-        btn.onclick = () => {
+        addBtn(authState.authenticated ? "Upgrade to Pro" : "Sign in & upgrade", "btn", () => {
           if (authState.authenticated) startCheckout("monthly");
           else location.href = "/login?next=checkout&interval=monthly";
-        };
-        actions.appendChild(btn);
-        const price = document.createElement("a");
-        price.className = "btn secondary";
-        price.href = "/pricing";
-        price.textContent = "See pricing";
-        actions.appendChild(price);
+        });
+        addLink("See pricing", "/pricing");
+        addLink("Share this read", shareHref, "btn secondary");
+        addBtn("Try another demo", "btn secondary", () => runDemo("INTC"));
       } else if (liveReady()) {
         title.textContent = "Pro active";
         copy.textContent = "Live analyze is available on this host. Switch Mode → live to run.";
-        const liveBtn = document.createElement("button");
-        liveBtn.type = "button";
-        liveBtn.className = "btn";
-        liveBtn.textContent = "Run live";
-        liveBtn.onclick = () => {
+        addBtn("Run live", "btn", () => {
           document.getElementById("mode").value = "live";
           runAnalyze();
-        };
-        actions.appendChild(liveBtn);
+        });
       } else {
-        title.textContent = "Pro active";
+        title.textContent = "Pro active — live pending";
         copy.textContent =
-          "Supporter benefits on. Live analyze will work when /health shows charts mounted — not available on this host yet.";
-        const price = document.createElement("a");
-        price.className = "btn secondary";
-        price.href = "/pricing";
-        price.textContent = "Pricing details";
-        actions.appendChild(price);
-      }
-
-      if (waitLike) {
-        notify.hidden = false;
-        if (!copy.textContent.includes("remind")) {
-          copy.textContent += " Optional: leave an email for a setup re-check reminder (waitlist only).";
-        }
+          "Supporter benefits on. Live analyze unlocks when /health shows charts mounted — not available on this host yet. Demos stay free.";
+        addLink("Pricing details", "/pricing");
+        addBtn("Re-check demo", "btn secondary", () => runDemo(lastTicker || "INTC"));
       }
     }
 
@@ -297,13 +646,34 @@
       kPrimary.dataset.tone = toneForPrimary(primary);
       document.getElementById("kPrimaryLabel").textContent = primaryLabel || "";
 
+      const avoided = document.getElementById("avoidedLine");
+      const avoidedText = (j.engagement && j.engagement.avoided_line) || "";
+      if (avoidedText) {
+        avoided.hidden = false;
+        avoided.textContent = avoidedText;
+      } else {
+        avoided.hidden = true;
+        avoided.textContent = "";
+      }
+
       const ps = j.primary_score;
       const scoreEl = document.getElementById("kScore");
-      if (ps && ps.withheld) scoreEl.textContent = "withheld";
-      else if (ps && ps.value != null) scoreEl.textContent = `${ps.value}/${ps.scale || 100}`;
-      else if (j.score && j.score.withheld) scoreEl.textContent = "withheld";
-      else if (j.score && j.score.final != null) scoreEl.textContent = `${j.score.final}/${j.score.scale || 100}`;
-      else scoreEl.textContent = "—";
+      if (ps && ps.withheld) {
+        scoreEl.textContent = "withheld";
+        setDial(null, 100, true);
+      } else if (ps && ps.value != null) {
+        scoreEl.textContent = `${ps.value}/${ps.scale || 100}`;
+        setDial(ps.value, ps.scale || 100, false);
+      } else if (j.score && j.score.withheld) {
+        scoreEl.textContent = "withheld";
+        setDial(null, 100, true);
+      } else if (j.score && j.score.final != null) {
+        scoreEl.textContent = `${j.score.final}/${j.score.scale || 100}`;
+        setDial(j.score.final, j.score.scale || 100, false);
+      } else {
+        scoreEl.textContent = "—";
+        setDial(null, 100, true);
+      }
 
       const mg = (j.gate && j.gate.market_gate) || {};
       const sg = (j.gate && j.gate.sector_gate) || {};
@@ -321,10 +691,49 @@
       document.getElementById("kGate").textContent =
         (j.gate && (j.gate.state_name || j.gate.state_code)) || "—";
 
+      const et = (j.gate && j.gate.entry_timing) || null;
+      const evTiming = document.getElementById("evTiming");
+      const kTiming = document.getElementById("kTiming");
+      if (et && (et.grade || et.total != null)) {
+        evTiming.hidden = false;
+        const grade = et.grade ? String(et.grade) : "—";
+        kTiming.textContent = et.total != null && et.max != null
+          ? `${grade} · ${et.total}/${et.max}`
+          : grade;
+        const g = String(et.grade || "").toUpperCase();
+        setGateTone(
+          evTiming,
+          g === "A" || g === "B" ? "pass" : g === "C" ? "warn" : g ? "fail" : "unknown",
+          document.getElementById("gsTiming")
+        );
+      } else {
+        evTiming.hidden = true;
+        kTiming.textContent = "—";
+        setGateTone(evTiming, "unknown", document.getElementById("gsTiming"));
+      }
+
+      const tones = gateStatusFromResult(j);
+      setGateTone(document.getElementById("evMarket"), tones.market, document.getElementById("gsMarket"));
+      setGateTone(document.getElementById("evSector"), tones.sector, document.getElementById("gsSector"));
+      setGateTone(document.getElementById("evStock"), tones.stock, document.getElementById("gsStock"));
+
+      const postureNote = document.getElementById("postureNote");
+      if (postureNote) {
+        postureNote.textContent =
+          (j.engagement && j.engagement.posture_note)
+          || "Posture ≠ direction · PUT ≠ sell";
+      }
+
       const sum = document.getElementById("summaryLine");
       const disc = (j.meta && j.meta.disclaimer) || "Educational radar only — not investment advice.";
       const why = (j.primary && j.primary.reason) || (j.gate && j.gate.state_reason) || j.summary || "";
-      sum.textContent = (why ? why + " · " : "") + (demo ? "demo (0 credits) · " : "") + disc;
+      const postureHint = primary.startsWith("PUT")
+        ? "PUT is hedge bias, not a sell order. "
+        : "Mechanical posture — not a direction call. ";
+      sum.textContent = postureHint + (why ? why + " · " : "") + (demo ? "demo (0 credits) · " : "") + disc;
+
+      renderBreakdown(j);
+      renderCharts(j);
 
       const fresh = document.getElementById("freshness");
       const freshText = document.getElementById("freshnessText");
@@ -335,17 +744,21 @@
         ? "options actionable"
         : (dq.options && dq.options.options_simulated) ? "options simulated / n/a"
           : "options n/a";
+      const freezeHint = (j.engagement && j.engagement.freeze_label)
+        || (demo || mode === "artifact"
+          ? `Frozen at ${(j.meta && j.meta.fetch_time) || "sample"} — not a live feed.`
+          : (liveReady() ? "Live path." : "Live locked until charts mount."));
       if (!j.ok) {
         fresh.className = "freshness bad";
         freshText.textContent = `No conclusion: ${j.error_detail || j.error || "failed"}. Score withheld.`;
         setDeskState("blocked");
       } else if (j.degraded) {
         fresh.className = "freshness warn";
-        freshText.textContent = `Degraded · mode=${mode} · reliability=${rel} · ${opt}. Read warnings before acting.`;
+        freshText.textContent = `${freezeHint} Degraded · mode=${mode} · reliability=${rel} · ${opt}.`;
         setDeskState("ready");
       } else {
         fresh.className = "freshness ok";
-        freshText.textContent = `Freshness OK · mode=${mode} · reliability=${rel} · ${opt}.`;
+        freshText.textContent = `${freezeHint} · mode=${mode} · reliability=${rel} · ${opt}.`;
         setDeskState("ready");
       }
 
@@ -360,6 +773,8 @@
       });
       setWarns(j.warnings || []);
       renderNext(j, { demo });
+      /* D-P0-2: reveal answer in viewport (loading used focusDesk). */
+      requestAnimationFrame(() => focusVerdict());
     }
 
     async function refreshAuth() {
@@ -448,8 +863,9 @@
       document.getElementById("ticker").value = t;
       const status = document.getElementById("status");
       status.className = "status";
-      status.textContent = `Loading free demo for ${t}…`;
+      status.textContent = `Scanning demo artifact for ${t}…`;
       setDeskState("loading");
+      focusDesk();
       try {
         const r = await fetch("/api/sample?ticker=" + encodeURIComponent(t), { credentials: "same-origin" });
         const j = await r.json();
@@ -557,6 +973,14 @@
 
     document.getElementById("run").addEventListener("click", runAnalyze);
     document.getElementById("sample").addEventListener("click", () => runDemo("INTC"));
+    document.getElementById("heroDemo").addEventListener("click", () => runDemo("INTC"));
+    document.getElementById("lightboxClose").addEventListener("click", closeChartLightbox);
+    document.getElementById("chartLightbox").addEventListener("click", (e) => {
+      if (e.target === e.currentTarget) closeChartLightbox();
+    });
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") closeChartLightbox();
+    });
     document.getElementById("ticker").addEventListener("keydown", (e) => {
       if (e.key === "Enter") runAnalyze();
     });
@@ -574,7 +998,9 @@
         });
         const j = await r.json();
         st.className = "status " + (j.ok ? "ok" : "bad");
-        st.textContent = j.ok ? "Saved to waitlist (not sold)." : (j.error_detail || j.error);
+        st.textContent = j.ok
+          ? "Saved to waitlist archive (not sold). No email will be sent until delivery is enabled."
+          : (j.error_detail || j.error);
       } catch (e) {
         st.className = "status bad";
         st.textContent = String(e);
@@ -596,6 +1022,37 @@
       );
     }
 
+    /* Sticky Analyze elevation + hero radar fade when desk enters view */
+    (function bindDeskMotionChrome() {
+      const hero = document.querySelector(".hero");
+      const controls = document.querySelector(".desk-controls");
+      if (desk && hero && "IntersectionObserver" in window) {
+        const io = new IntersectionObserver(
+          (entries) => {
+            entries.forEach((en) => {
+              hero.classList.toggle("is-past", en.isIntersecting && en.intersectionRatio > 0.12);
+            });
+          },
+          { root: null, threshold: [0, 0.12, 0.35] }
+        );
+        io.observe(desk);
+      }
+      if (!controls) return;
+      const onScroll = () => {
+        const sticky = window.matchMedia("(max-width: 720px)").matches;
+        if (!sticky) {
+          controls.classList.remove("is-elevated");
+          return;
+        }
+        const rect = controls.getBoundingClientRect();
+        const pinned = rect.bottom >= window.innerHeight - 4;
+        controls.classList.toggle("is-elevated", pinned);
+      };
+      window.addEventListener("scroll", onScroll, { passive: true });
+      window.addEventListener("resize", onScroll, { passive: true });
+      onScroll();
+    })();
+
     refreshHealth();
     refreshAuth().then(() => {
       if (params.get("checkout") === "success") {
@@ -606,8 +1063,12 @@
       if (params.get("want") === "live") {
         document.getElementById("mode").value = "live";
         if (authState.authenticated) runAnalyze();
+      } else if (params.get("demo")) {
+        runDemo(params.get("demo"));
       }
     });
   </script>
+  <script src="/static/mosaic.js" defer></script>
+  <script src="/static/magnetic-btn.js" defer></script>
 </body>
 </html>

@@ -8,10 +8,16 @@
   <link rel="stylesheet" href="/static/site.css" />
 </head>
 <body class="auth-shell">
+  <div class="page-mosaic is-soft" aria-hidden="true">
+    <div class="hero-mosaic-wave" id="heroMosaicWave"></div>
+  </div>
   <header class="top">
     <a class="brand" href="/">Quant<span>Radar</span></a>
     <nav>
+      <a href="/methodology">Methodology</a>
+      <a href="/track">Track</a>
       <a href="/pricing">Pricing</a>
+      <a href="/login" aria-current="page">Sign in</a>
       <a href="/">← Back to radar</a>
     </nav>
   </header>
@@ -39,7 +45,7 @@
           <label for="name">Display name (optional)</label>
           <input id="name" type="text" maxlength="80" autocomplete="nickname" placeholder="Optional" />
         </div>
-        <button class="btn" id="pwBtn" type="submit">Sign in</button>
+        <button class="btn btn-mag" id="pwBtn" type="submit">Sign in</button>
       </form>
 
       <div class="divider">or</div>
@@ -89,7 +95,11 @@
       document.getElementById("tabLogin").classList.toggle("active", m === "login");
       document.getElementById("tabRegister").classList.toggle("active", m === "register");
       title.textContent = m === "login" ? "Sign in" : "Create account";
-      pwBtn.textContent = m === "login" ? "Sign in" : "Create account";
+      if (window.QuantMagnetic) {
+        window.QuantMagnetic.setLabel(pwBtn, m === "login" ? "Sign in" : "Create account");
+      } else {
+        pwBtn.textContent = m === "login" ? "Sign in" : "Create account";
+      }
       nameWrap.hidden = m !== "register";
       document.getElementById("password").autocomplete =
         m === "login" ? "current-password" : "new-password";
@@ -213,5 +223,7 @@
     }
     boot();
   </script>
+  <script src="/static/mosaic.js" defer></script>
+  <script src="/static/magnetic-btn.js" defer></script>
 </body>
 </html>

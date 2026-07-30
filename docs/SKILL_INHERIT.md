@@ -95,4 +95,44 @@
 
 ---
 
+### 2026-07-17 · ENGAGE · 商业闭环参与度
+
+- 水源：**L1** ship-code / decision-lab；**L2** `GROK_GOAL_COMMERCIAL.md` §2 心理杠杆 + Trust Gate；explore 盘点 desk/billing 缺口
+- 比对：第三方 tracker vs 服务端 JSONL — **选 JSONL**（N1–N5 诚实、无 PII）；假社交证明 — **拒绝**
+- 层：Commercial / FE / Analytics
+- 提炼：
+  1. 参与回路 = Verdict → Why → Gates → Breakdown → Next（remind/upgrade/re-check）
+  2. WAIT/NO 用 avoided_line（损失厌恶）而非挡结果注册墙
+  3. freeze_label 制造诚实新鲜度缺口，不伪造 live
+- 采用档：**直接**（funnel+desk+FAQ）+ **技术**（score.breakdown / engagement 契约字段）
+- 落地：`app/funnel.py`、`docs/ENGAGEMENT.md`、QD1-5/2-1/2-2/4-1/4-2 ✅
+
+---
+
+### 2026-07-26 · QD2-3 · 统一动效 + 封面升级
+
+- 水源：**L1** frontend-design / ship-code；**L2** `docs/ENGAGEMENT.md`、`static/site.css`、Trust Gate / PRO_VALUE
+- 比对：第三方 motion/lib vs CSS vars+SVG — **选 stdlib 壳内纯 CSS/SVG**；假社交/live 卖点 — **拒绝**；首屏堆 stats/cards — **拒绝**（品牌雷达 composition）
+- 层：FE / Commercial presence
+- 提炼：
+  1. Motion SSOT = `--motion-*` + 命名 keyframes；desk `data-state` 驱动 loading scan / ready 点亮
+  2. Dial 用固定半圆 + `stroke-dashoffset`，比重写 path `d` 更稳
+  3. `prefers-reduced-motion` 必须关掉循环扫描与 stagger，保留瞬时可读态
+- 采用档：**直接**（hero+desk+pricing 对齐）+ **技术**（CSS motion system）
+- 落地：`static/site.css`、`static/index.html`、`static/pricing.html`、`docs/ENGAGEMENT.md` · QD2-3 ✅
+
+### 2026-07-26 · P0 · stock-agent 映射 + 安全收口
+
+- 水源：**L1** stock-agent（思想）/ ship-code；**L2** `~/stock-skills` 调研 8300f684、`~/charts` entry_timing；Security Review 959d7ee6 Medium×2
+- 比对：整仓嵌 ss vs 路径 C 只 map charts — **选只 map**；Gate UI 用 spy 启发式 vs 服务端 status — **选服务端**
+- 层：Analysis 边界 / FE / Security
+- 提炼：
+  1. `gate.entry_timing` 有则 map、无则省略；姿态≠方向；PUT≠卖出
+  2. sample/notify/register 与 analyze 同级限流；funnel JSONL 体积帽
+  3. 禁止双轨公式与假 pass
+- 采用档：**思想**（stock-agent）+ **技术**（限流/体积帽）+ **直接**（MAP 文档）
+- 落地：`docs/STOCK_AGENT_MAP.md`、`app/contract.py`、`app/funnel.py`、`app/server.py`、desk 文案
+
+---
+
 *后续轮次追加在上方分隔线之下。*

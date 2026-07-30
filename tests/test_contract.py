@@ -50,6 +50,21 @@ class ContractTests(unittest.TestCase):
             float(mapped["score"]["final"]),
             float(payload["mechanical_scores"]["final_score"]),
         )
+        # P0: entry_timing mapped from charts when present (omit when absent)
+        src_et = (payload.get("mechanical_scores") or {}).get("entry_timing")
+        if isinstance(src_et, dict) and src_et.get("grade"):
+            self.assertIn("entry_timing", mapped["gate"])
+            self.assertEqual(
+                mapped["gate"]["entry_timing"]["grade"],
+                str(src_et["grade"]).strip().upper(),
+            )
+        else:
+            self.assertNotIn("entry_timing", mapped["gate"])
+        self.assertEqual(
+            mapped["primary_score"]["value"],
+            mapped["score"]["final"],
+        )
+        self.assertIn("posture", (mapped.get("engagement") or {}).get("posture_note", "").lower())
 
     def test_analyze_artifact_path(self) -> None:
         result = analyze("INTC", mode="artifact")

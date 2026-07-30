@@ -67,7 +67,7 @@
       "daily_price": "/path/or/null",
       "daily_indicators": "/path/or/null"
     },
-    "analysis_json": "optional path to source artifact",
+    "analysis_json": "always null on public HTTP (on-disk paths never exposed)",
     "report_html": null
   },
   "sources": [

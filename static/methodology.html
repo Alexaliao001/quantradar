@@ -10,15 +10,20 @@
   <link rel="stylesheet" href="/static/site.css" />
 </head>
 <body>
+  <div class="page-mosaic is-soft" aria-hidden="true">
+    <div class="hero-mosaic-wave" id="heroMosaicWave"></div>
+  </div>
   <header class="top">
     <a class="brand" href="/">Quant<span>Radar</span></a>
     <nav>
-      <a href="/methodology">Methodology</a>
+      <a href="/methodology" aria-current="page">Methodology</a>
+      <a href="/track">Track</a>
       <a href="/pricing">Pricing</a>
       <a href="/login">Sign in</a>
     </nav>
   </header>
   <main class="prose">
+    <p class="eyebrow" style="color:var(--accent);letter-spacing:0.12em;text-transform:uppercase;font-size:0.72rem">Trust · auditable</p>
     <h1>Methodology</h1>
     <p class="muted">Educational radar — not investment advice. We publish how the score is built so you can distrust us productively.</p>
 
@@ -27,6 +32,16 @@
       The only number we call <strong>Score</strong> on the product surface is the charts engine
       <em>mechanical posture score</em> (<code>primary_score</code> / <code>score.final</code>, 0–100).
       Sub-indicators may exist in the engine payload for research, but the UI must not show multiple “Composite” scores that disagree.
+    </p>
+
+    <h2>Mechanical posture ≠ direction</h2>
+    <p>
+      <code>primary.action</code> is a <strong>mechanical posture</strong> gate (Full / Build / Probe / Wait / No / Put-bias),
+      not a “go long / go short” direction order. Summary text must match that primary — no “buy” next to “Wait &amp; Watch”.
+    </p>
+    <p>
+      <strong>PUT ≠ sell.</strong> A Put / hedge bias label means defensive posture in the mechanical system —
+      it is <em>not</em> a broker sell order and not an invitation to short.
     </p>
 
     <h2>What the score is (and is not)</h2>
@@ -38,9 +53,8 @@
 
     <h2>Gates &amp; primary action</h2>
     <p>
-      Market / sector context and a state code (e.g. pullback vs breakdown) feed a single
-      <strong>primary</strong> action: Full / Build / Probe / Wait / No / Put-bias.
-      Summary text must match that primary — no “buy” next to “Wait &amp; Watch”.
+      Market → sector → stock context feed a single primary action. Gate lamp colors follow server
+      <code>gate.*.status</code> (pass / warn / fail / unknown). Unknown is not pass — we fail closed on bad data.
     </p>
 
     <h2>Data quality</h2>
@@ -50,24 +64,34 @@
       Unknown tickers fail closed — no fabricated buy score.
     </p>
 
+    <h2>Demo vs Pro (supporter until mount)</h2>
+    <p>
+      Demo chips (e.g. INTC) load <strong>frozen artifacts</strong> — zero credits, no live market API.
+      On today’s production host, Pro is a <strong>supporter plan</strong> ($29/mo · $249/yr): higher limits now;
+      live analyze auto-unlocks when <code>/health.charts_status == mounted</code> — not sold as available before that.
+    </p>
+
     <h2>Pattern “success rates”</h2>
     <p>
       Pattern labels and historical efficiency ranks, when shown, must cite the data series and period.
       We do not invent social proof (user counts) or fake testimonials.
-      Calibrated edges from our private research desk will be published here as they clear verification — not before.
+      Sparse operator track notes (when published) live on <a href="/track">/track</a> —
+      outcomes stay null until verified. Calibrated private edges publish only after verification.
     </p>
 
-    <h2>Demo vs live</h2>
+    <h2>What we do not publish</h2>
     <p>
-      Demo chips (e.g. INTC) load pre-built artifacts and do not charge credits or hit live market APIs.
-      Live mode requires sign-in and uses the charts fetch path when configured.
+      We do not ship reproducible formula weight tables, on-disk analysis paths, or host filesystem
+      layout in the public API. The desk shows one mechanical score, gates, and honest freeze labels —
+      enough to audit the decision, not enough to clone the private engine.
     </p>
 
-    <p class="muted"><a href="/">← Back to radar</a></p>
+    <p class="muted"><a href="/?demo=INTC">← Try INTC demo</a> · <a href="/track">Track</a> · <a href="/pricing">Pricing</a></p>
   </main>
   <footer class="foot">
     <a href="/terms">Terms</a> · <a href="/privacy">Privacy</a> · <a href="/refund">Refund</a>
     · Fortune Insight, LLC · Educational only
   </footer>
+  <script src="/static/mosaic.js" defer></script>
 </body>
 </html>

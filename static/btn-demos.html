@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Button inhale demos — QuantRadar</title>
+  <meta name="robots" content="noindex" />
+  <link rel="stylesheet" href="/static/site.css" />
+  <style>
+    .demo-wrap {
+      max-width: 1080px;
+      margin: 0 auto;
+      padding: 1.5rem 1.25rem 4rem;
+    }
+    .demo-wrap h1 {
+      font-family: var(--display);
+      font-size: clamp(1.6rem, 3vw, 2.1rem);
+      margin: 0 0 0.35rem;
+      letter-spacing: -0.03em;
+    }
+    .demo-lead {
+      color: var(--muted);
+      max-width: 40rem;
+      margin: 0 0 1.75rem;
+    }
+    .demo-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 1rem;
+    }
+    .demo-card {
+      background: var(--material-panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-soft);
+      padding: 1.15rem 1.2rem 1.35rem;
+      min-height: 220px;
+      display: flex;
+      flex-direction: column;
+    }
+    .demo-card header {
+      display: flex;
+      align-items: baseline;
+      gap: 0.55rem;
+      margin-bottom: 0.35rem;
+    }
+    .demo-card .tag {
+      font-family: var(--mono);
+      font-size: 0.68rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--accent);
+      border: 1px solid rgba(61, 214, 140, 0.35);
+      border-radius: 999px;
+      padding: 0.12rem 0.5rem;
+    }
+    .demo-card h2 {
+      font-family: var(--display);
+      font-size: 1.05rem;
+      margin: 0;
+      letter-spacing: -0.02em;
+    }
+    .demo-card p {
+      margin: 0 0 1rem;
+      color: var(--muted);
+      font-size: 0.8rem;
+      line-height: 1.45;
+      flex: 1;
+    }
+    .demo-stage {
+      display: grid;
+      place-items: center;
+      min-height: 88px;
+      border-radius: var(--radius-sm);
+      background:
+        radial-gradient(120px 60px at 50% 80%, rgba(61, 214, 140, 0.08), transparent 70%),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent);
+      border: 1px dashed var(--hairline);
+      overflow: visible;
+    }
+    .demo-stage .btn { margin-top: 0; }
+    /* Magnetic owns transform — mute CSS :active fight */
+    .demo-stage .mag .btn:hover,
+    .demo-stage .mag .btn:active {
+      transform: none;
+    }
+
+    /* Shared magnetic shell */
+    .mag {
+      display: inline-flex;
+      position: relative;
+      touch-action: none;
+      will-change: transform;
+      transform-origin: center center;
+    }
+    .mag .btn {
+      position: relative;
+      overflow: hidden;
+      isolation: isolate;
+    }
+    .mag .btn > span {
+      display: inline-block;
+      will-change: transform;
+    }
+    .mag.is-press .btn {
+      filter: brightness(0.96);
+      box-shadow:
+        0 0 0 2px var(--accent-soft),
+        0 1px 0 rgba(255, 255, 255, 0.08) inset,
+        0 4px 14px rgba(61, 214, 140, 0.28);
+    }
+
+    /* D: spotlight overlay */
+    .spot-layer {
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 160ms var(--ease-out);
+      background: radial-gradient(
+        120px 90px at var(--mx, 50%) var(--my, 50%),
+        rgba(255, 255, 255, 0.38),
+        rgba(61, 214, 140, 0.12) 42%,
+        transparent 68%
+      );
+      mix-blend-mode: soft-light;
+      z-index: 0;
+    }
+    .mag.is-hot .spot-layer { opacity: 1; }
+    .mag .btn > span { position: relative; z-index: 1; }
+
+    /* F: radial inhale fill */
+    .inhale-fill {
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      pointer-events: none;
+      z-index: 0;
+      background: radial-gradient(
+        circle at var(--mx, 50%) var(--my, 50%),
+        rgba(255, 255, 255, 0.35) 0%,
+        rgba(61, 214, 140, 0.55) 28%,
+        transparent 62%
+      );
+      opacity: 0;
+      transform: scale(0.35);
+      transition:
+        opacity 220ms var(--ease-out),
+        transform 280ms var(--ease-out);
+    }
+    .mag.is-hot .inhale-fill {
+      opacity: 1;
+      transform: scale(1.65);
+    }
+
+    .pick-note {
+      margin-top: 1.75rem;
+      padding: 0.9rem 1rem;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--muted);
+      font-size: 0.82rem;
+    }
+    .pick-note code {
+      color: var(--accent);
+      font-size: 0.78rem;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .mag, .mag .btn > span { transform: none !important; }
+      .spot-layer, .inhale-fill { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <header class="top">
+    <a class="brand" href="/">Quant<span>Radar</span></a>
+    <nav>
+      <a href="/">Home</a>
+      <a href="/btn-demos" aria-current="page">Btn demos</a>
+      <a href="/login">Sign in</a>
+    </nav>
+  </header>
+
+  <main class="demo-wrap">
+    <h1>6 版吸入感按钮</h1>
+    <p class="demo-lead">
+      桌面端把鼠标靠近 / 悬停各按钮对比。选好后告诉我代号（A–F）即可落地。
+      触屏与 <code>prefers-reduced-motion</code> 下效果会自动减弱或关闭。
+    </p>
+
+    <div class="demo-grid">
+      <article class="demo-card" data-demo="A">
+        <header><span class="tag">A</span><h2>Magnetic</h2></header>
+        <p>经典磁吸：按钮整体向指针漂移，离开后弹簧回位。吸入感的基础款。</p>
+        <div class="demo-stage">
+          <div class="mag" data-fx="magnetic" data-strength="0.32" data-radius="110">
+            <button type="button" class="btn"><span>Sign in</span></button>
+          </div>
+        </div>
+      </article>
+
+      <article class="demo-card" data-demo="B">
+        <header><span class="tag">B</span><h2>Magnetic + 文字视差</h2></header>
+        <p>壳弱跟、字更跟手（Codrops / Cuberto 双层）。「活」一点，仍克制。</p>
+        <div class="demo-stage">
+          <div class="mag" data-fx="parallax" data-strength="0.28" data-inner="0.55" data-radius="120">
+            <button type="button" class="btn"><span>Sign in</span></button>
+          </div>
+        </div>
+      </article>
+
+      <article class="demo-card" data-demo="C">
+        <header><span class="tag">C</span><h2>Magnetic + 弹性回弹</h2></header>
+        <p>悬停磁吸 + 离开弹性回弹。再<strong>点一下</strong>试点击：按下吸入缩小，松手弹回（本卡加强版）。</p>
+        <div class="demo-stage">
+          <div class="mag" data-fx="elastic" data-strength="0.38" data-radius="130" data-press="1">
+            <button type="button" class="btn"><span>Sign in</span></button>
+          </div>
+        </div>
+      </article>
+
+      <article class="demo-card" data-demo="D">
+        <header><span class="tag">D</span><h2>Spotlight</h2></header>
+        <p>光斑跟指针走，按钮几乎不位移。偏「摸到了」，吸入感弱于磁吸。</p>
+        <div class="demo-stage">
+          <div class="mag" data-fx="spotlight">
+            <button type="button" class="btn">
+              <i class="spot-layer" aria-hidden="true"></i>
+              <span>Sign in</span>
+            </button>
+          </div>
+        </div>
+      </article>
+
+      <article class="demo-card" data-demo="E">
+        <header><span class="tag">E</span><h2>Magnetic + Spotlight</h2></header>
+        <p>磁吸 + 跟手光斑。推荐候选：既有吸入，又有材质反馈。</p>
+        <div class="demo-stage">
+          <div class="mag" data-fx="combo" data-strength="0.3" data-inner="0.48" data-radius="120">
+            <button type="button" class="btn">
+              <i class="spot-layer" aria-hidden="true"></i>
+              <span>Sign in</span>
+            </button>
+          </div>
+        </div>
+      </article>
+
+      <article class="demo-card" data-demo="F">
+        <header><span class="tag">F</span><h2>径向吸入填色</h2></header>
+        <p>从指针落点向外「吸亮」铺开 + 轻微磁吸。视觉最强，最容易抢戏。</p>
+        <div class="demo-stage">
+          <div class="mag" data-fx="inhale" data-strength="0.22" data-radius="100">
+            <button type="button" class="btn">
+              <i class="inhale-fill" aria-hidden="true"></i>
+              <span>Sign in</span>
+            </button>
+          </div>
+        </div>
+      </article>
+    </div>
+
+    <p class="pick-note">
+      已选定 <strong>E</strong>（Magnetic + Spotlight），已落到主 CTA：Try demo / Analyze / Sign in / Get Pro。
+      本页仍可对照 A–F。
+    </p>
+  </main>
+
+  <script>
+    (function () {
+      const fine = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+      const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      if (!fine || reduce) return;
+
+      function springStep(current, target, vel, stiff, damp, dt) {
+        const force = -stiff * (current - target);
+        vel = (vel + force * dt) * damp;
+        current += vel * dt;
+        return [current, vel];
+      }
+
+      function bindMag(root) {
+        const fx = root.dataset.fx;
+        const strength = parseFloat(root.dataset.strength || "0.3");
+        const inner = parseFloat(root.dataset.inner || "0");
+        const radius = parseFloat(root.dataset.radius || "100");
+        const btn = root.querySelector(".btn");
+        const label = btn.querySelector("span");
+        if (!btn) return;
+
+        let tx = 0, ty = 0, vx = 0, vy = 0;
+        let ix = 0, iy = 0, ivx = 0, ivy = 0;
+        let gx = 0, gy = 0, gix = 0, giy = 0;
+        let sc = 1, gsc = 1, vsc = 0;
+        let pressing = false;
+        let active = false;
+        let raf = 0;
+        const elastic = fx === "elastic";
+        const withPress = root.dataset.press === "1" || elastic;
+        const stiff = elastic ? 180 : 220;
+        const damp = elastic ? 0.78 : 0.72;
+        const leaveStiff = elastic ? 120 : 260;
+        const leaveDamp = elastic ? 0.88 : 0.68;
+
+        function setSpot(e) {
+          const r = btn.getBoundingClientRect();
+          const mx = ((e.clientX - r.left) / r.width) * 100;
+          const my = ((e.clientY - r.top) / r.height) * 100;
+          btn.style.setProperty("--mx", mx.toFixed(2) + "%");
+          btn.style.setProperty("--my", my.toFixed(2) + "%");
+        }
+
+        function tick() {
+          const s = pressing ? 320 : active ? stiff : leaveStiff;
+          const d = pressing ? 0.7 : active ? damp : leaveDamp;
+          [tx, vx] = springStep(tx, gx, vx, s, d, 1 / 60);
+          [ty, vy] = springStep(ty, gy, vy, s, d, 1 / 60);
+          [sc, vsc] = springStep(sc, gsc, vsc, pressing ? 280 : leaveStiff, pressing ? 0.75 : leaveDamp, 1 / 60);
+          root.style.transform =
+            "translate3d(" + tx.toFixed(2) + "px," + ty.toFixed(2) + "px,0) scale(" + sc.toFixed(3) + ")";
+          if (label && (inner > 0 || fx === "parallax" || fx === "combo")) {
+            [ix, ivx] = springStep(ix, gix, ivx, s, d, 1 / 60);
+            [iy, ivy] = springStep(iy, giy, ivy, s, d, 1 / 60);
+            label.style.transform = "translate3d(" + ix.toFixed(2) + "px," + iy.toFixed(2) + "px,0)";
+          }
+          const moving =
+            Math.abs(vx) + Math.abs(vy) + Math.abs(tx - gx) + Math.abs(ty - gy) > 0.04 ||
+            Math.abs(ivx) + Math.abs(ivy) + Math.abs(ix - gix) + Math.abs(iy - giy) > 0.04 ||
+            Math.abs(vsc) + Math.abs(sc - gsc) > 0.002;
+          if (moving || active || pressing) raf = requestAnimationFrame(tick);
+          else raf = 0;
+        }
+
+        function ensureTick() {
+          if (!raf) raf = requestAnimationFrame(tick);
+        }
+
+        function onMove(e) {
+          const r = root.getBoundingClientRect();
+          const cx = r.left + r.width / 2;
+          const cy = r.top + r.height / 2;
+          const dx = e.clientX - cx;
+          const dy = e.clientY - cy;
+          const dist = Math.hypot(dx, dy);
+          const overBtn = !!e.target.closest(".btn") || dist < Math.max(r.width, r.height) * 0.55;
+          const wantsMove = fx !== "spotlight";
+          const inRange = dist < radius;
+
+          if (wantsMove && inRange) {
+            const fall = 1 - dist / radius;
+            gx = dx * strength * fall;
+            gy = dy * strength * fall;
+            const inn = inner || (fx === "parallax" || fx === "combo" ? 0.5 : 0);
+            gix = dx * inn * fall;
+            giy = dy * inn * fall;
+            active = true;
+            root.classList.add("is-hot");
+          } else if (wantsMove) {
+            gx = gy = gix = giy = 0;
+          }
+
+          if (fx === "spotlight" || fx === "combo" || fx === "inhale") {
+            if (overBtn || inRange) {
+              root.classList.add("is-hot");
+              active = true;
+              setSpot(e);
+            }
+            if (fx === "spotlight") {
+              gx = gy = gix = giy = 0;
+              active = overBtn || inRange;
+            }
+          }
+          ensureTick();
+        }
+
+        function onLeave() {
+          active = false;
+          pressing = false;
+          root.classList.remove("is-hot", "is-press");
+          gx = gy = 0;
+          gix = giy = 0;
+          gsc = 1;
+          ensureTick();
+        }
+
+        function onDown(e) {
+          if (!withPress) return;
+          if (e.button != null && e.button !== 0) return;
+          pressing = true;
+          root.classList.add("is-press");
+          /* Pull slightly toward center + shrink = click inhale */
+          gx *= 0.35;
+          gy *= 0.35;
+          gix *= 0.35;
+          giy *= 0.35;
+          gsc = elastic ? 0.92 : 0.96;
+          ensureTick();
+        }
+
+        function onUp() {
+          if (!withPress) return;
+          pressing = false;
+          root.classList.remove("is-press");
+          gsc = elastic ? 1.04 : 1;
+          ensureTick();
+          /* Settle past 1 then spring home */
+          if (elastic) {
+            setTimeout(() => {
+              if (!pressing) {
+                gsc = 1;
+                ensureTick();
+              }
+            }, 90);
+          }
+        }
+
+        root.addEventListener("pointermove", onMove, { passive: true });
+        root.addEventListener("pointerenter", onMove, { passive: true });
+        root.addEventListener("pointerleave", onLeave, { passive: true });
+        btn.addEventListener("pointerdown", onDown);
+        btn.addEventListener("pointerup", onUp);
+        btn.addEventListener("pointercancel", onUp);
+      }
+
+      document.querySelectorAll(".mag").forEach(bindMag);
+    })();
+  </script>
+</body>
+</html>

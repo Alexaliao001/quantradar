@@ -12,9 +12,11 @@
 | **不是**权威 | Manus 任务里的旧 SPA、Manus 独有 diff、trycloudflare 临时隧道 |
 
 ```text
-写代码 → 只改 GitHub/本机仓库 → commit + push
-跑线上 → 从 GitHub pull 部署到「能跑 Python 的主机」
-域名   → 在 DNS 注册商改指向（NS 当前在 GlobalDomain）
+写代码 → 只改本机仓库 → 本机打磨（docs/LOCAL_POLISH.md）
+       → commit + push GitHub main
+跑线上 → Render Blueprint / Docker 自部署（docs/SELF_DEPLOY.md）
+域名   → DNS 指向 Render（GlobalDomain / Cloudflare）
+禁止   → Manus 当运行时 / Manus pull 发布 / Manus agent 修产品
 ```
 
 ## 2. 明确：线上 ≠ 仓库
@@ -37,23 +39,21 @@ curl -sS https://quantradar.one/health
 
 **不要用 Manus 当应用运行时。** Manus 不适合长期跑 path-C Python 壳；且烧 Lite/Max 额度、易分叉。
 
-### Manus 积分（用户锁定）
+### Manus（用户锁定 · 2026-07-26）
 
-- **能不用就不用**（开发/修 bug 本机做）
-- **能用 lite 就用 lite**（万一必须开 agent）
-- **主要部署才用** — 实际更推荐 Render/自托管部署；Manus 仅在「解绑域名 / 停旧 SPA / 极简 publish」时才碰
-- 禁止再开满血 agent 修线上 bug
+- **产品发布与运行时：完全不用 Manus**
+- 开发 / 打磨 / 修 bug：只在本机 + GitHub
+- 线上：Render（或 Fly/Docker）自部署 — 见 `docs/SELF_DEPLOY.md`
+- Manus 若仍绑着 `quantradar.one`：**只解绑域名**（控制台点一下，零 agent）
 
 ### 推荐顺序
 
 ```text
-① GitHub main 干净可 pull
-② 部署到 Render Free（或任意 Docker/Python 主机）
-   start: python -m app
-   env: 见下
-③ 在 GlobalDomain 改 DNS → 指向该主机
-④ 停掉 Manus 对 quantradar.one 的旧发布（若仍绑着）
-⑤ curl 验收 + TRUST_GATE
+① 本机 PORT=8765 打磨到 docs/LOCAL_POLISH.md 全绿
+② commit + push GitHub main
+③ Render Blueprint 部署（python -m app）
+④ DNS → Render；解绑 Manus 旧 SPA（若有）
+⑤ curl /health + p0_smoke --live + TRUST_GATE
 ```
 
 ### 环境变量（生产）

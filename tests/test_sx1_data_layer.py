@@ -43,7 +43,7 @@ class ArtifactHonesty(unittest.TestCase):
         self.assertEqual(_public_path("/Users/me/charts/foo.png"), "foo.png")
         self.assertEqual(
             _public_path("/opt/render/project/src/fixtures/x.json"),
-            "/opt/render/project/src/fixtures/x.json",
+            "x.json",
         )
         self.assertIsNone(_public_path(None))
 
