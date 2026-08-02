@@ -1,5 +1,6 @@
 # PROGRESS — QuantRadar
 
+2026-08-02 | **HEAD-FIX** | `do_HEAD` 复用 GET 路由、只发头不发体（Content-Length 一致）；一次性/会话变更的 auth 路由回 405 + `Allow: GET`（防探针烧掉 magic link）；HEAD 不写 funnel 事件；`tests/test_head_method.py` 6 例；72 测绿 | push 后 Render 自动部署
 2026-07-27 | **GRAPH-P0** | 导览 SSOT：产品顶栏 Meth·Track·Pricing·Sign in；法律回流；share footer；robots Disallow /btn-demos；Remind 诚实未发信 | 补边完成 · 邮件/Portal/三长文另刀
 2026-07-26 | **SELF** | 弃 Manus 自部署文档 + QD2-0 真图（fixtures assets + /api/charts + desk）；LOCAL_POLISH/SELF_DEPLOY；local_polish_check | 本机打磨 → push → Render
 2026-07-26 | **FULL_FUNNEL** | `docs/FULL_FUNNEL_DESIGN.md` SSOT（含研究 D-P0）；ready→verdict 滚动；375 sticky 防挡 Next；methodology Trust 文案；`/r/{ticker}` 分享摘要+OG；tokens/focus；unittest | 未 commit · 下一 Manus pull / QD1-1 / QD2-0

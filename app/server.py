@@ -229,6 +229,18 @@ def http_code_for_result(result: dict[str, Any]) -> int:
 class Handler(BaseHTTPRequestHandler):
     server_version = f"QuantRadarShell/{__version__}"
 
+    # HEAD reuses the GET routing table but must not emit a body, and must not
+    # let monitors/link-preview bots trip one-time or session-mutating actions.
+    _head_request = False
+    HEAD_FORBIDDEN_PATHS = frozenset(
+        {
+            "/api/auth/google/callback",
+            "/api/auth/logout",
+            "/api/auth/dev-login",
+            "/api/auth/magic/consume",
+        }
+    )
+
     def log_message(self, fmt: str, *args: Any) -> None:
         sys_stderr = __import__("sys").stderr
         print(f"[shell] {self.address_string()} {fmt % args}", file=sys_stderr)
@@ -274,7 +286,9 @@ class Handler(BaseHTTPRequestHandler):
             for k, v in extra_headers:
                 self.send_header(k, v)
         self.end_headers()
-        self.wfile.write(raw)
+        # RFC 9110: HEAD keeps GET's headers (incl. Content-Length), drops body
+        if not self._head_request:
+            self.wfile.write(raw)
 
     def _redirect(self, location: str, *, extra_headers: list[tuple[str, str]] | None = None) -> None:
         self.send_response(302)
@@ -357,47 +371,49 @@ class Handler(BaseHTTPRequestHandler):
             result["meta"]["auth"] = "session" if user else "guest"
             if user:
                 result["meta"]["user_email"] = user.get("email")
-        try:
-            meta = result.get("meta") if isinstance(result.get("meta"), dict) else {}
-            primary = (
-                (result.get("primary") or {}).get("action")
-                if isinstance(result.get("primary"), dict)
-                else None
-            )
-            is_demo = bool(result.get("demo") or result.get("sample") or meta.get("demo"))
-            mode = str(meta.get("mode") or "")
-            plan = str((user or {}).get("plan") or "guest")
-            if is_demo:
-                funnel.track(
-                    "demo_run",
-                    ticker=str(result.get("ticker") or ""),
-                    mode=mode or "artifact",
-                    primary=str(primary or ""),
-                    plan=plan,
-                    ok=bool(result.get("ok")),
-                    demo=True,
+        # A bodyless HEAD probe is a reachability check, not a funnel event
+        if not self._head_request:
+            try:
+                meta = result.get("meta") if isinstance(result.get("meta"), dict) else {}
+                primary = (
+                    (result.get("primary") or {}).get("action")
+                    if isinstance(result.get("primary"), dict)
+                    else None
                 )
-            else:
-                funnel.track(
-                    "analyze_run",
-                    ticker=str(result.get("ticker") or ""),
-                    mode=mode or "artifact",
-                    primary=str(primary or ""),
-                    plan=plan,
-                    ok=bool(result.get("ok")),
-                    demo=False,
-                )
-                if mode == "live" and result.get("ok"):
+                is_demo = bool(result.get("demo") or result.get("sample") or meta.get("demo"))
+                mode = str(meta.get("mode") or "")
+                plan = str((user or {}).get("plan") or "guest")
+                if is_demo:
                     funnel.track(
-                        "live_run",
+                        "demo_run",
                         ticker=str(result.get("ticker") or ""),
-                        mode="live",
+                        mode=mode or "artifact",
                         primary=str(primary or ""),
                         plan=plan,
-                        ok=True,
+                        ok=bool(result.get("ok")),
+                        demo=True,
                     )
-        except Exception:
-            pass
+                else:
+                    funnel.track(
+                        "analyze_run",
+                        ticker=str(result.get("ticker") or ""),
+                        mode=mode or "artifact",
+                        primary=str(primary or ""),
+                        plan=plan,
+                        ok=bool(result.get("ok")),
+                        demo=False,
+                    )
+                    if mode == "live" and result.get("ok"):
+                        funnel.track(
+                            "live_run",
+                            ticker=str(result.get("ticker") or ""),
+                            mode="live",
+                            primary=str(primary or ""),
+                            plan=plan,
+                            ok=True,
+                        )
+            except Exception:
+                pass
         public = harden_public_analyze(result, user=user)
         self._send(
             http_code_for_result(public),
@@ -495,6 +511,34 @@ class Handler(BaseHTTPRequestHandler):
             )
             return
         self._analyze_response(result, user=user)
+
+    def do_HEAD(self) -> None:  # noqa: N802
+        """Mirror GET headers without a body.
+
+        Uptime monitors, crawlers and link-preview bots probe with HEAD; a 501
+        here reads as "site down". Routing is shared with GET, except the
+        one-time-token and session-mutating auth routes, which would otherwise
+        let an automated probe burn a magic link or clear a session.
+        """
+        parsed = urllib.parse.urlparse(self.path)
+        path = parsed.path.rstrip("/") or "/"
+        self._head_request = True
+        try:
+            if path in self.HEAD_FORBIDDEN_PATHS:
+                self._send(
+                    405,
+                    {
+                        "ok": False,
+                        "error": "method_not_allowed",
+                        "error_detail": "this endpoint changes state; use GET",
+                    },
+                    extra_headers=[("Allow", "GET")],
+                    auth_tag="none",
+                )
+                return
+            self.do_GET()
+        finally:
+            self._head_request = False
 
     def do_GET(self) -> None:  # noqa: N802
         parsed = urllib.parse.urlparse(self.path)
