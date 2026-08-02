@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import subprocess
 import threading
 import time
@@ -39,17 +40,17 @@ from app.users import (
 # Demo tickers: free artifact sample only (TG-5) — never live, never "credits"
 DEMO_TICKERS = frozenset({"INTC", "NVDA", "AAPL", "MU", "TSLA", "AMD"})
 
-# Ensure local admin exists once at import (no-op if users already present)
-try:
-    ensure_bootstrap_admin()
-except Exception:
-    pass
-
-# Load .env before reading any auth/stripe config in handlers
+# Load .env before bootstrap / auth config (import order matters on public hosts)
 load_dotenv()
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 STATIC_DIR = REPO_ROOT / "static"
+
+# Optional local admin — opt-in only; never after dotenv on public hosts with demo defaults
+try:
+    ensure_bootstrap_admin()
+except Exception:
+    pass
 
 # Simple sliding-window rate limit (per remote address)
 _RATE_LOCK = threading.Lock()
@@ -177,6 +178,14 @@ def health_payload() -> dict[str, Any]:
         "live_requires_login": True,
         "live_requires_pro": True,
         "p0_gates": True,
+        # Render Free has no persistent disk — accounts/plans reset on redeploy
+        "storage_durable": os.environ.get("QUANTRADAR_STORAGE_DURABLE", "").strip().lower()
+        in {"1", "true", "yes"},
+        "storage_note": (
+            "User/plan store is local JSON under data/. On Render Free this is "
+            "ephemeral — set a durable volume or external DB and "
+            "QUANTRADAR_STORAGE_DURABLE=1 when persistence is real."
+        ),
     }
 
 
@@ -243,7 +252,14 @@ class Handler(BaseHTTPRequestHandler):
 
     def log_message(self, fmt: str, *args: Any) -> None:
         sys_stderr = __import__("sys").stderr
-        print(f"[shell] {self.address_string()} {fmt % args}", file=sys_stderr)
+        try:
+            line = fmt % args
+        except Exception:
+            line = fmt
+        # Redact one-time tokens from access logs (magic consume / OAuth code)
+        if "token=" in line or "code=" in line:
+            line = re.sub(r"(token|code)=([^&\s]+)", r"\1=REDACTED", line)
+        print(f"[shell] {self.address_string()} {line}", file=sys_stderr)
 
     def _client_id(self) -> str:
         return self.client_address[0] if self.client_address else "unknown"
@@ -271,7 +287,10 @@ class Handler(BaseHTTPRequestHandler):
         auth_tag: str | None = None,
     ) -> None:
         if isinstance(body, dict):
-            raw = json.dumps(body, ensure_ascii=False, indent=2).encode("utf-8")
+            # allow_nan=False: NaN is not valid JSON and breaks browser JSON.parse
+            raw = json.dumps(
+                body, ensure_ascii=False, indent=2, allow_nan=False
+            ).encode("utf-8")
         else:
             raw = body
         self.send_response(code)
@@ -949,6 +968,9 @@ class Handler(BaseHTTPRequestHandler):
             return
 
         if path == "/api/auth/login":
+            # Same guest bucket as register — block credential stuffing
+            if not self._check_rate_or_reject(authenticated=False):
+                return
             try:
                 body = self._read_json()
             except Exception as exc:
@@ -1017,6 +1039,9 @@ class Handler(BaseHTTPRequestHandler):
             return
 
         if path == "/api/auth/magic/start":
+            # Cap magic-link spam / SMTP abuse
+            if not self._check_rate_or_reject(authenticated=False):
+                return
             try:
                 body = self._read_json()
             except Exception as exc:
@@ -1030,6 +1055,18 @@ class Handler(BaseHTTPRequestHandler):
                 return
             except Exception as exc:
                 self._send(500, {"ok": False, "error": "magic_failed", "error_detail": str(exc)})
+                return
+            if not result.get("delivered"):
+                self._send(
+                    503,
+                    {
+                        "ok": False,
+                        "error": "magic_undelivered",
+                        "error_detail": (
+                            "Could not deliver sign-in link. Configure SMTP on this host."
+                        ),
+                    },
+                )
                 return
             self._send(200, result)
             return
@@ -1172,6 +1209,15 @@ class Handler(BaseHTTPRequestHandler):
 
 def main() -> None:
     load_dotenv()
+    try:
+        authlib.require_session_secret()
+    except RuntimeError as exc:
+        raise SystemExit(f"fatal: {exc}") from exc
+    # Re-run after dotenv in case import-time env was incomplete
+    try:
+        ensure_bootstrap_admin()
+    except Exception:
+        pass
     host = os.environ.get("HOST", "0.0.0.0")
     port = int(os.environ.get("PORT", "8765"))
     server = ThreadingHTTPServer((host, port), Handler)

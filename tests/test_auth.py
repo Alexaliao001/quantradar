@@ -74,8 +74,16 @@ class ManusVsOwnLoginTests(unittest.TestCase):
 
 class HttpAuthTests(unittest.TestCase):
     def setUp(self) -> None:
+        import tempfile
+
+        import app.users as users
+
+        self._td = tempfile.TemporaryDirectory()
+        self._orig_users = users.USERS_PATH
+        users.USERS_PATH = Path(self._td.name) / "users.json"
         os.environ["PUBLIC_BASE_URL"] = "http://127.0.0.1:0"
         os.environ["QUANTRADAR_DEV_LOGIN"] = "1"
+        os.environ["QUANTRADAR_BOOTSTRAP_DEMO"] = "0"
         os.environ["SESSION_SECRET"] = "test-session-secret-for-unit"
         # Force re-read of secret path uses env each call — ok
         self.server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
@@ -87,6 +95,10 @@ class HttpAuthTests(unittest.TestCase):
     def tearDown(self) -> None:
         self.server.shutdown()
         self.server.server_close()
+        import app.users as users
+
+        users.USERS_PATH = self._orig_users
+        self._td.cleanup()
 
     def _url(self, path: str) -> str:
         return f"http://127.0.0.1:{self.port}{path}"
@@ -146,10 +158,13 @@ class HttpAuthTests(unittest.TestCase):
             body = json.loads(e.read().decode())
             self.assertEqual(body.get("error"), "plan_required")
 
-        # pro session → live should not be 401/403 login/plan (engine may 502)
+        # pro requires a users-store row — cookie plan alone must not elevate
         prev_charts = os.environ.get("CHARTS_DIR")
         os.environ["CHARTS_DIR"] = str(REPO / "fixtures" / "no_such_charts_dir")
         try:
+            from app.users import set_plan
+
+            set_plan("dev-pro@test.local", "pro")
             token = authlib.mint_session(sub="dev", email="dev-pro@test.local", plan="pro")
             req = urllib.request.Request(
                 self._url("/api/analyze?ticker=INTC&mode=live"),

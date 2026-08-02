@@ -43,9 +43,23 @@ python3 scripts/local_polish_check.py
 2. 确认 Free / start `python -m app` / `SESSION_SECRET` 自动生成
 3. 生产密钥（Dashboard → Environment，勿入库）：
    - `PUBLIC_BASE_URL=https://quantradar.one`
+   - `SESSION_SECRET`（Blueprint `generateValue`；**禁止**缺省回退）
+   - `QUANTRADAR_BOOTSTRAP_DEMO=0`（禁止默认 `admin@local.test`）
    - `QUANTRADAR_STRIPE_SECRET_KEY` + `STRIPE_PRICE_ID_MONTHLY` / `YEARLY` + `STRIPE_WEBHOOK_SECRET`（收款时）
-   - 可选：`GOOGLE_*`、`SMTP_*`
+   - 可选：`GOOGLE_*`、`SMTP_*`（magic link 在公网主机**必须**配 SMTP，否则拒发）
 4. Deploy 成功 → 记下 `*.onrender.com`
+
+### 易失磁盘（必读）
+
+Render Free **没有持久盘**。`data/users.json`、waitlist、funnel 会在 redeploy / 休眠后清空。
+
+| 现状 | 含义 |
+|------|------|
+| Plan SSOT = users 文件 | cookie 里的 `plan=pro` **不再**提权 |
+| `storage_durable` in `/health` | 默认 `false`；接上持久卷/外部 DB 后设 `QUANTRADAR_STORAGE_DURABLE=1` |
+| 自动部署 | GitHub→Render webhook 历史上常失效；push 后需确认 deploy 或手动 Trigger |
+
+要收真钱 / 留真账号：加 **Render Disk** 或 Postgres，再标 `QUANTRADAR_STORAGE_DURABLE=1`。
 5. **Custom Domain** → `quantradar.one` + `www`
 6. **DNS**（GlobalDomain / Cloudflare）：按 Render 给的 CNAME/A 改
 7. **解绑 Manus** 对 `quantradar.one` 的旧发布（若仍绑着）——只需控制台点一下，**不开 agent**

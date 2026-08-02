@@ -174,13 +174,22 @@ def apply_webhook_event(event: dict[str, Any]) -> dict[str, Any]:
                 "type": etype,
                 "status": payment_status or "missing",
             }
-        user = set_plan(email, "pro")
+        customer_id = data_obj.get("customer")
+        if isinstance(customer_id, dict):
+            customer_id = customer_id.get("id")
+        user = set_plan(
+            email,
+            "pro",
+            stripe_customer_id=str(customer_id) if customer_id else None,
+        )
         return {"ok": True, "action": "plan_pro", "email": email, "user": user, "type": etype}
 
     if etype in {
         "customer.subscription.deleted",
         "customer.subscription.paused",
     }:
+        from app.users import find_email_by_stripe_customer
+
         email = None
         meta = data_obj.get("metadata") if isinstance(data_obj.get("metadata"), dict) else {}
         if meta.get("email"):
@@ -188,6 +197,11 @@ def apply_webhook_event(event: dict[str, Any]) -> dict[str, Any]:
         # Fallback: customer_email not always present on subscription objects
         if not email and data_obj.get("customer_email"):
             email = str(data_obj["customer_email"]).strip().lower()
+        customer_id = data_obj.get("customer")
+        if isinstance(customer_id, dict):
+            customer_id = customer_id.get("id")
+        if not email and customer_id:
+            email = find_email_by_stripe_customer(str(customer_id))
         if not email:
             return {"ok": False, "error": "no_email", "type": etype}
         user = set_plan(email, "free")

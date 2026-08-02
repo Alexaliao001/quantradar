@@ -120,7 +120,7 @@ def extract_options_snapshot(payload: dict[str, Any]) -> dict[str, Any]:
     )
     simulated = str(source).lower() in {"simulated", "sim", "mock", "fake", "synthetic"}
     if chain_ok is False:
-        simulated = simulated or True
+        simulated = True
         source = source if source != "unknown" else "unavailable"
     return {
         "option_chain_ok": chain_ok,

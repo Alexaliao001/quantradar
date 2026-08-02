@@ -1,5 +1,6 @@
 # PROGRESS — QuantRadar
 
+2026-08-02 | **AUDIT-FIX** | 安全/诚实审计落地：bootstrap 默认关+公网禁 demo；SESSION_SECRET 公网失败关闭；plan 仅 users store；缺/非法分数 withheld；market/sector 不再假 pass；magic 不落盘/日志脱敏；login+magic 限流；Stripe customer_id 降级回退；health storage_note；72+ 回归测 | push 后需手动 Trigger Render
 2026-08-02 | **QD2-4a** | 移动端横向溢出：`.hero-copy` 补 `min-width:0`（grid item 默认 auto 被不可断行字标撑宽）+ hero/share 字标 clamp 下限降到能进 320px；320–430 全宽度 0 溢出，1440 像素级不变；截图 `docs/audit/2026-08-02/` | push 后需手动触发 Render
 2026-08-02 | **HEAD-FIX** | `do_HEAD` 复用 GET 路由、只发头不发体（Content-Length 一致）；一次性/会话变更的 auth 路由回 405 + `Allow: GET`（防探针烧掉 magic link）；HEAD 不写 funnel 事件；`tests/test_head_method.py` 6 例；72 测绿 | push 后 Render 自动部署
 2026-07-27 | **GRAPH-P0** | 导览 SSOT：产品顶栏 Meth·Track·Pricing·Sign in；法律回流；share footer；robots Disallow /btn-demos；Remind 诚实未发信 | 补边完成 · 邮件/Portal/三长文另刀

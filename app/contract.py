@@ -5,6 +5,7 @@ No scoring formulas here. Scores and gates come only from charts JSON.
 
 from __future__ import annotations
 
+import math
 import re
 from pathlib import Path
 from typing import Any
@@ -100,6 +101,44 @@ def _map_entry_timing(mechanical: dict[str, Any]) -> dict[str, Any] | None:
     return out or None
 
 
+def _coerce_score(raw: Any) -> tuple[float | None, bool]:
+    """Return (score, withheld). Never invent 0; reject bool/NaN/out-of-range."""
+    if raw is None or isinstance(raw, bool):
+        return None, True
+    try:
+        value = float(raw)
+    except (TypeError, ValueError):
+        return None, True
+    if math.isnan(value) or math.isinf(value):
+        return None, True
+    if value < 0.0 or value > 100.0:
+        return None, True
+    return value, False
+
+
+def _env_layer_status(market_env: dict[str, Any], *, layer: str) -> str:
+    """Honest gate status — presence of market_env is not a pass.
+
+    The shell does not recompute charts market/sector filters. Without an
+    explicit engine status field we surface ``unknown`` / ``unavailable``
+    rather than painting a green pass from field existence.
+    """
+    if not isinstance(market_env, dict) or not market_env:
+        return "unavailable" if layer == "sector" else "unknown"
+    if layer == "market":
+        if market_env.get("spy_change_pct") is None and not market_env.get("market_state"):
+            return "unknown"
+        return "unknown"
+    if layer == "sector":
+        if (
+            market_env.get("sector_etf") is None
+            and market_env.get("sector_change_pct") is None
+        ):
+            return "unavailable"
+        return "unknown"
+    return "unknown"
+
+
 def map_charts_payload(
     payload: dict[str, Any],
     *,
@@ -172,28 +211,30 @@ def map_charts_payload(
 
     base = mechanical.get("base_score") or {}
     base_total = base.get("total") if isinstance(base, dict) else None
-    final = mechanical.get("final_score")
-    if final is None:
-        final = 0
-        if "score missing from charts payload" not in warnings:
-            warnings.append("score missing from charts payload")
-            degraded = True
+    final, score_withheld = _coerce_score(mechanical.get("final_score"))
+    if score_withheld:
+        if "score missing or invalid from charts payload" not in warnings:
+            warnings.append("score missing or invalid from charts payload")
+        degraded = True
 
     breakdown: list[dict[str, Any]] = []
-    if isinstance(base, dict):
+    if isinstance(base, dict) and not score_withheld:
         for key in ("volume_price", "momentum", "trend", "risk"):
             part = base.get(key)
             if not isinstance(part, dict):
                 continue
             if part.get("total") is None or part.get("max") is None:
                 continue
-            breakdown.append(
-                {
-                    "name": key,
-                    "value": float(part["total"]),
-                    "max": float(part["max"]),
-                }
-            )
+            try:
+                breakdown.append(
+                    {
+                        "name": key,
+                        "value": float(part["total"]),
+                        "max": float(part["max"]),
+                    }
+                )
+            except (TypeError, ValueError):
+                continue
 
     default_sources = sources or [
         {
@@ -235,6 +276,7 @@ def map_charts_payload(
     else:
         avoided_line = "One mechanical read. Educational only — not investment advice."
 
+    market_env = market_env if isinstance(market_env, dict) else {}
     gate_obj: dict[str, Any] = {
         "state_code": state.get("code"),
         "state_name": state.get("name"),
@@ -243,14 +285,12 @@ def map_charts_payload(
         "signal_label": SIGNAL_LABELS.get(signal, signal),
         "primary": primary_action,
         "market_gate": {
-            "status": "pass" if market_env else "unknown",
+            "status": _env_layer_status(market_env, layer="market"),
             "spy_change_pct": market_env.get("spy_change_pct"),
             "market_state": market_env.get("market_state"),
         },
         "sector_gate": {
-            "status": "pass"
-            if market_env.get("sector_etf") or market_env.get("sector_change_pct") is not None
-            else "unavailable",
+            "status": _env_layer_status(market_env, layer="sector"),
             "sector_etf": market_env.get("sector_etf"),
             "sector_change_pct": market_env.get("sector_change_pct"),
         },
@@ -260,6 +300,28 @@ def map_charts_payload(
     if entry_timing:
         gate_obj["entry_timing"] = entry_timing
 
+    if score_withheld:
+        score_note = "Score withheld — missing or invalid mechanical score from engine."
+        summary = (
+            f"{ticker} — Posture score: withheld · Primary: {primary_label}"
+            + (f" · {state.get('name')}" if state.get("name") else "")
+        )
+        base_total_out = None
+    else:
+        score_note = (
+            "Single authoritative posture score from charts — not a direction call "
+            "and not a multi-panel composite mix."
+        )
+        summary = (
+            f"{ticker} — Posture score: {float(final):.0f}/100 · "
+            f"Primary: {primary_label}"
+            + (f" · {state.get('name')}" if state.get("name") else "")
+        )
+        try:
+            base_total_out = float(base_total) if base_total is not None else None
+        except (TypeError, ValueError):
+            base_total_out = None
+
     return {
         "ok": True,
         "contract_version": CONTRACT_VERSION,
@@ -268,33 +330,26 @@ def map_charts_payload(
         "sector": fundamentals.get("sector") or market_env.get("sector_etf"),
         "gate": gate_obj,
         "score": {
-            "final": float(final),
-            "base_total": float(base_total) if base_total is not None else None,
+            "final": None if score_withheld else float(final),  # type: ignore[arg-type]
+            "base_total": base_total_out,
             "scale": 100,
-            "withheld": False,
+            "withheld": score_withheld,
             "breakdown": breakdown,
         },
         # TG-1: only public-facing composite. UI must not invent sibling "Composite" scores.
         "primary_score": {
-            "value": float(final),
+            "value": None if score_withheld else float(final),  # type: ignore[arg-type]
             "scale": 100,
             "label": "Mechanical posture score",
-            "withheld": False,
-            "note": (
-                "Single authoritative posture score from charts — not a direction call "
-                "and not a multi-panel composite mix."
-            ),
+            "withheld": score_withheld,
+            "note": score_note,
         },
         "primary": {
             "action": primary_action,
             "label": primary_label,
             "reason": state.get("reason") or primary_label,
         },
-        "summary": (
-            f"{ticker} — Posture score: {float(final):.0f}/100 · "
-            f"Primary: {primary_label}"
-            + (f" · {state.get('name')}" if state.get("name") else "")
-        ),
+        "summary": summary,
         "engagement": {
             "avoided_line": avoided_line,
             "freeze_label": freeze_label,
@@ -333,7 +388,7 @@ def map_charts_payload(
             if isinstance(indicator_data, dict)
             else None,
             "reliability": reliability,
-            "score_withheld": False,
+            "score_withheld": score_withheld,
             "primary": primary_action,
             "disclaimer": "Educational radar only — not investment advice.",
             "data_path": "artifact_fixtures" if mode == "artifact" else "charts_engine",

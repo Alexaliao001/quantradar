@@ -33,19 +33,51 @@ _OAUTH_STATES: dict[str, float] = {}
 _MAGIC_TOKENS: dict[str, dict[str, Any]] = {}
 MAGIC_TTL_SEC = 900
 
+# Per-process local-only secret when SESSION_SECRET is unset (never a public constant).
+_DEV_SESSION_SECRET: str | None = None
+
 
 def public_base_url() -> str:
     return os.environ.get("PUBLIC_BASE_URL", "http://127.0.0.1:8765").rstrip("/")
 
 
+def is_public_host() -> bool:
+    """True on Render/Fly/custom domain — must not use insecure auth defaults."""
+    base = os.environ.get("PUBLIC_BASE_URL", "").strip().lower()
+    if "quantradar.one" in base:
+        return True
+    if os.environ.get("RENDER") or os.environ.get("RENDER_SERVICE_ID"):
+        return True
+    if os.environ.get("FLY_APP_NAME"):
+        return True
+    return False
+
+
 def session_secret() -> str:
-    """HMAC secret for session cookies. Dev falls back to unstable secret if unset."""
+    """HMAC secret for session cookies.
+
+    Public hosts fail closed without SESSION_SECRET. Local/dev uses a random
+    per-process secret (or ``_QUANTRADAR_DEV_SESSION_SECRET`` for tests) —
+    never a string published in the repository.
+    """
     env = os.environ.get("SESSION_SECRET", "").strip()
     if env:
         return env
-    # Stable-enough per-process fallback so local guest+dev login tests work without env.
-    # Production MUST set SESSION_SECRET.
-    return os.environ.get("_QUANTRADAR_DEV_SESSION_SECRET") or "dev-insecure-session-secret"
+    if is_public_host():
+        raise RuntimeError(
+            "SESSION_SECRET must be set on public hosts "
+            "(Render/Fly/quantradar.one). Refusing insecure fallback."
+        )
+    global _DEV_SESSION_SECRET
+    if _DEV_SESSION_SECRET is None:
+        override = os.environ.get("_QUANTRADAR_DEV_SESSION_SECRET", "").strip()
+        _DEV_SESSION_SECRET = override or secrets.token_urlsafe(32)
+    return _DEV_SESSION_SECRET
+
+
+def require_session_secret() -> None:
+    """Call at process start so misconfigured public hosts exit immediately."""
+    session_secret()
 
 
 def google_client_id() -> str:
@@ -415,18 +447,32 @@ def consume_magic_token(token: str | None) -> dict[str, Any]:
 
 
 def _deliver_magic_link(email: str, login_url: str) -> tuple[bool, str]:
-    """Send magic link via SMTP if configured; else log + write data/last_magic_link.txt."""
+    """Send magic link via SMTP if configured; else console/file for local only.
+
+    Never write the one-time URL to disk or stdout when SMTP succeeds — that
+    used to leave redeemable tokens in Render logs and data/last_magic_link.txt.
+    """
     from pathlib import Path
 
-    repo = Path(__file__).resolve().parent.parent
-    data = repo / "data"
-    data.mkdir(exist_ok=True)
-    stamp = f"to={email}\nurl={login_url}\n"
-    (data / "last_magic_link.txt").write_text(stamp, encoding="utf-8")
-    print(f"[auth] magic link for {email}: {login_url}", flush=True)
+    def _console_fallback() -> tuple[bool, str]:
+        # Local / no-SMTP only: never do this on public hosts (tokens in disk/logs).
+        if is_public_host():
+            print(
+                f"[auth] magic link for {email}: delivery failed and public host "
+                "refuses console/file fallback",
+                flush=True,
+            )
+            return False, "undelivered"
+        repo = Path(__file__).resolve().parent.parent
+        data = repo / "data"
+        data.mkdir(exist_ok=True)
+        stamp = f"to={email}\nurl={login_url}\n"
+        (data / "last_magic_link.txt").write_text(stamp, encoding="utf-8")
+        print(f"[auth] magic link for {email}: {login_url}", flush=True)
+        return True, "console"
 
     if not smtp_configured():
-        return True, "console"
+        return _console_fallback()
 
     import smtplib
     from email.message import EmailMessage
@@ -454,7 +500,8 @@ def _deliver_magic_link(email: str, login_url: str) -> tuple[bool, str]:
             if user:
                 smtp.login(user, password)
             smtp.send_message(msg)
+        print(f"[auth] magic link emailed to {email} (token not logged)", flush=True)
         return True, "smtp"
     except Exception as exc:
         print(f"[auth] SMTP failed: {exc}", flush=True)
-        return True, "console"  # still have console/file fallback
+        return _console_fallback()

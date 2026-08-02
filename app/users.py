@@ -183,17 +183,33 @@ def authenticate(email: str, password: str) -> dict[str, Any]:
         return public_user(u)
 
 
+def _is_public_host() -> bool:
+    base = os.environ.get("PUBLIC_BASE_URL", "").strip().lower()
+    if "quantradar.one" in base:
+        return True
+    if os.environ.get("RENDER") or os.environ.get("RENDER_SERVICE_ID"):
+        return True
+    if os.environ.get("FLY_APP_NAME"):
+        return True
+    return False
+
+
 def ensure_bootstrap_admin() -> dict[str, Any] | None:
-    """Create admin from env if set and missing. Returns public user if created/exists."""
+    """Create admin from env if set and missing. Returns public user if created/exists.
+
+    The hardcoded demo admin (admin@local.test / quantradar) is **opt-in** via
+    ``QUANTRADAR_BOOTSTRAP_DEMO=1`` and is refused on public hosts. Empty user
+    stores after Render restarts must never silently recreate a known password.
+    """
     email = os.environ.get("QUANTRADAR_ADMIN_EMAIL", "").strip()
     password = os.environ.get("QUANTRADAR_ADMIN_PASSWORD", "").strip()
     if not email or not password:
-        # Local default for easy first login (only if no users yet)
-        if os.environ.get("QUANTRADAR_BOOTSTRAP_DEMO", "1").strip().lower() in {
-            "0",
-            "false",
-            "no",
-        }:
+        demo_on = os.environ.get("QUANTRADAR_BOOTSTRAP_DEMO", "0").strip().lower() in {
+            "1",
+            "true",
+            "yes",
+        }
+        if not demo_on or _is_public_host():
             return None
         with _LOCK:
             store = _load()
@@ -235,17 +251,29 @@ def count_users() -> int:
 
 
 def resolve_plan(email: str | None, *, session_plan: str | None = None) -> str:
-    """Plan SSOT: users store when present; else session claim (dev/magic/google)."""
-    if email:
-        u = get_user(email)
-        if u:
-            plan = str(u.get("plan") or "free").strip().lower()
-            return plan if plan in {"free", "pro"} else "free"
-    plan = str(session_plan or "free").strip().lower()
+    """Plan SSOT is the users store only.
+
+    Cookie ``plan`` claims are never used to elevate privileges. After an
+    ephemeral-disk wipe, a leftover Pro cookie must not unlock live analyze.
+    ``session_plan`` is accepted only as a discarded parameter for call-site
+    compatibility.
+    """
+    _ = session_plan
+    if not email:
+        return "free"
+    u = get_user(email)
+    if not u:
+        return "free"
+    plan = str(u.get("plan") or "free").strip().lower()
     return plan if plan in {"free", "pro"} else "free"
 
 
-def set_plan(email: str, plan: str) -> dict[str, Any]:
+def set_plan(
+    email: str,
+    plan: str,
+    *,
+    stripe_customer_id: str | None = None,
+) -> dict[str, Any]:
     """Set plan for email; creates a billing stub user if missing."""
     email_n = normalize_email(email)
     if not _EMAIL_RE.match(email_n):
@@ -270,5 +298,20 @@ def set_plan(email: str, plan: str) -> dict[str, Any]:
             u["plan"] = plan_n
             u["plan_updated_at"] = time.time()
             store["users"][email_n] = u
+        if stripe_customer_id:
+            u["stripe_customer_id"] = str(stripe_customer_id).strip()
+            store["users"][email_n] = u
         _save(store)
         return public_user(u)
+
+
+def find_email_by_stripe_customer(customer_id: str | None) -> str | None:
+    """Look up email for a Stripe customer id (cancel webhook fallback)."""
+    cid = (customer_id or "").strip()
+    if not cid:
+        return None
+    with _LOCK:
+        for email_n, u in (_load().get("users") or {}).items():
+            if isinstance(u, dict) and str(u.get("stripe_customer_id") or "") == cid:
+                return str(email_n)
+    return None
