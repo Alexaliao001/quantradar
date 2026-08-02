@@ -101,7 +101,7 @@
 | QD2-1 | ✅ | 单分仪表：score dial（纯 SVG 无依赖），withheld 态禁用样式 | 四态截图 |
 | QD2-2 | ✅ | 三重门可视化：Market→Sector→Stock 关卡条（pass/unknown/fail 三色 + reason），stock-agent 门控思想产品化 | 与 contract 字段一一对应 |
 | QD2-3 | ⬜ | 品牌签名动效：雷达扫描线一次扫过 verdict（≤700ms；respect prefers-reduced-motion） | 不挡操作；可关 |
-| QD2-4 | 🔶 | 移动端专项：376px 修复、触控热区 ≥44px、粘性 Analyze 按钮 | 375 截图过 UI_AUDIT P0 |
+| QD2-4 | 🔶 | 移动端专项：~~横向溢出（hero 字标撑宽 grid item）已修，320–430 全宽度 0 溢出~~、触控热区 ≥44px、粘性 Analyze 按钮 | 375 截图过 UI_AUDIT P0；余 768/1024 装饰层溢出未清 |
 | QD2-5 | ⬜ | 分享卡：`/r/{ticker}` 只读 demo 永链 + 服务端逐票 OG 卡（SVG 模板）+ X 分享按钮 | 卡片含 verdict/score/免责；预览美观 |
 
 ### QD3 — 获客增长（诚实增长循环）

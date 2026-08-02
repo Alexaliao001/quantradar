@@ -898,6 +898,9 @@ code {
   position: relative;
   z-index: 2;
   max-width: 34rem;
+  /* Grid items default to min-width:auto, which lets the unbreakable
+     "QuantRadar" wordmark widen this track past the viewport on phones */
+  min-width: 0;
 }
 
 .hero-copy > *:not(.hero-cta) {
@@ -926,7 +929,9 @@ code {
 .hero .brand-mark {
   font-family: var(--display);
   font-weight: 800;
-  font-size: clamp(2.4rem, 7vw, 3.75rem);
+  /* Floor must stay small enough that the wordmark fits a 320px phone:
+     the old 2.4rem floor bound below 548px and overflowed every handset */
+  font-size: clamp(1.75rem, 8vw, 3.75rem);
   letter-spacing: -0.04em;
   line-height: 0.95;
   margin: 0 0 1rem;
@@ -2060,7 +2065,8 @@ pre {
 .share-card .brand-mark {
   font-family: var(--display);
   font-weight: 800;
-  font-size: clamp(2rem, 6vw, 2.8rem);
+  /* Same floor constraint as the hero wordmark — must fit a 320px phone */
+  font-size: clamp(1.6rem, 6.5vw, 2.8rem);
   letter-spacing: -0.04em;
   margin: 0 0 var(--space-3);
 }
