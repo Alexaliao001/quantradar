@@ -1,0 +1,2 @@
+# 可选。默认零第三方依赖即可运行。
+# tushare>=1.2.89  # 仅当 ZHISHI_ALLOW_LIVE=1 且配置 TUSHARE_TOKEN

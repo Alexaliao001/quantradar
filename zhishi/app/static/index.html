@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>知势 — 复盘研习</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500&family=Noto+Serif+SC:wght@600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/app.css" />
+</head>
+<body>
+  <div class="wrap">
+    <header class="topbar">
+      <h1 class="brand">知<span>势</span></h1>
+      <nav class="nav">
+        <a href="#lessons">短课</a>
+        <a href="#cases">案例</a>
+        <a href="#check">自检</a>
+        <a href="#review">复盘本</a>
+        <a href="#drill">错题本</a>
+        <a href="/pricing">会员</a>
+        <a href="/methodology">方法</a>
+      </nav>
+    </header>
+
+    <section class="hero">
+      <h2>复盘每一笔，而不是追每一笔</h2>
+      <p>课程框架自检 + 假设/失效条件。面向 A 股与港股通的投资教育工具，不提供个股买卖建议。</p>
+    </section>
+
+    <section class="panel" id="cases">
+      <h3>今日教学案例</h3>
+      <ul class="list" id="case-list"><li class="muted">加载中…</li></ul>
+    </section>
+
+    <section class="panel" id="lessons">
+      <h3>规则短课</h3>
+      <ul class="list" id="lesson-list"><li class="muted">加载中…</li></ul>
+      <article id="lesson-view" class="hidden">
+        <h3 id="lesson-title"></h3>
+        <div id="lesson-body" class="muted"></div>
+        <p><button type="button" class="secondary" id="lesson-close">收起</button></p>
+      </article>
+    </section>
+
+    <section class="panel" id="check">
+      <h3>框架自检</h3>
+      <div class="row">
+        <input id="symbol" type="text" maxlength="6" placeholder="6 位 A 股代码，如 600519" />
+        <select id="market" aria-label="市场">
+          <option value="A">A股</option>
+          <option value="HKCONNECT">港股通</option>
+        </select>
+        <button type="button" id="btn-analyze">开始自检</button>
+        <button type="button" class="secondary" id="btn-sample">免费样例</button>
+      </div>
+      <p id="analyze-error" class="error hidden"></p>
+      <div id="result" class="hidden">
+        <div class="score-block">
+          <div class="muted">框架自检分</div>
+          <div class="score-num" id="score">—</div>
+          <div class="posture" id="posture">—</div>
+          <div class="muted" id="meta"></div>
+        </div>
+        <h3>制度门控</h3>
+        <ul class="list" id="gates"></ul>
+        <h3>检查项</h3>
+        <ul class="list" id="checklist"></ul>
+        <h3>写入复盘本</h3>
+        <label class="muted" for="hypothesis">我的假设</label>
+        <textarea id="hypothesis" placeholder="例如：若量能回归常态且不贴跌停，则继续观察结构是否修复。"></textarea>
+        <label class="muted" for="invalidation">失效条件</label>
+        <textarea id="invalidation" placeholder="例如：收盘跌破教学观察均线或出现 ST 风险提示。"></textarea>
+        <p class="row" style="margin-top:0.75rem">
+          <button type="button" id="btn-save-review">写入复盘本</button>
+          <span id="review-msg" class="muted"></span>
+        </p>
+      </div>
+    </section>
+
+    <section class="panel" id="review">
+      <h3>我的复盘本</h3>
+      <ul class="list" id="review-list"><li class="muted">登录会话后显示</li></ul>
+      <h3>复盘提醒</h3>
+      <ul class="list" id="reminder-list"><li class="muted">暂无</li></ul>
+    </section>
+
+    <section class="panel" id="drill">
+      <h3>错题本 / 小测</h3>
+      <p class="muted">答错会进入错题本。题目只考规则认知，不考「买哪只」。 </p>
+      <div id="drill-q" class="muted"></div>
+      <div class="row" style="margin-top:0.75rem">
+        <button type="button" data-answer="a" class="secondary drill-ans">A</button>
+        <button type="button" data-answer="b" class="secondary drill-ans">B</button>
+        <button type="button" data-answer="c" class="secondary drill-ans">C</button>
+      </div>
+      <p id="drill-feedback" class="muted"></p>
+      <ul class="list" id="drill-list"></ul>
+    </section>
+
+    <section class="panel" id="hk">
+      <h3>港股通检查项差异</h3>
+      <ul class="list" id="hk-list"><li class="muted">加载中…</li></ul>
+    </section>
+
+    <p class="disclaimer" id="disclaimer">本产品为投资教育工具，不构成任何投资建议。市场有风险，决策须自负。 · <a href="/disclaimer">免责声明</a> · <a href="/terms">用户协议</a> · <a href="/privacy">隐私政策</a></p>
+  </div>
+  <script src="/app.js"></script>
+</body>
+</html>

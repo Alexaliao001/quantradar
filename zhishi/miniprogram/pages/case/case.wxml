@@ -1,0 +1,5 @@
+<view class="brand">教学案例</view>
+<block wx:for="{{cases}}" wx:key="id">
+  <view class="btn" data-symbol="{{item.symbol}}" bindtap="open">{{item.title}}</view>
+  <view class="muted">{{item.summary}}</view>
+</block>

@@ -1,0 +1,24 @@
+page {
+  background: #f7f3eb;
+  color: #1a3a3a;
+  font-size: 28rpx;
+  padding: 24rpx;
+}
+.brand {
+  font-size: 48rpx;
+  font-weight: 600;
+}
+.muted { color: rgba(26, 58, 58, 0.68); }
+.btn {
+  background: #1a3a3a;
+  color: #f7f3eb;
+  padding: 16rpx 24rpx;
+  border-radius: 8rpx;
+  display: inline-block;
+  margin-top: 16rpx;
+}
+.disclaimer {
+  margin-top: 40rpx;
+  font-size: 22rpx;
+  color: rgba(26, 58, 58, 0.68);
+}

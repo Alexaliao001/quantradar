@@ -1,0 +1,20 @@
+{
+  "pages": [
+    "pages/index/index",
+    "pages/lesson/lesson",
+    "pages/case/case",
+    "pages/check/check",
+    "pages/review/review",
+    "pages/drill/drill",
+    "pages/pricing/pricing",
+    "pages/legal/legal"
+  ],
+  "window": {
+    "navigationBarTitleText": "知势",
+    "navigationBarBackgroundColor": "#1A3A3A",
+    "navigationBarTextStyle": "white",
+    "backgroundColor": "#F7F3EB"
+  },
+  "style": "v2",
+  "sitemapLocation": "sitemap.json"
+}

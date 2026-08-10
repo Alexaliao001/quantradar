@@ -1,0 +1,7 @@
+<view class="brand">研习会员</view>
+<view class="muted">知识付费 SKU（微信正式支付需商户号；此处 mock 联调）</view>
+<button data-sku="monthly" bindtap="buy">月度研习 ¥68</button>
+<button data-sku="yearly" bindtap="buy">年度研习 ¥488</button>
+<button data-sku="course_traps" bindtap="buy">课包·制度与行为陷阱 ¥129</button>
+<view class="muted">{{msg}}</view>
+<view class="disclaimer">不构成投资建议。商品名不含荐股字样。</view>

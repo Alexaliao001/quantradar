@@ -1,0 +1,15 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ZhishiAnalyzeResponse",
+  "type": "object",
+  "required": ["ok", "posture", "disclaimer"],
+  "properties": {
+    "ok": { "type": "boolean" },
+    "primary_score": { "type": ["integer", "null"] },
+    "posture": {
+      "type": "string",
+      "enum": ["偏强学习态", "中性观察态", "偏弱学习态", "数据不足"]
+    },
+    "disclaimer": { "type": "string" }
+  }
+}
