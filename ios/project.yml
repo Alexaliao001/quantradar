@@ -1,0 +1,59 @@
+name: QuantRadar
+options:
+  bundleIdPrefix: one.quantradar
+  deploymentTarget:
+    iOS: "17.0"
+  createIntermediateGroups: true
+  groupSortPosition: top
+settings:
+  BASE_SDK: iphoneos
+  SWIFT_VERSION: "5.10"
+  TARGETED_DEVICE_FAMILY: "1,2"
+targets:
+  QuantRadar:
+    type: application
+    platform: iOS
+    sources:
+      - path: QuantRadar
+        excludes:
+          - "**/*.md"
+          - "Resources/Products.storekit"
+    settings:
+      PRODUCT_BUNDLE_IDENTIFIER: one.quantradar.app
+      PRODUCT_NAME: QuantRadar
+      MARKETING_VERSION: "1.0.0"
+      CURRENT_PROJECT_VERSION: "3"
+      GENERATE_INFOPLIST_FILE: NO
+      INFOPLIST_FILE: QuantRadar/Info.plist
+      ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+      ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+      DEVELOPMENT_TEAM: DZ9BFS26A5
+      CODE_SIGN_STYLE: Automatic
+      SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD: NO
+    entitlements:
+      path: QuantRadar/QuantRadar.entitlements
+  QuantRadarTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: QuantRadarTests
+    dependencies:
+      - target: QuantRadar
+    settings:
+      PRODUCT_BUNDLE_IDENTIFIER: one.quantradar.app.tests
+      DEVELOPMENT_TEAM: DZ9BFS26A5
+      GENERATE_INFOPLIST_FILE: YES
+      CODE_SIGN_STYLE: Automatic
+schemes:
+  QuantRadar:
+    build:
+      targets:
+        QuantRadar: all
+        QuantRadarTests: [test]
+    run:
+      config: Debug
+      storeKitConfiguration: QuantRadar/Resources/Products.storekit
+    test:
+      config: Debug
+      targets:
+        - QuantRadarTests

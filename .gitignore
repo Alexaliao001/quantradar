@@ -13,3 +13,8 @@ venv/
 .ruff_cache/
 data/
 !data/.gitkeep
+ios/*.xcodeproj
+ios/*.xcworkspace
+ios/DerivedData/
+ios/build/
+**/xcuserdata/

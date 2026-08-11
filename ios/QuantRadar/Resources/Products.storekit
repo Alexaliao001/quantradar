@@ -1,0 +1,84 @@
+{
+  "identifier" : "Products",
+  "nonRenewingSubscriptions" : [
+
+  ],
+  "products" : [
+
+  ],
+  "settings" : {
+    "_failTransactionsEnabled" : false,
+    "_locale" : "en_US",
+    "_storefront" : "USA",
+    "_storeKitErrors" : [
+
+    ]
+  },
+  "subscriptionGroups" : [
+    {
+      "id" : "214E0A8E",
+      "localizations" : [
+        {
+          "description" : "Optional Phase 1.1 — live API priority and server push. Not required for paid-app core.",
+          "displayName" : "Radar Live+",
+          "locale" : "en_US"
+        }
+      ],
+      "name" : "Radar Live+",
+      "subscriptions" : [
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "4.99",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "6500000011",
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "Live analyze priority and server-side setup alerts. App purchase already unlocks core radar.",
+              "displayName" : "Live+ Monthly",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "one.quantradar.app.live.monthly",
+          "recurringSubscriptionPeriod" : "P1M",
+          "referenceName" : "Live+ Monthly",
+          "type" : "RecurringSubscription"
+        },
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "49.99",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "6500000012",
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "Best Live+ value. Core app remains a separate paid download.",
+              "displayName" : "Live+ Yearly",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "one.quantradar.app.live.yearly",
+          "recurringSubscriptionPeriod" : "P1Y",
+          "referenceName" : "Live+ Yearly",
+          "type" : "RecurringSubscription"
+        }
+      ]
+    }
+  ],
+  "version" : {
+    "major" : 3,
+    "minor" : 0
+  }
+}
