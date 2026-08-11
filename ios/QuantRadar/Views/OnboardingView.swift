@@ -7,7 +7,7 @@ struct OnboardingView: View {
     private let pages: [(title: String, body: String)] = [
         ("One score. One action.", "Mechanical posture for US tickers — not a tipster feed."),
         ("Most days: don’t act.", "WAIT and NO are features. The radar earns its keep by skipping bad setups."),
-        ("You already paid.", "This is a paid App Store app. Full radar is unlocked — no freemium bait."),
+        ("Try free → unlock once.", "Preview Today + INTC demo free. $9.99 unlocks full scan & watch — no freemium bait quotas."),
     ]
 
     var body: some View {

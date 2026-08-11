@@ -4,6 +4,7 @@ import SwiftUI
 struct QuantRadarApp: App {
     @StateObject private var radar = RadarService()
     @StateObject private var watchlist = WatchlistStore()
+    @StateObject private var purchases = PurchaseStore()
     @AppStorage("hasSeenOnboarding") private var hasSeenOnboarding = false
 
     var body: some Scene {
@@ -17,6 +18,7 @@ struct QuantRadarApp: App {
             }
             .environmentObject(radar)
             .environmentObject(watchlist)
+            .environmentObject(purchases)
             .preferredColorScheme(.dark)
         }
     }

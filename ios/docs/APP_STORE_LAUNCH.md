@@ -1,75 +1,65 @@
 # QuantRadar iOS — App Store Launch Checklist
 
-## Product decisions (locked)
+## Product decisions (locked for next ship)
 
-- **Paid download $9.99** (App Store app price — not StoreKit)
-- **No free tier / no trial freemium** inside the binary
-- Full core radar unlocked after purchase
-- **No required IAP in v1** (optional Live+ later — see PRODUCT.md)
-- Separate from web Stripe
+- **Free App Store download**
+- **$9.99 Non-Consumable unlock** (`one.quantradar.app.unlock`)
+- Free preview: Today SPY + INTC demo — **no freemium scan quotas**
+- **Optional Live+** (local watch limit + denser local reminders)
+- Separate from web Stripe / Massive
 
-## Prerequisites (you)
+## Do not touch ASC 1.0 while Waiting for Review
 
-1. Apple Developer Program + banking/tax/paid-apps agreements
-2. App Store Connect app: bundle `one.quantradar.app`, SKU `quantradar-ios`
-3. **Pricing → $9.99** (or local equivalents)
-4. Set `DEVELOPMENT_TEAM` in Xcode
+Current 1.0 paid-download submission stays as-is. After it is **Approved / Rejected / Removed**:
+
+### Post-1.0 ASC cutover checklist
+
+1. Set App price to **Free**
+2. Create IAP: Non-Consumable **QuantRadar Unlock** $9.99 · id `one.quantradar.app.unlock`
+3. Create subscription group **Radar Live+** · monthly / yearly (ids in `Products.storekit`)
+4. Paid Apps / IAP agreements + tax/banking current
+5. New version **1.1** binary with StoreKit gates
+6. Screenshots: Today preview · Scan paywall · Unlock sheet · Watch locked CTA · Settings restore
+7. Review note: free preview INTC; unlock once; no account; educational; not a broker
+8. Submit 1.1 — do not mutate the closed 1.0 review thread casually
 
 ## Local build
 
 ```bash
-cd ~/quantradar/ios
+cd ios
 xcodegen generate
 open QuantRadar.xcodeproj
 ```
 
-Paid price cannot be simulated as App Store charge in Simulator; treat Xcode installs as “already purchased.”
+Scheme uses `QuantRadar/Resources/Products.storekit`.  
+DEBUG Settings toggles: Force unlocked / Force Live+.
 
-## App Store Connect
-
-1. Create iOS app · category **Finance**
-2. Price: **$9.99**
-3. Privacy policy: `https://quantradar.one/privacy`
-4. Terms + Apple Standard EULA
-5. Review note: “Paid educational mechanical posture radar. Not a broker. INTC demo works offline. No account required for core use.”
-
-### Listing copy (EN — draft)
+## Listing copy (EN — draft for 1.1)
 
 **Subtitle:** Mechanical stock posture radar
 
-**Promotional text:** One score. One action. Built for traders tired of tipster noise.
+**Promotional text:** One score. Most days: don’t act — not tipster noise.
 
 **Description:**
-QuantRadar is a paid educational radar for US tickers. It shows a single mechanical posture score and a clear action: act, wait, or avoid — with market / sector / stock gates.
+QuantRadar is an educational radar for US tickers. Free to install: see today’s SPY posture and try the INTC demo. Unlock once ($9.99) for full ticker scan and watchlist.
 
-This is not a broker, not investment advice, and not a tipster feed. Most days the honest answer is don’t trade.
+One mechanical posture score and a clear action — act, wait, or avoid. This is not a broker, not investment advice, and not a tipster feed. Most days the honest answer is don’t trade.
 
-Independent App Store product — website subscriptions do not apply.
+Independent App Store product. Website subscriptions do not apply. Optional Live+ adds local reminder density — not a Massive data plan.
 
-**Keywords:** stock radar,trading journal,stock scanner,options setup,swing trade,market posture,ticker analysis
-
-## Screenshots
-
-1. Today verdict card  
-2. Scan + gates  
-3. Watchlist reminders  
-4. Onboarding value prop  
-5. Settings / disclaimer  
+**Keywords:** stock radar,stock scanner,swing trade,trading,market posture,ticker
 
 ## Ads → cash register
 
-- Use **Custom Product Page** per creative angle if useful
-- Send paid traffic **straight to the paid App Store listing**
-- Optimize CPA vs **~$7–8.50** net per install after Apple cut — kill campaigns above payback
+- Send traffic to **free** listing (lower friction)
+- Optimize toward **unlock CPA** vs ~$7 net, not install vanity
+- Use Offer Codes for creative tests
+- Kill campaigns that only buy installs without unlocks
 
 ## Review risks
 
 | Risk | Mitigation |
 |------|------------|
-| Investment advice | Disclaimers on onboarding / Today / Settings |
-| Thin wrapper | Native SwiftUI + offline demo |
-| Misleading | Fail-closed; no fake returns |
-
-## You still must do
-
-Create ASC record · set $9.99 · screenshots · Archive with your Team ID · Submit.
+| Investment advice | Disclaimers onboarding / Today / Scan / Paywall / Settings |
+| Thin wrapper | Native SwiftUI + offline INTC demo |
+| Misleading IAP | Clear unlock vs Live+; no fake server claims |

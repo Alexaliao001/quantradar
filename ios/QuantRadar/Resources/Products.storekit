@@ -4,7 +4,21 @@
 
   ],
   "products" : [
-
+    {
+      "displayPrice" : "9.99",
+      "familyShareable" : false,
+      "internalID" : "6500000010",
+      "localizations" : [
+        {
+          "description" : "One-time unlock for full ticker scan and watchlist. Not a subscription. Educational radar only.",
+          "displayName" : "QuantRadar Unlock",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "one.quantradar.app.unlock",
+      "referenceName" : "QuantRadar Unlock",
+      "type" : "NonConsumable"
+    }
   ],
   "settings" : {
     "_failTransactionsEnabled" : false,
@@ -19,7 +33,7 @@
       "id" : "214E0A8E",
       "localizations" : [
         {
-          "description" : "Optional Phase 1.1 — live API priority and server push. Not required for paid-app core.",
+          "description" : "Optional Live+ — more watch slots and denser on-device reminders. Core unlock is separate. No Massive / no web Stripe.",
           "displayName" : "Radar Live+",
           "locale" : "en_US"
         }
@@ -40,7 +54,7 @@
           "introductoryOffer" : null,
           "localizations" : [
             {
-              "description" : "Live analyze priority and server-side setup alerts. App purchase already unlocks core radar.",
+              "description" : "50 watch slots and 6-hour local reminders. On-device only — not server push, not Massive.",
               "displayName" : "Live+ Monthly",
               "locale" : "en_US"
             }
@@ -64,7 +78,7 @@
           "introductoryOffer" : null,
           "localizations" : [
             {
-              "description" : "Best Live+ value. Core app remains a separate paid download.",
+              "description" : "Best Live+ value. Core unlock remains a separate $9.99 purchase.",
               "displayName" : "Live+ Yearly",
               "locale" : "en_US"
             }

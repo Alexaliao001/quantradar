@@ -2,6 +2,8 @@ import SwiftUI
 
 struct TodayView: View {
     @EnvironmentObject private var radar: RadarService
+    @EnvironmentObject private var purchases: PurchaseStore
+    @State private var showPaywall = false
 
     var body: some View {
         NavigationStack {
@@ -13,6 +15,9 @@ struct TodayView: View {
                             .foregroundStyle(QRTheme.radar)
                         Text("Should you act today?")
                             .font(.title.bold())
+                            .foregroundStyle(QRTheme.text)
+                        Text(AppAccess.differentiationLine)
+                            .font(.footnote.weight(.medium))
                             .foregroundStyle(QRTheme.text)
                         Text(AppAccess.appStorePriceNote)
                             .font(.footnote)
@@ -39,13 +44,31 @@ struct TodayView: View {
                             .foregroundStyle(QRTheme.warn)
                     }
 
-                    Label("Paid owner · full radar unlocked", systemImage: "checkmark.seal.fill")
+                    if purchases.effectiveUnlocked {
+                        Label(
+                            purchases.effectiveLivePlus ? "Unlocked · Live+" : "Unlocked · full radar",
+                            systemImage: "checkmark.seal.fill"
+                        )
                         .font(.subheadline.weight(.medium))
                         .foregroundStyle(QRTheme.radar)
                         .padding(12)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .background(QRTheme.panel)
                         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    } else {
+                        Button { showPaywall = true } label: {
+                            Label("Unlock full scan · $9.99", systemImage: "lock.open")
+                                .font(.subheadline.weight(.medium))
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(12)
+                                .background(QRTheme.panel)
+                                .foregroundStyle(QRTheme.radar)
+                                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                        }
+                        Text("Preview includes Today SPY. Scan any ticker after unlock.")
+                            .font(.caption2)
+                            .foregroundStyle(QRTheme.muted)
+                    }
 
                     Text(radar.latest?.meta?.disclaimer ?? "Educational radar only — not investment advice.")
                         .font(.caption2)
@@ -66,6 +89,10 @@ struct TodayView: View {
                 }
             }
             .task { await radar.warmUpToday() }
+            .sheet(isPresented: $showPaywall) {
+                PaywallView()
+                    .environmentObject(purchases)
+            }
         }
     }
 }

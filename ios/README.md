@@ -1,13 +1,13 @@
 # QuantRadar (iOS)
 
-Independent **paid** App Store app ($9.99) — not the web product, not freemium.
+Independent App Store product — **free download → $9.99 one-time unlock** (+ optional Live+). Not the web Stripe/Massive product. Not freemium scan quotas.
 
 - Strategy: [docs/PRODUCT.md](docs/PRODUCT.md)
-- Launch: [docs/APP_STORE_LAUNCH.md](docs/APP_STORE_LAUNCH.md)
+- Launch / post-1.0 ASC cutover: [docs/APP_STORE_LAUNCH.md](docs/APP_STORE_LAUNCH.md)
 
 ```bash
 xcodegen generate
 open QuantRadar.xcodeproj
 ```
 
-Growth off-store → monetize on App Store download. Optional Live+ subscription is Phase 1.1 only.
+**Do not upload this commercial model over the waiting ASC 1.0 build** until that review resolves.

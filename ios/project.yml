@@ -21,8 +21,8 @@ targets:
     settings:
       PRODUCT_BUNDLE_IDENTIFIER: one.quantradar.app
       PRODUCT_NAME: QuantRadar
-      MARKETING_VERSION: "1.0.0"
-      CURRENT_PROJECT_VERSION: "3"
+      MARKETING_VERSION: "1.1.0"
+      CURRENT_PROJECT_VERSION: "4"
       GENERATE_INFOPLIST_FILE: NO
       INFOPLIST_FILE: QuantRadar/Info.plist
       ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
