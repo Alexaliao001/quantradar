@@ -19,3 +19,25 @@ jobs:
         run: python scripts/p0_smoke.py
       - name: Contract sample
         run: python scripts/validate_contract_sample.py
+      - name: iOS commercial gates (offline)
+        run: python ios/scripts/verify_commercial_gates.py
+
+  ios-unit:
+    runs-on: macos-14
+    if: github.event_name == 'pull_request' || contains(github.event.head_commit.message, 'ios')
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install xcodegen
+        run: brew install xcodegen
+      - name: Generate + AppAccess unit tests
+        run: |
+          cd ios
+          xcodegen generate
+          xcodebuild test \
+            -project QuantRadar.xcodeproj \
+            -scheme QuantRadar \
+            -destination 'platform=iOS Simulator,name=iPhone 16' \
+            -only-testing:QuantRadarTests/AppAccessTests \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO
