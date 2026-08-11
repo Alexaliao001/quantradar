@@ -5,8 +5,11 @@ options:
     iOS: "17.0"
   createIntermediateGroups: true
   groupSortPosition: top
-  # Keep Xcode 15-compatible project format for CI (macos-14 / Xcode 15.x).
-  objectVersion: 60
+  # Homebrew XcodeGen defaults to Xcode 16 format (objectVersion 77).
+  # CI uses macos-14 / Xcode 15.4, which cannot open that format.
+  projectFormat: xcode15_3
+  # Belt-and-suspenders if an older XcodeGen ignores projectFormat.
+  postGenCommand: "sed -i.bak -E 's/objectVersion = [0-9]+;/objectVersion = 60;/' QuantRadar.xcodeproj/project.pbxproj && rm -f QuantRadar.xcodeproj/project.pbxproj.bak"
 settings:
   BASE_SDK: iphoneos
   SWIFT_VERSION: "5.10"
