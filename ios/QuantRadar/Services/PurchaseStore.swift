@@ -11,17 +11,18 @@ final class PurchaseStore: ObservableObject {
     @Published var lastError: String?
     @Published private(set) var isBusy = false
 
-    /// DEBUG / Simulator convenience — never ships as true entitlements.
-    @Published var debugForceUnlocked: Bool = UserDefaults.standard.bool(forKey: Self.debugUnlockKey) {
-        didSet { UserDefaults.standard.set(debugForceUnlocked, forKey: Self.debugUnlockKey) }
-    }
-
-    @Published var debugForceLivePlus: Bool = UserDefaults.standard.bool(forKey: Self.debugLiveKey) {
-        didSet { UserDefaults.standard.set(debugForceLivePlus, forKey: Self.debugLiveKey) }
-    }
-
     private static let debugUnlockKey = "qr.debug.force_unlocked"
     private static let debugLiveKey = "qr.debug.force_liveplus"
+
+    /// DEBUG / Simulator convenience — never ships as true entitlements.
+    /// Default via init (not `Self.` in property init) for Xcode 15 / Swift 5.10.
+    @Published var debugForceUnlocked = false {
+        didSet { UserDefaults.standard.set(debugForceUnlocked, forKey: PurchaseStore.debugUnlockKey) }
+    }
+
+    @Published var debugForceLivePlus = false {
+        didSet { UserDefaults.standard.set(debugForceLivePlus, forKey: PurchaseStore.debugLiveKey) }
+    }
 
     private var updatesTask: Task<Void, Never>?
 
@@ -46,6 +47,8 @@ final class PurchaseStore: ObservableObject {
     }
 
     init() {
+        debugForceUnlocked = UserDefaults.standard.bool(forKey: PurchaseStore.debugUnlockKey)
+        debugForceLivePlus = UserDefaults.standard.bool(forKey: PurchaseStore.debugLiveKey)
         updatesTask = Task { await listenForTransactions() }
         Task { await bootstrap() }
     }
