@@ -28,17 +28,15 @@ final class RadarService: ObservableObject {
             return
         }
         demo = verdict
-        if latest == nil { latest = verdict }
+        // Do not assign `latest` here — Today must not flash the INTC sample.
     }
 
     /// Prefetch SPY into cache, then refresh Today with live SPY posture.
     func warmUpToday() async {
         guard !warmUpStarted else { return }
         warmUpStarted = true
-        loadDemo()
         isWarmingUp = true
         defer { isWarmingUp = false }
-        // Prefetch SPY first so subsequent scans reuse cache.
         _ = try? await FreeMarketDataClient.dailyBars(symbol: "SPY", rangeHintDays: 90)
         _ = await analyze(ticker: "SPY")
     }
@@ -155,7 +153,7 @@ final class RadarService: ObservableObject {
             sector: nil,
             primaryScore: .init(value: nil, scale: 100, label: "Mechanical posture score", withheld: true, note: reason),
             primary: .init(action: "WAIT", label: "Wait & Watch", reason: "Insufficient free data — fail closed."),
-            summary: "Zero-cost iOS multi-source path could not load bars.",
+            summary: "Could not load bars for this ticker. Not forcing a trade.",
             engagement: .init(
                 avoidedLine: "Not forcing a trade without usable data.",
                 freezeLabel: "Placeholder",

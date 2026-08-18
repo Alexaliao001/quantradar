@@ -4,22 +4,11 @@ struct WatchlistView: View {
     @EnvironmentObject private var watchlist: WatchlistStore
     @EnvironmentObject private var radar: RadarService
     @EnvironmentObject private var purchases: PurchaseStore
-    @State private var showPaywall = false
 
     var body: some View {
         NavigationStack {
             Group {
-                if !purchases.effectiveUnlocked {
-                    ContentUnavailableView {
-                        Label("Watch is locked", systemImage: "lock.fill")
-                    } description: {
-                        Text("Unlock once ($9.99) to save tickers and local setup reminders.\n\n\(AppAccess.differentiationLine)")
-                    } actions: {
-                        Button("Unlock") { showPaywall = true }
-                            .buttonStyle(.borderedProminent)
-                            .tint(QRTheme.radar)
-                    }
-                } else if watchlist.items.isEmpty {
+                if watchlist.items.isEmpty {
                     ContentUnavailableView(
                         "No watches yet",
                         systemImage: "eye.slash",
@@ -46,7 +35,7 @@ struct WatchlistView: View {
                                     }
                                 }
                                 Toggle(
-                                    "Remind if setup improves",
+                                    "Remind if posture changes",
                                     isOn: Binding(
                                         get: { item.remindOnImprove },
                                         set: {
@@ -86,16 +75,12 @@ struct WatchlistView: View {
                     } label: {
                         Image(systemName: "arrow.clockwise")
                     }
-                    .disabled(!purchases.effectiveUnlocked || watchlist.items.isEmpty || watchlist.isRefreshing)
+                    .disabled(watchlist.items.isEmpty || watchlist.isRefreshing)
                 }
             }
             .task {
-                guard purchases.effectiveUnlocked, !watchlist.items.isEmpty else { return }
+                guard !watchlist.items.isEmpty else { return }
                 await watchlist.refreshScores(using: radar)
-            }
-            .sheet(isPresented: $showPaywall) {
-                PaywallView()
-                    .environmentObject(purchases)
             }
         }
     }

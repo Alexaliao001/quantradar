@@ -20,6 +20,7 @@ struct QuantRadarApp: App {
             .environmentObject(watchlist)
             .environmentObject(purchases)
             .preferredColorScheme(.dark)
+            .onAppear { ReviewPrompt.recordLaunch() }
         }
     }
 }

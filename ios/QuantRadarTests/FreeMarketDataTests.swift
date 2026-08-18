@@ -47,8 +47,19 @@ final class FreeMarketDataTests: XCTestCase {
         XCTAssertFalse(verdict.primaryScore?.withheld ?? true)
         XCTAssertNotNil(verdict.primaryScore?.value)
         let action = verdict.primary?.action ?? ""
-        XCTAssertTrue(["BUY", "WAIT", "NO"].contains(action))
+        XCTAssertTrue(["SETUP", "WAIT", "NO"].contains(action))
         XCTAssertEqual(verdict.meta?.dataPath, result.source.rawValue)
+    }
+
+    func testDailyBarsCacheHitSetsFromCacheFlag() async throws {
+        await BarsCache.shared.clear()
+        FreeMarketDataClient.sourceOrder = [.yahooQuery1]
+        let first = try await FreeMarketDataClient.dailyBars(symbol: "AAPL", rangeHintDays: 90)
+        XCTAssertFalse(first.fromCache)
+        let second = try await FreeMarketDataClient.dailyBars(symbol: "AAPL", rangeHintDays: 90)
+        XCTAssertTrue(second.fromCache)
+        XCTAssertEqual(second.bars.count, first.bars.count)
+        await BarsCache.shared.clear()
     }
 
     func testBundledSampleDecodes() throws {

@@ -4,7 +4,6 @@
 from __future__ import annotations
 
 import json
-import re
 import sys
 from pathlib import Path
 
@@ -30,11 +29,16 @@ def main() -> int:
     paywall = (ROOT / "QuantRadar/Views/PaywallView.swift").read_text()
     search = (ROOT / "QuantRadar/Views/SearchView.swift").read_text()
     watch = (ROOT / "QuantRadar/Views/WatchlistView.swift").read_text()
+    today = (ROOT / "QuantRadar/Views/TodayView.swift").read_text()
     onboarding = (ROOT / "QuantRadar/Views/OnboardingView.swift").read_text()
+    settings = (ROOT / "QuantRadar/Views/SettingsView.swift").read_text()
+    root_tab = (ROOT / "QuantRadar/App/RootTabView.swift").read_text()
+    scorer = (ROOT / "QuantRadar/Services/FreeDataRadar.swift").read_text()
+    radar = (ROOT / "QuantRadar/Services/RadarService.swift").read_text()
     launch = (ROOT / "docs/APP_STORE_LAUNCH.md").read_text()
     product = (ROOT / "docs/PRODUCT.md").read_text()
+    verdict_card = (ROOT / "QuantRadar/Views/VerdictCardView.swift").read_text()
 
-    # Product IDs
     for pid in (
         "one.quantradar.app.unlock",
         "one.quantradar.app.live.monthly",
@@ -45,7 +49,9 @@ def main() -> int:
         else:
             ok(f"AppAccess has {pid}")
 
-    unlock_products = [p for p in storekit.get("products", []) if p.get("productID") == "one.quantradar.app.unlock"]
+    unlock_products = [
+        p for p in storekit.get("products", []) if p.get("productID") == "one.quantradar.app.unlock"
+    ]
     if not unlock_products or unlock_products[0].get("type") != "NonConsumable":
         bad("storekit unlock must be NonConsumable $9.99 product")
     else:
@@ -55,56 +61,97 @@ def main() -> int:
         else:
             ok("unlock displayPrice 9.99")
 
-    # Gate logic mirrored
-    def can_scan(ticker: str, unlocked: bool) -> bool:
-        return unlocked or ticker.strip().upper() == "INTC"
+    class Preview:
+        def __init__(self) -> None:
+            self.claimed: str | None = None
 
-    if not (can_scan("INTC", False) and not can_scan("AAPL", False) and can_scan("SPY", True)):
-        bad("canScan mirror failed")
+        def can_scan(self, ticker: str, unlocked: bool) -> bool:
+            t = ticker.strip().upper()
+            if unlocked:
+                return True
+            if t == "SPY":
+                return True
+            if self.claimed:
+                return self.claimed == t
+            return bool(t)
+
+        def claim(self, ticker: str, withheld: bool = False) -> None:
+            t = ticker.strip().upper()
+            if withheld or t == "SPY" or not t:
+                return
+            if self.claimed is None:
+                self.claimed = t
+
+    p = Preview()
+    if not (
+        p.can_scan("SPY", False)
+        and p.can_scan("AAPL", False)
+        and not (p.claim("AAPL") or p.can_scan("NVDA", False))
+        and p.can_scan("AAPL", False)
+        and p.can_scan("NVDA", True)
+    ):
+        bad("canScan mirror failed (SPY + one personal ticker)")
     else:
-        ok("canScan free=INTC-only / unlocked=any")
+        ok("canScan free=SPY + one personal ticker / unlocked=any")
 
-    # UI wiring
     for name, blob, needle in (
         ("SearchView", search, "showPaywall"),
-        ("WatchlistView", watch, "Watch is locked"),
-        ("PaywallView", paywall, "Most days"),
-        ("OnboardingView", onboarding, "Try free"),
+        ("SearchView", search, "claimPreviewTickerIfNeeded"),
+        ("RootTabView", root_tab, "effectiveUnlocked"),
+        ("PaywallView", paywall, "Unlock any ticker"),
+        ("OnboardingView", onboarding, "Open radar"),
         ("PurchaseStore", purchase, "purchaseUnlock"),
+        ("TodayView", today, "Unlock any ticker"),
+        ("VerdictCardView", verdict_card, "ShareLink"),
+        ("SettingsView", settings, "privacyURL"),
+        ("AppAccess", access, "privacy-ios"),
+        ("AppAccess", access, "preview.personal_ticker"),
+        ("FreeMechanicalScorer", scorer, 'action = "SETUP"'),
+        ("WatchlistView", watch, "Remind if posture changes"),
+        ("RadarService", radar, "Do not assign `latest`"),
     ):
         if needle not in blob:
             bad(f"{name} missing `{needle}`")
         else:
             ok(f"{name} contains `{needle}`")
 
-    # Version bump local 1.1 — must not imply uploading over 1.0 review
-    if 'MARKETING_VERSION: "1.1.0"' not in project or 'CURRENT_PROJECT_VERSION: "4"' not in project:
-        bad("project.yml should be 1.1.0 / build 4")
-    else:
-        ok("project.yml 1.1.0 / 4")
-
-    if "Do not touch ASC 1.0" not in launch and "Do **not** change the waiting 1.0" not in launch:
-        # APP_STORE_LAUNCH has "Do not touch ASC 1.0 while Waiting for Review"
-        if "Do not touch ASC 1.0" not in launch:
-            bad("APP_STORE_LAUNCH missing ASC 1.0 leave-alone note")
+    for name, blob, banned in (
+        ("TodayView", today, "Massive"),
+        ("TodayView", today, "$0 API"),
+        ("PaywallView", paywall, "Live+"),
+        ("PaywallView", paywall, "Massive"),
+        ("PaywallView", paywall, "Stripe"),
+        ("SearchView", search, "forceDemo"),
+        ("OnboardingView", onboarding, "You already paid"),
+        ("OnboardingView", onboarding, "Try free"),
+        ("SettingsView", settings, "Live+ Monthly"),
+        ("FreeMechanicalScorer", scorer, 'action = "BUY"'),
+        ("WatchlistView", watch, "Watch is locked"),
+    ):
+        if banned in blob:
+            bad(f"{name} still contains banned `{banned}`")
         else:
-            ok("APP_STORE_LAUNCH protects ASC 1.0")
+            ok(f"{name} has no `{banned}`")
+
+    if 'MARKETING_VERSION: "1.1.0"' not in project or 'CURRENT_PROJECT_VERSION: "5"' not in project:
+        bad("project.yml should be 1.1.0 / build 5")
+    else:
+        ok("project.yml 1.1.0 / 5")
+
+    if "Do not touch ASC 1.0" not in launch:
+        bad("APP_STORE_LAUNCH missing ASC 1.0 leave-alone note")
     else:
         ok("APP_STORE_LAUNCH protects ASC 1.0")
 
-    if "Free download" not in product and "one-time unlock" not in product:
-        if "Free download" not in product:
-            bad("PRODUCT.md should describe free download unlock model")
-        else:
-            ok("PRODUCT.md free-download model")
+    if "one lifetime personal ticker" not in product:
+        bad("PRODUCT.md should describe one personal ticker preview")
     else:
-        ok("PRODUCT.md free-download model")
+        ok("PRODUCT.md free-download + one personal ticker")
 
-    # No paid-app-only copy left in onboarding
-    if "You already paid" in onboarding:
-        bad("onboarding still says You already paid")
+    if "Stock scanner: wait or act" not in launch:
+        bad("APP_STORE_LAUNCH missing ASO subtitle")
     else:
-        ok("onboarding no longer paid-download copy")
+        ok("APP_STORE_LAUNCH ASO subtitle")
 
     if FAIL:
         print(f"\n{FAIL} failure(s)")

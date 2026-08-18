@@ -1,6 +1,6 @@
 # QuantRadar (iOS)
 
-Independent App Store product — **free download → $9.99 one-time unlock** (+ optional Live+). Not the web Stripe/Massive product. Not freemium scan quotas.
+Independent App Store product — **free download → $9.99 one-time unlock**. Not the web Stripe/Massive product. Not daily scan quotas.
 
 - Strategy: [docs/PRODUCT.md](docs/PRODUCT.md)
 - Launch / post-1.0 ASC cutover: [docs/APP_STORE_LAUNCH.md](docs/APP_STORE_LAUNCH.md)

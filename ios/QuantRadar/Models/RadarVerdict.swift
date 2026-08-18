@@ -108,4 +108,20 @@ struct RadarVerdict: Codable, Identifiable, Hashable {
         guard let v = primaryScore?.value else { return "—" }
         return String(format: "%.0f", v)
     }
+
+    var isWithheld: Bool {
+        primaryScore?.withheld == true
+    }
+
+    var shareText: String {
+        let action = primary?.label ?? actionCode
+        let reason = primary?.reason ?? ""
+        return """
+        \(ticker) · QuantRadar
+        Score \(scoreText) · \(action)
+        \(reason)
+
+        Educational only — not investment advice.
+        """
+    }
 }

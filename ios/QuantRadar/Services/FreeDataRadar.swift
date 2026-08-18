@@ -296,10 +296,10 @@ enum FreeMechanicalScorer {
         if marketGate == "NO" || score < 38 {
             action = "NO"
             label = "Avoid"
-            reason = "Free-data posture weak or market gate blocked — do not force a trade."
-        } else if score >= 68 && pullback >= 0 && pullback <= 8 && (rsi ?? 50) < 68 {
-            action = "BUY"
-            label = "Setup watch → actionable zone"
+            reason = "Posture is weak or the market gate is blocked — do not force a trade."
+        } else if score >= 68 && pullback >= -2 && pullback <= 8 && (rsi ?? 50) < 68 {
+            action = "SETUP"
+            label = "Setup zone"
             reason = String(format: "Trend supportive, RSI %.0f, pullback %.1f%% from SMA20.", rsi ?? 0, max(0, pullback))
         } else {
             action = "WAIT"
@@ -307,7 +307,15 @@ enum FreeMechanicalScorer {
             reason = String(format: "Score %.0f — timing not fully aligned (RSI %.0f).", score, rsi ?? 0)
         }
 
-        let stockGate = action == "BUY" ? "PASS" : (action == "NO" ? "NO" : "WATCH")
+        let stockGate = action == "SETUP" ? "PASS" : (action == "NO" ? "NO" : "WATCH")
+        let summary: String
+        if action == "SETUP" {
+            summary = "Timing is in a setup zone. Educational radar only — not a buy order."
+        } else if action == "NO" {
+            summary = "Posture says stay out. Skipping a forced trade is the point of the radar."
+        } else {
+            summary = "Posture is cautious. Wait until timing lines up."
+        }
         return RadarVerdict(
             ok: true,
             ticker: symbol,
@@ -318,13 +326,13 @@ enum FreeMechanicalScorer {
                 scale: 100,
                 label: "Mechanical posture score",
                 withheld: false,
-                note: "On-device free data via \(source.rawValue) — not Massive."
+                note: nil
             ),
             primary: .init(action: action, label: label, reason: reason),
-            summary: "iOS multi-source free-data radar (\(source.rawValue)). Independent from web Massive desk.",
+            summary: summary,
             engagement: .init(
-                avoidedLine: action == "BUY" ? nil : "Skipping a forced entry preserves optionality.",
-                freezeLabel: "\(source.rawValue) · on-device",
+                avoidedLine: action == "SETUP" ? nil : "Skipping a forced entry preserves optionality.",
+                freezeLabel: "on-device",
                 postureNote: "Mechanical posture ≠ trade direction."
             ),
             dataQuality: .init(usable: true, reliability: "medium", optionsActionable: false),
@@ -339,11 +347,11 @@ enum FreeMechanicalScorer {
             meta: .init(
                 mode: "free_multi_source",
                 fetchTime: ISO8601DateFormatter().string(from: Date()),
-                disclaimer: "Educational radar only — not investment advice. Free-data path; not Massive.",
+                disclaimer: "Educational radar only — not investment advice.",
                 dataPath: source.rawValue
             ),
             gate: .init(market: marketGate, sector: "N/A", stock: stockGate),
-            warnings: ["Options/Greeks not available on zero-cost iOS path."]
+            warnings: ["Options data is not part of this radar."]
         )
     }
 

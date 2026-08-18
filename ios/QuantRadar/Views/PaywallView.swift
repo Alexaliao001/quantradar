@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Differentiation-first unlock sheet — not a tipster upsell.
+/// Unlock sheet — one product, one decision.
 struct PaywallView: View {
     @EnvironmentObject private var purchases: PurchaseStore
     @Environment(\.dismiss) private var dismiss
@@ -9,19 +9,18 @@ struct PaywallView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
-                    Text("One score. Most days: don’t act.")
+                    Text("Unlock any ticker.")
                         .font(.title2.bold())
                         .foregroundStyle(QRTheme.text)
 
-                    Text("QuantRadar is a mechanical posture radar — not a tipster feed, not Finviz/Yahoo, not a broker.")
+                    Text("You already have today’s SPY and one personal scan. Unlock once for every US ticker plus a watchlist. Most days the honest answer is still wait.")
                         .font(.body)
                         .foregroundStyle(QRTheme.muted)
 
                     VStack(alignment: .leading, spacing: 10) {
-                        bullet("Free preview: Today SPY + INTC demo")
-                        bullet("Unlock once ($9.99): any ticker scan + watchlist")
-                        bullet("Optional Live+: more watches + denser local reminders")
-                        bullet("Website Stripe / Massive Pro do not apply")
+                        bullet("Any US ticker scan")
+                        bullet("Watchlist with posture-change alerts")
+                        bullet("One-time $9.99 — not a subscription")
                     }
                     .padding(14)
                     .frame(maxWidth: .infinity, alignment: .leading)

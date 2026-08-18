@@ -87,7 +87,7 @@ python3 scripts/validate_contract_sample.py
 | **Ship v0.4.0** | ✅ magic link、Stripe checkout、Docker/Render/Fly、`bootstrap_env`、CI |
 | **Trust Gate v0.5.0** | ✅ 单 `primary_score`、诚实落地页、demo 不计费、methodology/pricing/legal、waitlist |
 | 下一优先 | **域名 cutover** + Trust Gate 线上 PASS → live charts → 再谈 Pro 收款 |
-| **iOS App Store（独立运营）** | [`ios/`](./ios/) — **付费 $9.99** · **零 COGS（Yahoo 设备端）** · Web 仍走 Massive；互不解锁 |
+| **iOS App Store（独立运营）** | [`ios/`](./ios/) — **免费下载 + $9.99 一次性 Unlock** · **零 COGS（Yahoo 设备端）** · Web 仍走 Massive；互不解锁 |
 
 ### Trust Gate
 

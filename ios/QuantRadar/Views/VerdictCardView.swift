@@ -42,6 +42,12 @@ struct VerdictCardView: View {
 
             gatesRow
             marketRow
+
+            ShareLink(item: verdict.shareText) {
+                Label("Share", systemImage: "square.and.arrow.up")
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(QRTheme.radar)
+            }
         }
         .padding(18)
         .background(
@@ -81,7 +87,7 @@ struct VerdictCardView: View {
 
     private var actionColor: Color {
         switch verdict.actionCode {
-        case "BUY", "LONG", "YES": return QRTheme.radar
+        case "SETUP", "BUY", "LONG", "YES": return QRTheme.radar
         case "NO", "AVOID": return QRTheme.danger
         default: return QRTheme.warn
         }

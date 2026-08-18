@@ -35,10 +35,10 @@ struct SearchView: View {
                     }
 
                     HStack(spacing: 8) {
-                        ForEach(["INTC", "AAPL", "NVDA", "SPY"], id: \.self) { chip in
+                        ForEach(["SPY", "AAPL", "NVDA", "MSFT"], id: \.self) { chip in
                             Button(chip) {
                                 ticker = chip
-                                Task { await runScan(forceDemo: chip == AppAccess.freeDemoTicker) }
+                                Task { await runScan() }
                             }
                             .font(.caption.weight(.semibold))
                             .padding(.horizontal, 10)
@@ -50,9 +50,9 @@ struct SearchView: View {
                     }
 
                     if !purchases.effectiveUnlocked {
-                        Text("Free preview: INTC demo only. Unlock for any ticker.")
+                        Text(previewCaption)
                             .font(.caption)
-                            .foregroundStyle(QRTheme.warn)
+                            .foregroundStyle(QRTheme.muted)
                     }
 
                     if radar.isLoading {
@@ -78,11 +78,6 @@ struct SearchView: View {
                         Text("Educational only — not investment advice. Not a broker.")
                             .font(.caption2)
                             .foregroundStyle(QRTheme.muted)
-                        if let src = radar.lastSource {
-                            Text("Source: \(src)")
-                                .font(.caption2)
-                                .foregroundStyle(QRTheme.muted)
-                        }
                         Button {
                             addToWatch(v.ticker)
                         } label: {
@@ -95,6 +90,9 @@ struct SearchView: View {
             }
             .background(QRTheme.bg.ignoresSafeArea())
             .navigationTitle("Scan")
+            .onChange(of: radar.latest?.ticker) { _, _ in
+                if let v = radar.latest { ReviewPrompt.recordVerdict(v) }
+            }
             .sheet(isPresented: $showPaywall) {
                 PaywallView()
                     .environmentObject(purchases)
@@ -102,20 +100,26 @@ struct SearchView: View {
         }
     }
 
-    private func runScan(forceDemo: Bool = false) async {
+    private var previewCaption: String {
+        if let claimed = AppAccess.claimedPreviewTicker {
+            return "Free ticker: \(claimed). Unlock for any other symbol."
+        }
+        return AppAccess.previewLine
+    }
+
+    private func runScan() async {
         focused = false
         gateMessage = nil
         let symbol = AppAccess.normalizeTicker(ticker)
-        if forceDemo && symbol == AppAccess.freeDemoTicker {
-            _ = await radar.analyze(ticker: symbol, forceDemo: true)
-            return
-        }
         guard AppAccess.canScan(ticker: symbol, unlocked: purchases.effectiveUnlocked) else {
-            gateMessage = "Unlock required to scan \(symbol). INTC demo stays free."
+            gateMessage = "Unlock required to scan \(symbol)."
             showPaywall = true
             return
         }
-        _ = await radar.analyze(ticker: symbol, forceDemo: false)
+        let ok = await radar.analyze(ticker: symbol)
+        if ok, let latest = radar.latest, !latest.isWithheld {
+            AppAccess.claimPreviewTickerIfNeeded(symbol, withheld: false)
+        }
     }
 
     private func addToWatch(_ ticker: String) {
@@ -125,7 +129,7 @@ struct SearchView: View {
             return
         }
         if !watchlist.add(ticker: ticker, limit: purchases.watchlistLimit) {
-            gateMessage = "Watchlist full (\(purchases.watchlistLimit)). Live+ raises the limit."
+            gateMessage = "Watchlist full (\(purchases.watchlistLimit))."
         }
     }
 }

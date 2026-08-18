@@ -58,13 +58,9 @@ final class WatchlistStore: ObservableObject {
         items[idx].remindOnImprove = enabled
         persist()
         if enabled {
-            Task {
-                await AlertScheduler.requestPermissionAndScheduleSample(
-                    for: ticker,
-                    interval: AppAccess.reminderIntervalSeconds(livePlus: livePlus)
-                )
-            }
+            Task { _ = await AlertScheduler.requestPermission() }
         }
+        _ = livePlus
     }
 
     func updateAction(_ ticker: String, action: String, score: Double? = nil) {
@@ -99,11 +95,17 @@ final class WatchlistStore: ObservableObject {
 
             for await (ticker, verdict) in group {
                 if let verdict {
+                    let previous = items.first(where: { $0.ticker == ticker })?.lastAction
+                    let remind = items.first(where: { $0.ticker == ticker })?.remindOnImprove ?? false
+                    let next = (verdict.primary?.action ?? "WAIT")
                     updateAction(
                         ticker,
-                        action: verdict.primary?.action ?? "WAIT",
+                        action: next,
                         score: verdict.primaryScore?.value
                     )
+                    if AppAccess.shouldNotifyPostureChange(previous: previous, next: next, remind: remind) {
+                        await AlertScheduler.notifyPostureChange(ticker: ticker, action: next)
+                    }
                 }
                 enqueueNext()
             }
@@ -112,21 +114,24 @@ final class WatchlistStore: ObservableObject {
 }
 
 enum AlertScheduler {
-    static func requestPermissionAndScheduleSample(
-        for ticker: String,
-        interval: TimeInterval = AppAccess.reminderIntervalSeconds(livePlus: false)
-    ) async {
+    static func requestPermission() async -> Bool {
         let center = UNUserNotificationCenter.current()
         let granted = try? await center.requestAuthorization(options: [.alert, .sound, .badge])
-        guard granted == true else { return }
+        return granted == true
+    }
 
+    static func notifyPostureChange(ticker: String, action: String) async {
+        guard await requestPermission() else { return }
         let content = UNMutableNotificationContent()
-        content.title = "Setup watch: \(ticker)"
-        content.body = "We’ll nudge you when posture may have improved. Educational only — not investment advice."
+        content.title = "\(ticker) posture changed"
+        content.body = "Now \(action). Educational only — not investment advice."
         content.sound = .default
-
-        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: max(60, interval), repeats: false)
-        let req = UNNotificationRequest(identifier: "watch-\(ticker)", content: content, trigger: trigger)
-        try? await center.add(req)
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
+        let req = UNNotificationRequest(
+            identifier: "watch-change-\(ticker)-\(Int(Date().timeIntervalSince1970))",
+            content: content,
+            trigger: trigger
+        )
+        try? await UNUserNotificationCenter.current().add(req)
     }
 }

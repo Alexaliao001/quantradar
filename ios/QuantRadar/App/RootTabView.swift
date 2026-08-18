@@ -12,14 +12,18 @@ enum QRTheme {
 }
 
 struct RootTabView: View {
+    @EnvironmentObject private var purchases: PurchaseStore
+
     var body: some View {
         TabView {
             TodayView()
                 .tabItem { Label("Today", systemImage: "dot.radiowaves.left.and.right") }
             SearchView()
                 .tabItem { Label("Scan", systemImage: "magnifyingglass") }
-            WatchlistView()
-                .tabItem { Label("Watch", systemImage: "eye") }
+            if purchases.effectiveUnlocked {
+                WatchlistView()
+                    .tabItem { Label("Watch", systemImage: "eye") }
+            }
             SettingsView()
                 .tabItem { Label("Settings", systemImage: "gearshape") }
         }

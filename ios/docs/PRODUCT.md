@@ -6,7 +6,7 @@
 
 | | Web | iOS |
 |--|-----|-----|
-| Money | Stripe Pro | **Free download → $9.99 one-time unlock** (+ optional Live+) |
+| Money | Stripe Pro | **Free download → $9.99 one-time unlock** |
 | Data | **Massive / Polygon** when live | **Yahoo free + on-device score** |
 | Fidelity | Full desk / options honesty gates | Mechanical posture only (no OPRA) |
 | Cost to you | Massive bill | **~$0 per scan** |
@@ -17,25 +17,25 @@
 |------|--------|
 | App price | **Free** (listing) |
 | Core unlock | **Non-consumable IAP $9.99** (`one.quantradar.app.unlock`) |
-| Free preview | Today SPY + **INTC** demo only — not quota freemium |
-| Live+ | Optional sub — more watch slots + denser **local** reminders |
+| Free preview | Today **SPY** + **one lifetime personal ticker** (live scan, not a canned demo) |
+| Live+ | Code exists; **not sold in 1.1** until posture-change alerts prove value |
 | Why people pay | One score / most days don’t act — not Massive parity |
 
 ## Growth
 
 ```text
-Off-store ads / ASO → Free App Store install → preview value → $9.99 unlock
-                                         └→ optional Live+ (LTV)
+ASO → Free App Store install → live SPY + one personal ticker → $9.99 unlock
 ```
 
-**CAC rule:** Unlock net ≈ $7 after Apple cut. Target low-CAC “don’t-overtrade” creatives + Offer Codes. Do **not** spray mass retail CPC.
+**CAC rule:** Unlock net ≈ $7 after Apple cut. Do **not** spray mass retail CPC.
 
 ## Honesty
 
 - Do not market iOS as “same engine as web Massive.”
-- Educational only — not investment advice.
-- Fail-closed when Yahoo bars unavailable.
-- Live+ must not claim server push / Massive until that exists.
+- User-facing copy talks posture, not COGS / data-source brands.
+- Educational only — not investment advice. Action label is **SETUP**, not BUY.
+- Fail-closed when bars unavailable.
+- iOS legal: `/privacy-ios` and `/terms-ios` (not the web OAuth/Stripe policy).
 
 ## ASC note (1.0 under review)
 

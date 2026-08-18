@@ -16,5 +16,5 @@ data/
 ios/*.xcodeproj
 ios/*.xcworkspace
 ios/DerivedData/
-ios/build/
+.tools/
 **/xcuserdata/

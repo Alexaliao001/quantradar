@@ -1,20 +1,13 @@
 # GO LIVE status
 
-## ASC 1.0 (do not touch)
-
-**WAITING_FOR_REVIEW** — paid-download build 3 already submitted. Leave it alone.
+Checked **2026-08-18**: still **WAITING_FOR_REVIEW**. Public store lookup is empty. Do not mutate 1.0.
 
 - App ID: `6800090745` · Bundle: `one.quantradar.app`
-- Version **1.0** · Build **3**
+- Version **1.0** · Build **3** · paid **$9.99** · IAP **0**
+- Submitted 2026-08-10 21:21 UTC · `ce92d66d-eeaa-4566-a7b4-3d982a0c7be2`
+- Watch: `ios/scripts/asc_watch.py` (read-only). Agent loop: every **24h** until free+Unlock is live.
 
-## Local next model (1.1.0 / build 4+) — code only, not submitted
+## Local next model (1.1.0 / build 5+) — code ready, not submitted
 
-Commercial loop fix implemented locally:
+After 1.0 **Approved / Rejected / Removed** → [APP_STORE_LAUNCH.md](./APP_STORE_LAUNCH.md) cutover, then upload **1.1**.
 
-- Free preview: Today SPY + INTC demo
-- Non-consumable unlock `$9.99` · `one.quantradar.app.unlock`
-- Optional Live+ (local watch limit 50 + denser local reminders)
-- Paywall differentiation: *Most days: don’t act*
-- Docs updated for **post-1.0 ASC cutover** (App price Free + IAP)
-
-After 1.0 resolves → follow [APP_STORE_LAUNCH.md](./APP_STORE_LAUNCH.md) cutover, then archive/upload **1.1**.

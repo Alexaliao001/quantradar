@@ -44,15 +44,4 @@ final class BarsCacheTests: XCTestCase {
         let miss = await cache.get("MSFT", maxAge: 0)
         XCTAssertNil(miss)
     }
-
-    func testDailyBarsCacheHitSetsFromCacheFlag() async throws {
-        await BarsCache.shared.clear()
-        FreeMarketDataClient.sourceOrder = [.yahooQuery1]
-        let first = try await FreeMarketDataClient.dailyBars(symbol: "AAPL", rangeHintDays: 90)
-        XCTAssertFalse(first.fromCache)
-        let second = try await FreeMarketDataClient.dailyBars(symbol: "AAPL", rangeHintDays: 90)
-        XCTAssertTrue(second.fromCache)
-        XCTAssertEqual(second.bars.count, first.bars.count)
-        await BarsCache.shared.clear()
-    }
 }

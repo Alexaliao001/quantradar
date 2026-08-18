@@ -4,9 +4,10 @@
 
 - **Free App Store download**
 - **$9.99 Non-Consumable unlock** (`one.quantradar.app.unlock`)
-- Free preview: Today SPY + INTC demo — **no freemium scan quotas**
-- **Optional Live+** (local watch limit + denser local reminders)
+- Free preview: Today SPY + **one lifetime personal ticker** — no daily quotas
+- Live+ **not listed in 1.1** (keep StoreKit products for later)
 - Separate from web Stripe / Massive
+- User-facing copy: posture only (no COGS / Massive / yahoo_q1)
 
 ## Do not touch ASC 1.0 while Waiting for Review
 
@@ -16,12 +17,13 @@ Current 1.0 paid-download submission stays as-is. After it is **Approved / Rejec
 
 1. Set App price to **Free**
 2. Create IAP: Non-Consumable **QuantRadar Unlock** $9.99 · id `one.quantradar.app.unlock`
-3. Create subscription group **Radar Live+** · monthly / yearly (ids in `Products.storekit`)
+3. Skip Live+ subscription group for 1.1 listing (products may exist in StoreKit config only)
 4. Paid Apps / IAP agreements + tax/banking current
-5. New version **1.1** binary with StoreKit gates
-6. Screenshots: Today preview · Scan paywall · Unlock sheet · Watch locked CTA · Settings restore
-7. Review note: free preview INTC; unlock once; no account; educational; not a broker
-8. Submit 1.1 — do not mutate the closed 1.0 review thread casually
+5. New version **1.1** binary (build 5+) with StoreKit gates
+6. Screenshots: live SPY Today · personal Scan · SETUP/WAIT card · Unlock sheet · Settings restore. No “paid download” / COGS / Massive captions
+7. Privacy URL: `https://quantradar.one/privacy-ios` · Terms: `https://quantradar.one/terms-ios`
+8. Review note: free SPY + one personal ticker; unlock once; no account; educational; not a broker; SETUP ≠ buy order
+9. Submit 1.1 — do not mutate the closed 1.0 review thread casually
 
 ## Local build
 
@@ -34,20 +36,20 @@ open QuantRadar.xcodeproj
 Scheme uses `QuantRadar/Resources/Products.storekit`.  
 DEBUG Settings toggles: Force unlocked / Force Live+.
 
-## Listing copy (EN — draft for 1.1)
+## Listing copy (EN — 1.1)
 
-**Subtitle:** Mechanical stock posture radar
+**Subtitle:** Stock scanner: wait or act
 
-**Promotional text:** One score. Most days: don’t act — not tipster noise.
+**Promotional text:** One score for a US ticker. Most days the honest answer is wait — not a tipster feed.
 
 **Description:**
-QuantRadar is an educational radar for US tickers. Free to install: see today’s SPY posture and try the INTC demo. Unlock once ($9.99) for full ticker scan and watchlist.
+QuantRadar is an educational radar for US tickers. Free to install: see today’s SPY posture and scan one ticker of yours. Unlock once ($9.99) for every ticker and a watchlist.
 
-One mechanical posture score and a clear action — act, wait, or avoid. This is not a broker, not investment advice, and not a tipster feed. Most days the honest answer is don’t trade.
+One mechanical posture score and a clear action — setup zone, wait, or avoid. This is not a broker, not investment advice, and not a tipster feed. Most days the honest answer is don’t trade.
 
-Independent App Store product. Website subscriptions do not apply. Optional Live+ adds local reminder density — not a Massive data plan.
+Independent App Store product. Website subscriptions do not unlock this app.
 
-**Keywords:** stock radar,stock scanner,swing trade,trading,market posture,ticker
+**Keywords:** stock scanner,stock tracker,watchlist,swing trade,stock analysis,market,ticker,stocks,trading,setup
 
 ## Ads → cash register
 
@@ -60,6 +62,7 @@ Independent App Store product. Website subscriptions do not apply. Optional Live
 
 | Risk | Mitigation |
 |------|------------|
-| Investment advice | Disclaimers onboarding / Today / Scan / Paywall / Settings |
-| Thin wrapper | Native SwiftUI + offline INTC demo |
-| Misleading IAP | Clear unlock vs Live+; no fake server claims |
+| Investment advice | SETUP not BUY; disclaimers onboarding / Today / Scan / Paywall / Settings |
+| Thin wrapper | Native SwiftUI + live SPY + one real personal scan |
+| Misleading IAP | Unlock only in 1.1; no fake server push |
+| Privacy mismatch | iOS-specific policy: no account, no tracking |

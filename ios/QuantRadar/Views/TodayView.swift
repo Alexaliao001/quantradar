@@ -19,15 +19,9 @@ struct TodayView: View {
                         Text(AppAccess.differentiationLine)
                             .font(.footnote.weight(.medium))
                             .foregroundStyle(QRTheme.text)
-                        Text(AppAccess.appStorePriceNote)
-                            .font(.footnote)
-                            .foregroundStyle(QRTheme.muted)
-                        Text("Free-data radar · cached SPY · $0 API cost")
-                            .font(.caption2)
-                            .foregroundStyle(QRTheme.radar)
                     }
 
-                    if let v = radar.latest ?? radar.demo {
+                    if let v = radar.latest {
                         VerdictCardView(verdict: v)
                         if radar.isWarmingUp || radar.isLoading {
                             HStack(spacing: 8) {
@@ -40,24 +34,21 @@ struct TodayView: View {
                     } else if radar.isLoading || radar.isWarmingUp {
                         ProgressView().tint(QRTheme.radar)
                     } else {
-                        Text(radar.errorMessage ?? "Demo unavailable.")
+                        Text(radar.errorMessage ?? "Market posture unavailable.")
                             .foregroundStyle(QRTheme.warn)
                     }
 
                     if purchases.effectiveUnlocked {
-                        Label(
-                            purchases.effectiveLivePlus ? "Unlocked · Live+" : "Unlocked · full radar",
-                            systemImage: "checkmark.seal.fill"
-                        )
-                        .font(.subheadline.weight(.medium))
-                        .foregroundStyle(QRTheme.radar)
-                        .padding(12)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(QRTheme.panel)
-                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                        Label("Unlocked · full radar", systemImage: "checkmark.seal.fill")
+                            .font(.subheadline.weight(.medium))
+                            .foregroundStyle(QRTheme.radar)
+                            .padding(12)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(QRTheme.panel)
+                            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                     } else {
                         Button { showPaywall = true } label: {
-                            Label("Unlock full scan · $9.99", systemImage: "lock.open")
+                            Label("Unlock any ticker · $9.99", systemImage: "lock.open")
                                 .font(.subheadline.weight(.medium))
                                 .frame(maxWidth: .infinity, alignment: .leading)
                                 .padding(12)
@@ -65,7 +56,7 @@ struct TodayView: View {
                                 .foregroundStyle(QRTheme.radar)
                                 .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                         }
-                        Text("Preview includes Today SPY. Scan any ticker after unlock.")
+                        Text(AppAccess.previewLine)
                             .font(.caption2)
                             .foregroundStyle(QRTheme.muted)
                     }
@@ -89,6 +80,9 @@ struct TodayView: View {
                 }
             }
             .task { await radar.warmUpToday() }
+            .onChange(of: radar.latest?.ticker) { _, _ in
+                if let v = radar.latest { ReviewPrompt.recordVerdict(v) }
+            }
             .sheet(isPresented: $showPaywall) {
                 PaywallView()
                     .environmentObject(purchases)

@@ -2,13 +2,6 @@ import SwiftUI
 
 struct OnboardingView: View {
     @Binding var hasSeenOnboarding: Bool
-    @State private var page = 0
-
-    private let pages: [(title: String, body: String)] = [
-        ("One score. One action.", "Mechanical posture for US tickers — not a tipster feed."),
-        ("Most days: don’t act.", "WAIT and NO are features. The radar earns its keep by skipping bad setups."),
-        ("Try free → unlock once.", "Preview Today + INTC demo free. $9.99 unlocks full scan & watch — no freemium bait quotas."),
-    ]
 
     var body: some View {
         ZStack {
@@ -18,39 +11,27 @@ struct OnboardingView: View {
                 Image(systemName: "dot.radiowaves.left.and.right")
                     .font(.system(size: 56, weight: .light))
                     .foregroundStyle(QRTheme.radar)
-                    .symbolEffect(.pulse, options: .repeating, isActive: page == 0)
 
                 Text("QuantRadar")
                     .font(.system(size: 36, weight: .bold, design: .rounded))
                     .foregroundStyle(QRTheme.text)
 
-                TabView(selection: $page) {
-                    ForEach(pages.indices, id: \.self) { i in
-                        VStack(spacing: 10) {
-                            Text(pages[i].title)
-                                .font(.title3.weight(.semibold))
-                                .foregroundStyle(QRTheme.text)
-                                .multilineTextAlignment(.center)
-                            Text(pages[i].body)
-                                .font(.body)
-                                .foregroundStyle(QRTheme.muted)
-                                .multilineTextAlignment(.center)
-                                .padding(.horizontal, 28)
-                        }
-                        .tag(i)
-                    }
+                VStack(spacing: 10) {
+                    Text("Should you act today?")
+                        .font(.title3.weight(.semibold))
+                        .foregroundStyle(QRTheme.text)
+                        .multilineTextAlignment(.center)
+                    Text("One mechanical posture score for US tickers. Most days the honest answer is wait.")
+                        .font(.body)
+                        .foregroundStyle(QRTheme.muted)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 28)
                 }
-                .tabViewStyle(.page(indexDisplayMode: .always))
-                .frame(height: 160)
 
                 Button {
-                    if page < pages.count - 1 {
-                        withAnimation { page += 1 }
-                    } else {
-                        hasSeenOnboarding = true
-                    }
+                    hasSeenOnboarding = true
                 } label: {
-                    Text(page < pages.count - 1 ? "Continue" : "Open radar")
+                    Text("Open radar")
                         .font(.headline)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 14)
