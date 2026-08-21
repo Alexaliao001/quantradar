@@ -19,3 +19,35 @@ jobs:
         run: python scripts/p0_smoke.py
       - name: Contract sample
         run: python scripts/validate_contract_sample.py
+      - name: iOS commercial gates (offline)
+        run: python ios/scripts/verify_commercial_gates.py
+
+  ios-unit:
+    runs-on: macos-14
+    if: github.event_name == 'pull_request' || contains(github.event.head_commit.message, 'ios')
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install xcodegen
+        run: brew install xcodegen
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode_15.4.app/Contents/Developer
+      - name: Generate + AppAccess unit tests
+        run: |
+          cd ios
+          xcodegen generate
+          grep -E 'objectVersion = ' QuantRadar.xcodeproj/project.pbxproj | head -1
+          # Prefer iPhone 15 on Xcode 15 runners
+          DEST=$(xcrun simctl list devices available | awk -F '[()]' '/iPhone 15[ )]/ && !/Pro/ {print $2; exit}')
+          if [ -z "$DEST" ]; then DEST=$(xcrun simctl list devices available | awk -F '[()]' '/iPhone 15/ {print $2; exit}'); fi
+          echo "Using simulator udid=$DEST"
+          xcodebuild test \
+            -project QuantRadar.xcodeproj \
+            -scheme QuantRadar \
+            -destination "platform=iOS Simulator,id=$DEST" \
+            -only-testing:QuantRadarTests/AppAccessTests \
+            -only-testing:QuantRadarTests/OrganicFunnelTests \
+            -only-testing:QuantRadarTests/BarsCacheTests \
+            -only-testing:QuantRadarTests/DepthEngineTests \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO

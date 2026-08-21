@@ -1,0 +1,89 @@
+name: QuantRadar
+options:
+  bundleIdPrefix: one.quantradar
+  deploymentTarget:
+    iOS: "17.0"
+  createIntermediateGroups: true
+  groupSortPosition: top
+  # Homebrew XcodeGen defaults to Xcode 16 format (objectVersion 77).
+  # CI uses macos-14 / Xcode 15.4, which cannot open that format.
+  projectFormat: xcode15_3
+  # Belt-and-suspenders if an older XcodeGen ignores projectFormat.
+  postGenCommand: "sed -i.bak -E 's/objectVersion = [0-9]+;/objectVersion = 60;/' QuantRadar.xcodeproj/project.pbxproj && rm -f QuantRadar.xcodeproj/project.pbxproj.bak"
+settings:
+  BASE_SDK: iphoneos
+  SWIFT_VERSION: "5.10"
+  TARGETED_DEVICE_FAMILY: "1,2"
+targets:
+  QuantRadar:
+    type: application
+    platform: iOS
+    sources:
+      - path: QuantRadar
+        excludes:
+          - "**/*.md"
+          - "Resources/Products.storekit"
+    settings:
+      PRODUCT_BUNDLE_IDENTIFIER: one.quantradar.app
+      PRODUCT_NAME: QuantRadar
+      MARKETING_VERSION: "1.2.0"
+      CURRENT_PROJECT_VERSION: "6"
+      GENERATE_INFOPLIST_FILE: NO
+      INFOPLIST_FILE: QuantRadar/Info.plist
+      ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+      ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+      DEVELOPMENT_TEAM: DZ9BFS26A5
+      CODE_SIGN_STYLE: Automatic
+      SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD: NO
+    entitlements:
+      path: QuantRadar/QuantRadar.entitlements
+    dependencies:
+      - target: QuantRadarWidget
+        embed: true
+  QuantRadarWidget:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: QuantRadarWidget
+      - path: QuantRadar/Services/FreeDataRadar.swift
+      - path: QuantRadar/Services/BarsCache.swift
+      - path: QuantRadar/Services/PostureDepth.swift
+      - path: QuantRadar/Models/RadarVerdict.swift
+    settings:
+      PRODUCT_BUNDLE_IDENTIFIER: one.quantradar.app.widget
+      PRODUCT_NAME: QuantRadarWidget
+      MARKETING_VERSION: "1.2.0"
+      CURRENT_PROJECT_VERSION: "6"
+      GENERATE_INFOPLIST_FILE: NO
+      INFOPLIST_FILE: QuantRadarWidget/Info.plist
+      DEVELOPMENT_TEAM: DZ9BFS26A5
+      CODE_SIGN_STYLE: Automatic
+      SKIP_INSTALL: YES
+      TARGETED_DEVICE_FAMILY: "1,2"
+    entitlements:
+      path: QuantRadarWidget/QuantRadarWidget.entitlements
+  QuantRadarTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: QuantRadarTests
+    dependencies:
+      - target: QuantRadar
+    settings:
+      PRODUCT_BUNDLE_IDENTIFIER: one.quantradar.app.tests
+      DEVELOPMENT_TEAM: DZ9BFS26A5
+      GENERATE_INFOPLIST_FILE: YES
+      CODE_SIGN_STYLE: Automatic
+schemes:
+  QuantRadar:
+    build:
+      targets:
+        QuantRadar: all
+        QuantRadarTests: [test]
+    run:
+      config: Debug
+      storeKitConfiguration: QuantRadar/Resources/Products.storekit
+    test:
+      config: Debug
+      targets:
+        - QuantRadarTests

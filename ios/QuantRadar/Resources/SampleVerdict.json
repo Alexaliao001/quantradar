@@ -1,0 +1,60 @@
+{
+  "ok": true,
+  "contract_version": "1.0",
+  "ticker": "INTC",
+  "company_name": "Intel Corporation",
+  "sector": "XLK",
+  "gate": {
+    "market": "PASS",
+    "sector": "PASS",
+    "stock": "WATCH"
+  },
+  "score": {
+    "final": 53,
+    "base_total": 53,
+    "scale": 100,
+    "withheld": false,
+    "breakdown": {}
+  },
+  "primary_score": {
+    "value": 53,
+    "scale": 100,
+    "label": "Mechanical posture score",
+    "withheld": false,
+    "note": null
+  },
+  "primary": {
+    "action": "WAIT",
+    "label": "Wait & Watch",
+    "reason": "Weekly MA bullish, pullback 7.1% — entry timing not fully aligned"
+  },
+  "summary": "Posture is cautious. Market and sector gates pass, but stock-level timing stays on watch. Educational radar only.",
+  "engagement": {
+    "avoided_line": "Skipping a forced long here avoids chasing a mid-pullback.",
+    "freeze_label": "Sample artifact · demo",
+    "loop": "verdict → why → gates → next",
+    "posture_note": "Mechanical posture ≠ trade direction."
+  },
+  "data_quality": {
+    "usable": true,
+    "reliability": "medium",
+    "volume_narrative_allowed": true,
+    "options_actionable": false
+  },
+  "market": {
+    "market_state": "risk_on_cautious",
+    "spy_change_pct": 0.43,
+    "sector_etf": "XLK",
+    "sector_change_pct": 2.84,
+    "vix_current": 25.7,
+    "vix_trend": "rising"
+  },
+  "meta": {
+    "engine": "charts",
+    "mode": "artifact",
+    "fetch_time": "2026-03-21T01:43:25",
+    "disclaimer": "Educational radar only — not investment advice.",
+    "data_path": "bundled_sample"
+  },
+  "warnings": []
+}

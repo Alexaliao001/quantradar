@@ -838,6 +838,8 @@ class Handler(BaseHTTPRequestHandler):
             "/track": "track.html",
             "/terms": "terms.html",
             "/privacy": "privacy.html",
+            "/terms-ios": "terms-ios.html",
+            "/privacy-ios": "privacy-ios.html",
             "/refund": "refund.html",
             "/btn-demos": "btn-demos.html",  # internal preview; noindex
         }
@@ -868,7 +870,7 @@ class Handler(BaseHTTPRequestHandler):
             share_lines = "".join(f"/r/{t}\n" for t in sorted(DEMO_TICKERS))
             body = (
                 "/\n/methodology\n/pricing\n/track\n"
-                "/terms\n/privacy\n/refund\n/login\n"
+                "/terms\n/privacy\n/terms-ios\n/privacy-ios\n/refund\n/login\n"
                 + share_lines
             ).encode()
             self._send(200, body, content_type="text/plain")
