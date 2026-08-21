@@ -2,6 +2,7 @@ import SwiftUI
 
 struct VerdictCardView: View {
     let verdict: RadarVerdict
+    var showsShare: Bool = true
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -43,10 +44,19 @@ struct VerdictCardView: View {
             gatesRow
             marketRow
 
-            ShareLink(item: verdict.shareText) {
-                Label("Share", systemImage: "square.and.arrow.up")
-                    .font(.subheadline.weight(.medium))
-                    .foregroundStyle(QRTheme.radar)
+            if let history = verdict.depth?.history, !history.isEmpty {
+                PostureStripView(history: history)
+            }
+            if let depth = verdict.depth {
+                DepthFactsView(depth: depth)
+            }
+
+            if showsShare {
+                ShareLink(item: verdict.shareText) {
+                    Label("Share", systemImage: "square.and.arrow.up")
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(QRTheme.radar)
+                }
             }
         }
         .padding(18)

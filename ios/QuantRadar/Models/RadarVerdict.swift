@@ -16,9 +16,10 @@ struct RadarVerdict: Codable, Identifiable, Hashable {
     let meta: Meta?
     let gate: Gate?
     let warnings: [String]?
+    let depth: Depth?
 
     enum CodingKeys: String, CodingKey {
-        case ok, ticker, sector, summary, engagement, market, meta, gate, warnings
+        case ok, ticker, sector, summary, engagement, market, meta, gate, warnings, depth
         case companyName = "company_name"
         case primaryScore = "primary_score"
         case primary
@@ -99,6 +100,32 @@ struct RadarVerdict: Codable, Identifiable, Hashable {
         let stock: String?
     }
 
+    /// Local 90-day replay + forward stats. Optional so bundled JSON still decodes.
+    struct Depth: Codable, Hashable {
+        /// Oldest → newest daily action codes (SETUP / WAIT / NO).
+        let history: [String]
+        let setupCount: Int?
+        let medianForward5dPct: Double?
+        let medianForward20dPct: Double?
+        let lastSetupAgoDays: Int?
+        let lastSetupForwardPct: Double?
+        let earningsDays: Int?
+        let earningsForcedWait: Bool?
+        let sectorEtf: String?
+
+        enum CodingKeys: String, CodingKey {
+            case history
+            case setupCount = "setup_count"
+            case medianForward5dPct = "median_forward_5d_pct"
+            case medianForward20dPct = "median_forward_20d_pct"
+            case lastSetupAgoDays = "last_setup_ago_days"
+            case lastSetupForwardPct = "last_setup_forward_pct"
+            case earningsDays = "earnings_days"
+            case earningsForcedWait = "earnings_forced_wait"
+            case sectorEtf = "sector_etf"
+        }
+    }
+
     var actionCode: String {
         (primary?.action ?? "WAIT").uppercased()
     }
@@ -116,10 +143,17 @@ struct RadarVerdict: Codable, Identifiable, Hashable {
     var shareText: String {
         let action = primary?.label ?? actionCode
         let reason = primary?.reason ?? ""
+        let flexed: String
+        switch actionCode {
+        case "WAIT", "NO", "AVOID":
+            flexed = "Today I didn't force a trade — and that was the point."
+        default:
+            flexed = reason
+        }
         return """
         \(ticker) · QuantRadar
         Score \(scoreText) · \(action)
-        \(reason)
+        \(flexed)
 
         Educational only — not investment advice.
         """

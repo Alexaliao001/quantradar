@@ -38,6 +38,11 @@ def main() -> int:
     launch = (ROOT / "docs/APP_STORE_LAUNCH.md").read_text()
     product = (ROOT / "docs/PRODUCT.md").read_text()
     verdict_card = (ROOT / "QuantRadar/Views/VerdictCardView.swift").read_text()
+    locked = (ROOT / "QuantRadar/Views/LockedVerdictView.swift").read_text()
+    depth = (ROOT / "QuantRadar/Services/PostureDepth.swift").read_text()
+    briefing = (ROOT / "QuantRadar/Services/DailyBriefing.swift").read_text()
+    ledger = (ROOT / "QuantRadar/Services/DisciplineLedger.swift").read_text()
+    widget = (ROOT / "QuantRadarWidget/QuantRadarWidget.swift").read_text()
 
     for pid in (
         "one.quantradar.app.unlock",
@@ -97,18 +102,31 @@ def main() -> int:
     for name, blob, needle in (
         ("SearchView", search, "showPaywall"),
         ("SearchView", search, "claimPreviewTickerIfNeeded"),
+        ("SearchView", search, "isPreviewLocked"),
+        ("SearchView", search, "LockedVerdictView"),
         ("RootTabView", root_tab, "effectiveUnlocked"),
         ("PaywallView", paywall, "Unlock any ticker"),
+        ("PaywallView", paywall, "founderPriceLine"),
         ("OnboardingView", onboarding, "Open radar"),
         ("PurchaseStore", purchase, "purchaseUnlock"),
         ("TodayView", today, "Unlock any ticker"),
+        ("TodayView", today, "todayVerdict"),
+        ("TodayView", today, "DailyBriefing"),
         ("VerdictCardView", verdict_card, "ShareLink"),
+        ("VerdictCardView", verdict_card, "PostureStripView"),
         ("SettingsView", settings, "privacyURL"),
         ("AppAccess", access, "privacy-ios"),
         ("AppAccess", access, "preview.personal_ticker"),
+        ("AppAccess", access, "founderPriceLine"),
         ("FreeMechanicalScorer", scorer, 'action = "SETUP"'),
+        ("FreeMechanicalScorer", scorer, "earningsForced"),
         ("WatchlistView", watch, "Remind if posture changes"),
         ("RadarService", radar, "Do not assign `latest`"),
+        ("LockedVerdictView", locked, "Unlock to see"),
+        ("PostureDepth", depth, "historyDays"),
+        ("DailyBriefing", briefing, "Today's radar is ready"),
+        ("DisciplineLedger", ledger, "qr.discipline.streak"),
+        ("Widget", widget, "QuantRadarSPY"),
     ):
         if needle not in blob:
             bad(f"{name} missing `{needle}`")
@@ -121,27 +139,30 @@ def main() -> int:
         ("PaywallView", paywall, "Live+"),
         ("PaywallView", paywall, "Massive"),
         ("PaywallView", paywall, "Stripe"),
+        ("PaywallView", paywall, "countdown"),
         ("SearchView", search, "forceDemo"),
         ("OnboardingView", onboarding, "You already paid"),
         ("OnboardingView", onboarding, "Try free"),
         ("SettingsView", settings, "Live+ Monthly"),
         ("FreeMechanicalScorer", scorer, 'action = "BUY"'),
         ("WatchlistView", watch, "Watch is locked"),
+        ("DailyBriefing", briefing, "hurry"),
+        ("LockedVerdictView", locked, "BUY"),
     ):
         if banned in blob:
             bad(f"{name} still contains banned `{banned}`")
         else:
             ok(f"{name} has no `{banned}`")
 
-    if 'MARKETING_VERSION: "1.1.0"' not in project or 'CURRENT_PROJECT_VERSION: "5"' not in project:
-        bad("project.yml should be 1.1.0 / build 5")
+    if 'MARKETING_VERSION: "1.2.0"' not in project or 'CURRENT_PROJECT_VERSION: "6"' not in project:
+        bad("project.yml should be 1.2.0 / build 6")
     else:
-        ok("project.yml 1.1.0 / 5")
+        ok("project.yml 1.2.0 / 6")
 
-    if "Do not touch ASC 1.0" not in launch:
-        bad("APP_STORE_LAUNCH missing ASC 1.0 leave-alone note")
+    if "Cancel any in-flight paid 1.0" not in launch:
+        bad("APP_STORE_LAUNCH missing paid-1.0 cancel / free listing strategy")
     else:
-        ok("APP_STORE_LAUNCH protects ASC 1.0")
+        ok("APP_STORE_LAUNCH ships free + Unlock, not paid download")
 
     if "one lifetime personal ticker" not in product:
         bad("PRODUCT.md should describe one personal ticker preview")

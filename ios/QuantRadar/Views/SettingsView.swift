@@ -12,7 +12,7 @@ struct SettingsView: View {
                         "Core",
                         value: purchases.effectiveUnlocked ? "Unlocked" : "Locked · $9.99"
                     )
-                    Text("One-time unlock for any ticker and watchlist.")
+                    Text("One-time unlock for any ticker, watchlist, and 90-day evidence.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
 
@@ -38,6 +38,14 @@ struct SettingsView: View {
                     Toggle("Force Live+", isOn: $purchases.debugForceLivePlus)
                 }
                 #endif
+
+                Section("Discipline") {
+                    LabeledContent("Streak", value: "\(DisciplineLedger.streak) days")
+                    LabeledContent("Waits logged", value: "\(DisciplineLedger.waitCount)")
+                    Text(DisciplineLedger.summaryLine)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
 
                 Section("Legal") {
                     Text("Educational radar only. Not investment advice. Not a broker. No guarantee of outcomes.")

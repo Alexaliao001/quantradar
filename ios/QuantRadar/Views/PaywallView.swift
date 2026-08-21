@@ -4,6 +4,7 @@ import SwiftUI
 struct PaywallView: View {
     @EnvironmentObject private var purchases: PurchaseStore
     @Environment(\.dismiss) private var dismiss
+    var focusTicker: String? = nil
 
     var body: some View {
         NavigationStack {
@@ -13,13 +14,14 @@ struct PaywallView: View {
                         .font(.title2.bold())
                         .foregroundStyle(QRTheme.text)
 
-                    Text("You already have today’s SPY and one personal scan. Unlock once for every US ticker plus a watchlist. Most days the honest answer is still wait.")
+                    Text(headline)
                         .font(.body)
                         .foregroundStyle(QRTheme.muted)
 
                     VStack(alignment: .leading, spacing: 10) {
                         bullet("Any US ticker scan")
                         bullet("Watchlist with posture-change alerts")
+                        bullet("90-day posture strip and setup evidence")
                         bullet("One-time $9.99 — not a subscription")
                     }
                     .padding(14)
@@ -55,6 +57,10 @@ struct PaywallView: View {
                     }
                     .disabled(purchases.isBusy)
 
+                    Text(AppAccess.founderPriceLine)
+                        .font(.caption)
+                        .foregroundStyle(QRTheme.muted)
+
                     Text("Educational only — not investment advice. No guarantee of outcomes.")
                         .font(.caption2)
                         .foregroundStyle(QRTheme.muted)
@@ -70,6 +76,13 @@ struct PaywallView: View {
                 }
             }
         }
+    }
+
+    private var headline: String {
+        if let t = focusTicker, !t.isEmpty {
+            return "\(AppAccess.anxietyCopy(ticker: t)) You already have today’s SPY and one personal scan. Unlock once for every US ticker plus a watchlist. Most days the honest answer is still wait."
+        }
+        return "You already have today’s SPY and one personal scan. Unlock once for every US ticker plus a watchlist. Most days the honest answer is still wait."
     }
 
     private var unlockButtonTitle: String {

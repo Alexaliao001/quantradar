@@ -244,14 +244,91 @@ enum FreeMarketDataClient {
     }
 }
 
+enum QuoteFundamentals: Sendable {
+    case missing
+    case loaded(sector: String?, earningsDate: Date?)
+
+    var sector: String? {
+        if case .loaded(let s, _) = self { return s }
+        return nil
+    }
+
+    var earningsDate: Date? {
+        if case .loaded(_, let d) = self { return d }
+        return nil
+    }
+}
+
+extension FreeMarketDataClient {
+    /// Yahoo quoteSummary — fail-open. Never blocks a scan.
+    static func fundamentals(symbol: String) async -> QuoteFundamentals {
+        let sym = normalize(symbol)
+        guard !sym.isEmpty else { return .missing }
+        let encoded = sym.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? sym
+        guard var components = URLComponents(string: "https://query1.finance.yahoo.com/v10/finance/quoteSummary/\(encoded)") else {
+            return .missing
+        }
+        components.queryItems = [
+            URLQueryItem(name: "modules", value: "assetProfile,calendarEvents"),
+        ]
+        guard let url = components.url else { return .missing }
+        do {
+            let data = try await get(url, headers: [
+                "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) QuantRadar/1.2",
+                "Accept": "application/json",
+            ])
+            return parseFundamentals(data)
+        } catch {
+            return .missing
+        }
+    }
+
+    static func parseFundamentals(_ data: Data) -> QuoteFundamentals {
+        guard
+            let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+            let qs = root["quoteSummary"] as? [String: Any],
+            let results = qs["result"] as? [[String: Any]],
+            let result = results.first
+        else { return .missing }
+
+        var sector: String?
+        if let profile = result["assetProfile"] as? [String: Any] {
+            sector = profile["sector"] as? String
+        }
+        var earnings: Date?
+        if
+            let cal = result["calendarEvents"] as? [String: Any],
+            let earn = cal["earnings"] as? [String: Any],
+            let dates = earn["earningsDate"] as? [[String: Any]],
+            let first = dates.first
+        {
+            if let raw = first["raw"] as? Double {
+                earnings = Date(timeIntervalSince1970: raw)
+            } else if let raw = first["raw"] as? NSNumber {
+                earnings = Date(timeIntervalSince1970: raw.doubleValue)
+            }
+        }
+        if sector == nil && earnings == nil { return .missing }
+        return .loaded(sector: sector, earningsDate: earnings)
+    }
+}
+
 enum FreeMechanicalScorer {
-    static func score(
-        symbol: String,
-        company: String?,
-        bars: [FreeBar],
-        spyBars: [FreeBar]?,
-        source: FreeDataSourceID
-    ) -> RadarVerdict {
+    struct Core: Equatable {
+        var score: Double
+        var action: String
+        var label: String
+        var reason: String
+        var summary: String
+        var marketGate: String
+        var stockGate: String
+        var spyPct: Double?
+        var avoided: String?
+        var pullback: Double
+        var rsi: Double?
+    }
+
+    static func core(bars: [FreeBar], spyBars: [FreeBar]?) -> Core {
         let closes = bars.map(\.close)
         let volumes = bars.map(\.volume)
         let last = closes.last ?? 0
@@ -316,30 +393,86 @@ enum FreeMechanicalScorer {
         } else {
             summary = "Posture is cautious. Wait until timing lines up."
         }
+        return Core(
+            score: score,
+            action: action,
+            label: label,
+            reason: reason,
+            summary: summary,
+            marketGate: marketGate,
+            stockGate: stockGate,
+            spyPct: spyPct,
+            avoided: action == "SETUP" ? nil : "Skipping a forced entry preserves optionality.",
+            pullback: pullback,
+            rsi: rsi
+        )
+    }
+
+    static func score(
+        symbol: String,
+        company: String?,
+        bars: [FreeBar],
+        spyBars: [FreeBar]?,
+        source: FreeDataSourceID,
+        earningsDate: Date? = nil,
+        sectorName: String? = nil,
+        sectorAction: String? = nil,
+        now: Date = Date()
+    ) -> RadarVerdict {
+        var c = core(bars: bars, spyBars: spyBars)
+        var earningsForced = false
+        if let earningsDate, PostureDepth.isNearEarnings(earningsDate, now: now), c.action == "SETUP" {
+            c.action = "WAIT"
+            c.label = "Wait & Watch"
+            c.reason = "Earnings within 3 days — radar stays on wait."
+            c.summary = "Earnings window: posture stays on wait. Educational only — not a buy order."
+            c.stockGate = "WATCH"
+            earningsForced = true
+        }
+        var sectorGate = "N/A"
+        if let sectorAction {
+            sectorGate = sectorAction == "NO" ? "NO" : (sectorAction == "SETUP" ? "PASS" : "WATCH")
+            if sectorAction == "NO" && c.action == "SETUP" {
+                c.action = "WAIT"
+                c.label = "Wait & Watch"
+                c.reason = "Sector posture is blocked — wait even if the stock looks ready."
+                c.summary = "Sector gate is closed. Wait until the group improves."
+                c.stockGate = "WATCH"
+            }
+        }
+        let etf = PostureDepth.etf(forSector: sectorName)
+        let depth = PostureDepth.build(
+            bars: bars,
+            spyBars: spyBars,
+            earningsDate: earningsDate,
+            now: now,
+            earningsForcedWait: earningsForced,
+            sectorEtf: etf
+        )
         return RadarVerdict(
             ok: true,
             ticker: symbol,
             companyName: company ?? symbol,
-            sector: nil,
+            sector: sectorName ?? etf,
             primaryScore: .init(
-                value: score,
+                value: c.score,
                 scale: 100,
                 label: "Mechanical posture score",
                 withheld: false,
                 note: nil
             ),
-            primary: .init(action: action, label: label, reason: reason),
-            summary: summary,
+            primary: .init(action: c.action, label: c.label, reason: c.reason),
+            summary: c.summary,
             engagement: .init(
-                avoidedLine: action == "SETUP" ? nil : "Skipping a forced entry preserves optionality.",
+                avoidedLine: c.avoided,
                 freezeLabel: "on-device",
                 postureNote: "Mechanical posture ≠ trade direction."
             ),
             dataQuality: .init(usable: true, reliability: "medium", optionsActionable: false),
             market: .init(
-                marketState: marketGate == "PASS" ? "risk_on_cautious" : "risk_off",
-                spyChangePct: spyPct,
-                sectorEtf: nil,
+                marketState: c.marketGate == "PASS" ? "risk_on_cautious" : "risk_off",
+                spyChangePct: c.spyPct,
+                sectorEtf: etf,
                 sectorChangePct: nil,
                 vixCurrent: nil,
                 vixTrend: nil
@@ -350,8 +483,9 @@ enum FreeMechanicalScorer {
                 disclaimer: "Educational radar only — not investment advice.",
                 dataPath: source.rawValue
             ),
-            gate: .init(market: marketGate, sector: "N/A", stock: stockGate),
-            warnings: ["Options data is not part of this radar."]
+            gate: .init(market: c.marketGate, sector: sectorGate, stock: c.stockGate),
+            warnings: ["Options data is not part of this radar."],
+            depth: depth
         )
     }
 

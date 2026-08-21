@@ -4,6 +4,7 @@ struct TodayView: View {
     @EnvironmentObject private var radar: RadarService
     @EnvironmentObject private var purchases: PurchaseStore
     @State private var showPaywall = false
+    @State private var briefingAsked = false
 
     var body: some View {
         NavigationStack {
@@ -19,9 +20,12 @@ struct TodayView: View {
                         Text(AppAccess.differentiationLine)
                             .font(.footnote.weight(.medium))
                             .foregroundStyle(QRTheme.text)
+                        Text(DisciplineLedger.summaryLine)
+                            .font(.caption)
+                            .foregroundStyle(QRTheme.muted)
                     }
 
-                    if let v = radar.latest {
+                    if let v = radar.todayVerdict {
                         VerdictCardView(verdict: v)
                         if radar.isWarmingUp || radar.isLoading {
                             HStack(spacing: 8) {
@@ -36,6 +40,30 @@ struct TodayView: View {
                     } else {
                         Text(radar.errorMessage ?? "Market posture unavailable.")
                             .foregroundStyle(QRTheme.warn)
+                    }
+
+                    if purchases.effectiveUnlocked, !radar.sectorHeat.isEmpty {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Sector posture")
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(QRTheme.muted)
+                            LazyVGrid(columns: [GridItem(.adaptive(minimum: 96), spacing: 8)], spacing: 8) {
+                                ForEach(radar.sectorHeat, id: \.etf) { row in
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(row.label)
+                                            .font(.caption2)
+                                            .foregroundStyle(QRTheme.muted)
+                                        Text(row.action)
+                                            .font(.caption.weight(.bold))
+                                            .foregroundStyle(QRTheme.text)
+                                    }
+                                    .padding(8)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .background(QRTheme.panel)
+                                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                                }
+                            }
+                        }
                     }
 
                     if purchases.effectiveUnlocked {
@@ -61,7 +89,7 @@ struct TodayView: View {
                             .foregroundStyle(QRTheme.muted)
                     }
 
-                    Text(radar.latest?.meta?.disclaimer ?? "Educational radar only — not investment advice.")
+                    Text(radar.todayVerdict?.meta?.disclaimer ?? "Educational radar only — not investment advice.")
                         .font(.caption2)
                         .foregroundStyle(QRTheme.muted)
                 }
@@ -72,16 +100,34 @@ struct TodayView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
-                        Task { _ = await radar.analyze(ticker: radar.latest?.ticker ?? "SPY", bypassCache: true) }
+                        Task {
+                            _ = await radar.analyze(ticker: "SPY", bypassCache: true)
+                            if purchases.effectiveUnlocked {
+                                await radar.refreshSectors()
+                            }
+                        }
                     } label: {
                         Image(systemName: "arrow.clockwise")
                     }
                     .disabled(radar.isLoading || radar.isWarmingUp)
                 }
             }
-            .task { await radar.warmUpToday() }
-            .onChange(of: radar.latest?.ticker) { _, _ in
-                if let v = radar.latest { ReviewPrompt.recordVerdict(v) }
+            .task {
+                await radar.warmUpToday()
+                if let v = radar.todayVerdict, !v.isWithheld {
+                    DisciplineLedger.record(action: v.actionCode, ticker: v.ticker, close: nil)
+                    ReviewPrompt.recordVerdict(v)
+                }
+                if purchases.effectiveUnlocked {
+                    await radar.refreshSectors()
+                }
+                if !briefingAsked {
+                    briefingAsked = true
+                    await DailyBriefing.requestAndSchedule()
+                }
+            }
+            .onChange(of: radar.todayVerdict?.ticker) { _, _ in
+                if let v = radar.todayVerdict { ReviewPrompt.recordVerdict(v) }
             }
             .sheet(isPresented: $showPaywall) {
                 PaywallView()

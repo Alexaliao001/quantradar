@@ -6,7 +6,9 @@ struct SearchView: View {
     @EnvironmentObject private var purchases: PurchaseStore
     @State private var ticker = ""
     @State private var showPaywall = false
+    @State private var paywallTicker: String?
     @State private var gateMessage: String?
+    @State private var lockedPreview = false
     @FocusState private var focused: Bool
 
     var body: some View {
@@ -74,16 +76,23 @@ struct SearchView: View {
                     }
 
                     if let v = radar.latest {
-                        VerdictCardView(verdict: v)
-                        Text("Educational only — not investment advice. Not a broker.")
-                            .font(.caption2)
-                            .foregroundStyle(QRTheme.muted)
-                        Button {
-                            addToWatch(v.ticker)
-                        } label: {
-                            Label("Add to Watch", systemImage: "eye")
+                        if lockedPreview {
+                            LockedVerdictView(verdict: v) {
+                                paywallTicker = v.ticker
+                                showPaywall = true
+                            }
+                        } else {
+                            VerdictCardView(verdict: v)
+                            Text("Educational only — not investment advice. Not a broker.")
+                                .font(.caption2)
+                                .foregroundStyle(QRTheme.muted)
+                            Button {
+                                addToWatch(v.ticker)
+                            } label: {
+                                Label("Add to Watch", systemImage: "eye")
+                            }
+                            .buttonStyle(.bordered)
                         }
-                        .buttonStyle(.bordered)
                     }
                 }
                 .padding(20)
@@ -91,10 +100,10 @@ struct SearchView: View {
             .background(QRTheme.bg.ignoresSafeArea())
             .navigationTitle("Scan")
             .onChange(of: radar.latest?.ticker) { _, _ in
-                if let v = radar.latest { ReviewPrompt.recordVerdict(v) }
+                if let v = radar.latest, !lockedPreview { ReviewPrompt.recordVerdict(v) }
             }
             .sheet(isPresented: $showPaywall) {
-                PaywallView()
+                PaywallView(focusTicker: paywallTicker)
                     .environmentObject(purchases)
             }
         }
@@ -111,20 +120,25 @@ struct SearchView: View {
         focused = false
         gateMessage = nil
         let symbol = AppAccess.normalizeTicker(ticker)
-        guard AppAccess.canScan(ticker: symbol, unlocked: purchases.effectiveUnlocked) else {
-            gateMessage = "Unlock required to scan \(symbol)."
+        let locked = AppAccess.isPreviewLocked(ticker: symbol, unlocked: purchases.effectiveUnlocked)
+        lockedPreview = locked
+        let ok = await radar.analyze(ticker: symbol)
+        guard ok, let latest = radar.latest else { return }
+        if locked {
+            paywallTicker = symbol
             showPaywall = true
             return
         }
-        let ok = await radar.analyze(ticker: symbol)
-        if ok, let latest = radar.latest, !latest.isWithheld {
+        if !latest.isWithheld {
             AppAccess.claimPreviewTickerIfNeeded(symbol, withheld: false)
+            DisciplineLedger.record(action: latest.actionCode, ticker: symbol, close: nil)
         }
     }
 
     private func addToWatch(_ ticker: String) {
         guard purchases.effectiveUnlocked else {
             gateMessage = "Unlock to use Watch."
+            paywallTicker = ticker
             showPaywall = true
             return
         }

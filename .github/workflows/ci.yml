@@ -47,6 +47,7 @@ jobs:
             -only-testing:QuantRadarTests/AppAccessTests \
             -only-testing:QuantRadarTests/OrganicFunnelTests \
             -only-testing:QuantRadarTests/BarsCacheTests \
+            -only-testing:QuantRadarTests/DepthEngineTests \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO

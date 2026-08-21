@@ -18,6 +18,7 @@ class IosLegalFiles(unittest.TestCase):
         privacy = (REPO / "static" / "privacy-ios.html").read_text(encoding="utf-8")
         terms = (REPO / "static" / "terms-ios.html").read_text(encoding="utf-8")
         self.assertIn("We do not collect personal data from the iOS app", privacy)
+        self.assertIn("weekday morning reminder", privacy)
         self.assertNotIn("Google OAuth", privacy)
         self.assertNotIn("Stripe", privacy)
         self.assertIn("not a broker", terms.lower())

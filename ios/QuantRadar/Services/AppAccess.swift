@@ -16,6 +16,7 @@ enum AppAccess {
 
     static let differentiationLine = "One score. Most days: don’t act — not tipster noise."
     static let previewLine = "Free: today’s SPY plus one ticker of yours."
+    static let founderPriceLine = "Founder price $9.99 — first 1,000 unlocks. One-time, not a subscription."
 
     static let previewTickerKey = "qr.preview.personal_ticker"
 
@@ -46,6 +47,17 @@ enum AppAccess {
             return claimed == t
         }
         return true
+    }
+
+    /// Second personal ticker (and beyond) stays locked until unlock.
+    static func isPreviewLocked(ticker: String, unlocked: Bool) -> Bool {
+        !canScan(ticker: ticker, unlocked: unlocked)
+    }
+
+    static func anxietyCopy(ticker: String) -> String {
+        let t = normalizeTicker(ticker)
+        if t.isEmpty { return "Should you chase another ticker right now?" }
+        return "Should you chase \(t) right now?"
     }
 
     /// Persist the first successful personal preview ticker. SPY does not consume it.

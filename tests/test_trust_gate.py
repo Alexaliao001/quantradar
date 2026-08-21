@@ -46,6 +46,7 @@ class TrustGateContractTests(unittest.TestCase):
         self.assertIn("Trust server statuses only", gate_fn)
         self.assertIn("Mechanical posture", html)
         self.assertIn("PUT ≠ sell", html)
+        self.assertIn("Website Pro does not unlock it", html)
         self.assertTrue((REPO / "docs" / "STOCK_AGENT_MAP.md").is_file())
 
     def test_pro_value_copy_not_selling_live_air(self) -> None:
@@ -54,6 +55,8 @@ class TrustGateContractTests(unittest.TestCase):
         self.assertNotIn("Pro for live desk", pricing)
         self.assertIn("supporter", pricing.lower())
         self.assertIn("when charts are mounted", pricing.lower())
+        self.assertIn("does website pro unlock the ios app", pricing.lower())
+        self.assertIn("independent products", pricing.lower())
         self.assertTrue((REPO / "docs" / "PRO_VALUE.md").is_file())
         body = (REPO / "docs" / "PRO_VALUE.md").read_text(encoding="utf-8")
         self.assertIn("Verdict: B", body)
@@ -66,6 +69,8 @@ class TrustGateContractTests(unittest.TestCase):
             "terms.html",
             "privacy.html",
             "refund.html",
+            "privacy-ios.html",
+            "terms-ios.html",
             "og-default.svg",
         ):
             self.assertTrue((REPO / "static" / name).is_file(), name)
@@ -97,6 +102,8 @@ class TrustGateHttpTests(unittest.TestCase):
             "/pricing",
             "/terms",
             "/privacy",
+            "/privacy-ios",
+            "/terms-ios",
             "/refund",
             "/static/og-default.svg",
         ):
