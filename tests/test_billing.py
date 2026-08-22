@@ -43,6 +43,21 @@ class PriceIntervalTests(unittest.TestCase):
             self.assertEqual(stripe_billing.price_id_for_interval("yearly"), "price_y")
             self.assertEqual(stripe_billing.price_id_for_interval(None), "price_m")
 
+    def test_price_id_for_portfolio_pro(self) -> None:
+        with mock.patch.dict(
+            os.environ,
+            {
+                "STRIPE_PRICE_ID_PORTFOLIO_PRO_MONTHLY": "price_pp",
+                "STRIPE_PRICE_ID_MONTHLY": "price_m",
+            },
+            clear=False,
+        ):
+            self.assertEqual(
+                stripe_billing.price_id_for_plan("portfolio_pro", "monthly"),
+                "price_pp",
+            )
+            self.assertEqual(stripe_billing.normalize_checkout_plan("portfolio-pro"), "portfolio_pro")
+
 
 class WebhookSigTests(unittest.TestCase):
     def test_verify_signature(self) -> None:
@@ -127,15 +142,38 @@ class BillingHttpTests(unittest.TestCase):
         self.assertEqual(body.get("action"), "plan_pro")
         self.assertEqual(users_mod.resolve_plan("buyer@test.local"), "pro")
 
-        # status exposes pro when session email matches
-        token = authlib.mint_session(sub="b", email="buyer@test.local", plan="free")
+    def test_webhook_sets_portfolio_pro(self) -> None:
+        users_mod.register_user("portfolio@test.local", "password12", name="Portfolio")
+        self.assertEqual(users_mod.resolve_plan("portfolio@test.local"), "free")
+        event = {
+            "type": "checkout.session.completed",
+            "data": {
+                "object": {
+                    "customer_email": "portfolio@test.local",
+                    "payment_status": "paid",
+                    "status": "complete",
+                    "metadata": {
+                        "email": "portfolio@test.local",
+                        "product": "quantradar_portfolio_pro",
+                        "plan": "portfolio_pro",
+                    },
+                }
+            },
+        }
+        code, body = self._post("/api/billing/webhook", event)
+        self.assertEqual(code, 200, body)
+        self.assertTrue(body.get("ok"), body)
+        self.assertEqual(body.get("action"), "plan_portfolio_pro")
+        self.assertEqual(users_mod.resolve_plan("portfolio@test.local"), "portfolio_pro")
+
+        token = authlib.mint_session(sub="pp", email="portfolio@test.local", plan="free")
         req = urllib.request.Request(
             self._url("/api/auth/status"),
             headers={"Cookie": f"{authlib.COOKIE_NAME}={token}"},
         )
         with urllib.request.urlopen(req, timeout=5) as r:
             status = json.loads(r.read().decode())
-        self.assertEqual(status["user"]["plan"], "pro")
+        self.assertEqual(status["user"]["plan"], "portfolio_pro")
 
     def test_webhook_unpaid_rejected(self) -> None:
         event = {
@@ -160,6 +198,8 @@ class BillingHttpTests(unittest.TestCase):
         self.assertTrue(body.get("ok"))
         self.assertIn("monthly", body.get("intervals") or [])
         self.assertEqual(body["prices"]["yearly"], "$249")
+        self.assertEqual(body["prices"]["portfolio_pro_monthly"], "$99")
+        self.assertIn("portfolio_pro", body.get("plans") or [])
         self.assertIn(body.get("pro_value"), {"supporter_until_mount", "live_ready"})
         self.assertIn("live_available", body)
         self.assertTrue(body.get("pro_value_note"))
@@ -253,6 +293,46 @@ class CheckoutPayloadTests(unittest.TestCase):
         self.assertEqual(body.get("metadata[email]"), ["buyer@test.local"])
         self.assertEqual(body.get("subscription_data[metadata][email]"), ["buyer@test.local"])
         self.assertEqual(body.get("mode"), ["subscription"])
+
+    def test_portfolio_pro_checkout_metadata(self) -> None:
+        captured: dict[str, Any] = {}
+
+        class FakeResp:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *args):
+                return False
+
+            def read(self) -> bytes:
+                return json.dumps(
+                    {"id": "cs_pp", "url": "https://checkout.stripe.com/pp", "status": "open"}
+                ).encode()
+
+        def fake_urlopen(req, timeout=30):  # noqa: ANN001
+            captured["body"] = req.data.decode() if isinstance(req.data, bytes) else str(req.data)
+            return FakeResp()
+
+        with mock.patch.dict(
+            os.environ,
+            {
+                "QUANTRADAR_STRIPE_SECRET_KEY": "sk_test_x",
+                "STRIPE_PRICE_ID_PORTFOLIO_PRO_MONTHLY": "price_pp",
+                "PUBLIC_BASE_URL": "https://quantradar.one",
+            },
+            clear=False,
+        ):
+            with mock.patch("urllib.request.urlopen", side_effect=fake_urlopen):
+                out = stripe_billing.create_checkout_session(
+                    customer_email="portfolio@test.local",
+                    plan="portfolio_pro",
+                )
+        self.assertEqual(out.get("plan"), "portfolio_pro")
+        body = urllib.parse.parse_qs(captured["body"])
+        self.assertEqual(body.get("line_items[0][price]"), ["price_pp"])
+        self.assertEqual(body.get("metadata[plan]"), ["portfolio_pro"])
+        self.assertEqual(body.get("metadata[product]"), ["quantradar_portfolio_pro"])
+        self.assertEqual(body.get("metadata[interval]"), ["monthly"])
 
 
 if __name__ == "__main__":

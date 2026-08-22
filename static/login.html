@@ -71,10 +71,15 @@
     const params = new URLSearchParams(location.search);
     const next = params.get("next") || "";
     const interval = params.get("interval") || "monthly";
+    const checkoutPlan = params.get("plan") || "";
 
     function redirectAfterAuth() {
       if (next === "checkout") {
-        location.href = "/pricing?authed=1&interval=" + encodeURIComponent(interval);
+        if (checkoutPlan === "portfolio_pro") {
+          location.href = "/pricing?authed=1&plan=portfolio_pro";
+        } else {
+          location.href = "/pricing?authed=1&interval=" + encodeURIComponent(interval);
+        }
         return;
       }
       if (next === "live") {
@@ -107,7 +112,9 @@
 
     if (next === "checkout") {
       document.getElementById("lede").textContent =
-        "Create an account to unlock Pro checkout. After sign-in you will return to pricing to complete payment.";
+        checkoutPlan === "portfolio_pro"
+          ? "Create an account to unlock Portfolio Pro checkout. After sign-in you will return to pricing to complete payment."
+          : "Create an account to unlock Pro checkout. After sign-in you will return to pricing to complete payment.";
     } else if (next === "live") {
       document.getElementById("lede").textContent =
         "Sign in to use the desk. Live needs Pro and a mounted charts engine (supporter plan until then).";

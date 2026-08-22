@@ -13,6 +13,8 @@ from copy import deepcopy
 from pathlib import Path
 from typing import Any
 
+from app.users import is_paid_plan
+
 
 def _basename(path: Any) -> str | None:
     if path is None:
@@ -43,8 +45,7 @@ def _slim_sources(sources: Any) -> list[dict[str, str]]:
 def is_pro_live_audience(user: dict[str, Any] | None, result: dict[str, Any]) -> bool:
     if not user:
         return False
-    plan = str(user.get("plan") or "").strip().lower()
-    if plan != "pro":
+    if not is_paid_plan(str(user.get("plan") or "")):
         return False
     meta = result.get("meta") if isinstance(result.get("meta"), dict) else {}
     return str(meta.get("mode") or "").strip().lower() == "live"
