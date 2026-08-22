@@ -508,6 +508,17 @@ th {
   border-bottom-color: rgba(61, 214, 140, 0.35);
 }
 
+.foot-partner {
+  display: block;
+  margin-top: 0.45rem;
+  line-height: 1.55;
+}
+
+.foot-partner a + a {
+  display: block;
+  margin-top: 0.2rem;
+}
+
 .foot details summary {
   cursor: pointer;
   color: var(--muted);
