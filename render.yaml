@@ -39,3 +39,5 @@ services:
         sync: false
       - key: STRIPE_PRICE_ID_YEARLY
         sync: false
+      - key: STRIPE_PRICE_ID_PORTFOLIO_PRO_MONTHLY
+        sync: false
