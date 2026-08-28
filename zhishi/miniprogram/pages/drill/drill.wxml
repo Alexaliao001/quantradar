@@ -1,0 +1,9 @@
+<view class="brand">错题本</view>
+<view class="muted">{{prompt}}</view>
+<button data-a="a" bindtap="answer">A 当日可卖</button>
+<button data-a="b" bindtap="answer">B 下一交易日 T+1</button>
+<button data-a="c" bindtap="answer">C 一周后</button>
+<view class="muted">{{feedback}}</view>
+<block wx:for="{{drills}}" wx:key="id">
+  <view class="muted">错题：{{item.prompt}} → {{item.user_answer}}</view>
+</block>

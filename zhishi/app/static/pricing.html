@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>研习会员 — 知势</title>
+  <link rel="stylesheet" href="/app.css" />
+</head>
+<body>
+  <div class="wrap">
+    <p><a href="/">← 知势</a></p>
+    <h1 class="brand">研习会员</h1>
+    <p class="muted">知识付费 SKU。商品名不含荐股/投顾字样。微信支付在小程序端接入；H5 提供 mock 下单联调。</p>
+    <ul class="list" id="sku-list"><li class="muted">加载中…</li></ul>
+    <p id="pay-msg" class="muted"></p>
+    <p class="disclaimer">本产品为投资教育工具，不构成任何投资建议。 · <a href="/terms">用户协议</a> · <a href="/privacy">隐私</a></p>
+  </div>
+  <script>
+    async function main() {
+      const res = await fetch("/api/skus");
+      const data = await res.json();
+      const order = ["free", "monthly", "yearly", "course_traps"];
+      const list = document.getElementById("sku-list");
+      list.innerHTML = order.map((id) => {
+        const s = data.skus[id];
+        const price = s.price_fen === 0 ? "免费" : `¥${(s.price_fen/100).toFixed(0)}${s.period === "month" ? "/月" : s.period === "year" ? "/年" : ""}`;
+        return `<li><strong>${s.name}</strong> · ${price}
+          <div><button type="button" class="secondary buy" data-sku="${id}">${s.price_fen ? "模拟下单" : "已包含"}</button></div></li>`;
+      }).join("");
+      document.querySelectorAll(".buy").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+          const r = await fetch("/api/pay/mock_checkout", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ sku: btn.dataset.sku }),
+          });
+          const j = await r.json();
+          document.getElementById("pay-msg").textContent = j.mock
+            ? `${j.name || btn.dataset.sku} · prepay=${j.prepay_id || "n/a"} · ${j.message || "ok"}`
+            : JSON.stringify(j);
+        });
+      });
+    }
+    main();
+  </script>
+</body>
+</html>

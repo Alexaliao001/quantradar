@@ -1,0 +1,5 @@
+<view class="brand">规则短课</view>
+<block wx:for="{{lessons}}" wx:key="id">
+  <view class="btn" data-id="{{item.id}}" bindtap="open">{{item.title}}</view>
+</block>
+<view wx:if="{{markdown}}" class="muted">{{markdown}}</view>

@@ -1,0 +1,11 @@
+<view class="brand">复盘本</view>
+<block wx:for="{{reviews}}" wx:key="id">
+  <view>{{item.symbol}} · {{item.posture}} · {{item.primary_score}}</view>
+  <view class="muted">假设：{{item.hypothesis}}</view>
+  <view class="muted">失效：{{item.invalidation}}</view>
+</block>
+<view class="brand">提醒</view>
+<block wx:for="{{reminders}}" wx:key="id">
+  <view>{{item.symbol}} · {{item.kind}} · {{item.done ? "已完成" : "待复盘"}}</view>
+  <button size="mini" data-id="{{item.id}}" bindtap="complete" wx:if="{{!item.done}}">标记完成</button>
+</block>

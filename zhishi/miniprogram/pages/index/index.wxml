@@ -1,0 +1,10 @@
+<view class="brand">知势</view>
+<view class="muted">复盘每一笔，而不是追每一笔</view>
+<navigator url="/pages/case/case" class="btn">今日教学案例</navigator>
+<navigator url="/pages/check/check" class="btn">框架自检</navigator>
+<navigator url="/pages/lesson/lesson" class="btn">规则短课</navigator>
+<navigator url="/pages/review/review" class="btn">复盘本</navigator>
+<navigator url="/pages/drill/drill" class="btn">错题本</navigator>
+<navigator url="/pages/pricing/pricing" class="btn">研习会员</navigator>
+<navigator url="/pages/legal/legal" class="btn">协议与免责</navigator>
+<view class="disclaimer">{{disclaimer}}</view>
