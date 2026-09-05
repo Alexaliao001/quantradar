@@ -45,6 +45,11 @@ struct VerdictCardView: View {
 
             gatesRow
             marketRow
+            if let day = verdict.meta?.marketAsOf {
+                Text("Daily close · \(day)\(verdict.meta?.fromCache == true ? " · cached" : "")")
+                    .font(.caption)
+                    .foregroundStyle(QRTheme.muted)
+            }
 
             if let history = verdict.depth?.history, !history.isEmpty {
                 PostureStripView(history: history)

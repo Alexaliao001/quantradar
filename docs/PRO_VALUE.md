@@ -1,45 +1,25 @@
-# Pro value adjudication (QD1-0)
+# 付费价值与验收边界
 
-> **Verdict: A — live is open to everyone; Pro is the supporter tier.**
-> Date: 2026-09-01 · Host: `quantradar.one` (Nube.sh VPS, stdlib-only shell + free engine)
+2026-09-06：以下是已实现、待发布的产品定义。生产仍为先前版本，发布状态见 `CORRECT_OPS.md`。
 
-## Decision
+| 权益 | Free | Pro | Portfolio Pro |
+|---|---|---|---|
+| 完成交易日扫描 | 有，来宾较严限流 | 有，较高限额 | 有，较高限额 |
+| 保存股票 | 1 | 10 | 50 |
+| 历史机械重建 | 5 个交易日 | 至多 90 个 | 至多 90 个 |
+| 每日观察列表快照 | 无 | 站内 JSON | 站内 JSON + CSV |
+| 订阅标价 | 免费 | $29/月或 $249/年 | $99/月 |
 
-| Question | Answer |
-|----------|--------|
-| Can this production host run `mode=live` today? | **Yes** — free multi-source engine (`free_engine/fetch_all.py`) mounted via `CHARTS_DIR` |
-| Who may run live? | **Everyone** — guests included; per-IP guest budget (`QUANTRADAR_LIVE_GUEST_RATE`, default 6/window) protects the shared data path |
-| What is Pro today? | **Supporter tier**: higher rate limits + keeps the free engine running. Not a gate on live. |
-| What flipped the verdict? | Polygon replaced by a free consensus engine (Yahoo q1/q2 + Nasdaq) ported 1:1 from the iOS `FreeMechanicalScorer`; `/health.charts_status == "mounted"`; guest live smoke-verified in production |
+单股报告 $9 一次性付款，绑定股票、日期、不可变输入。付款后生成 JSON、4 张图和 90 个交易日机械重建；可选 $5 CSV/队列优先，加购默认不勾选。覆盖不足时先拒绝结账。实际付款后 7 天内可用一次 $9 Pro 抵扣；退款、过期、已用券不应重新发放。
 
-## Production evidence (2026-09-01)
+每日快照需订阅有效且主动启用。中断后继续处理，最多三次取数；缺失明确标记。恢复历史日期时不拿今天的行业/财报条件冒充历史条件。已保存的已购内容在降级后保留，账号间不能访问。
 
-`GET https://quantradar.one/health`:
+这些价值是研究整理和复盘，不能当作盈利、已发信号回测、仓位建议或实时行情。JSON/CSV 再分发和商业展示须取得明确数据权限，见 `DATA_LICENSING.md`。Email 尚未配置，不销售自动邮件交付。
 
-| Field | Value |
-|-------|-------|
-| `charts_status` | `mounted` |
-| `charts_reachable` | `true` |
-| `fetch_all_present` | `true` |
-| `data_path` | `charts_engine` |
-| `mode_default` | `live` |
-| `live_requires_login` | `false` |
-| `live_requires_pro` | `false` |
+## 商业验收
 
-## Honesty constraints (unchanged)
+目前无证据证明订阅能持续盈利。Stripe 历史域名关联核查有一笔 $0.99 已付 Checkout，对应订阅已取消；当前产品标记范围未发现活跃订阅或已付 Checkout。此结果不是整个 Stripe 账户的收入报表。
 
-1. **No fake scores** — live fails closed (`ok:false`) when sources disagree or the engine errors; artifact fallback is labeled `degraded` with an explicit warning.
-2. **Options never sold as actionable** without a live chain (`options_actionable` honesty gate).
-3. **No paid-API keys in the public path** — the free engine uses only public endpoints (Yahoo query1/query2, Nasdaq.com); no Polygon/Massive key required.
-4. **Guest budget** — a single IP cannot burn host + upstream capacity; signed-in users (any plan) get the normal authenticated budget, Pro the highest.
+先确认数据许可和完整支付交付，再用真实客户验证：首批 10 位付费用户，逐个记录购买来源、首次成功报告、7/28 日回访、续订与退款原因。此人数是实验目标，不是现有用户或统计保证。
 
-## Product copy (locked by this verdict)
-
-- Free = live multi-source scans for any ticker (guest limits) + frozen demo artifacts (INTC/AAPL).
-- Pro = supporter tier ($29/mo · $249/yr): higher limits, keeps the desk running. Never sold as "the only way to get live".
-- Server gates: none on live; rate limits only. `plan_required`/`login_required` remain for checkout and `/api/me` only.
-
-## Related backlog
-
-- QD5-0 / QR2-1 — free OHLCV refresh path (Yahoo) — shipped as the free engine.
-- QD1-1 — Stripe production prices/webhook (money path; value stance is this doc).
+不靠回测收益、避免亏损金额、虚假人数或人工倒计时催单。获客文案围绕“每天查看持有关注股票的变化”；外部发送仍需明确授权。停止增加功能，直到观察到首批真实使用与流失原因。

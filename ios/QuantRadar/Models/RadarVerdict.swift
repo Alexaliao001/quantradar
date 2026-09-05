@@ -86,11 +86,17 @@ struct RadarVerdict: Codable, Identifiable, Hashable {
         let fetchTime: String?
         let disclaimer: String?
         let dataPath: String?
+        var marketAsOf: String? = nil
+        var computedAt: String? = nil
+        var fromCache: Bool? = nil
 
         enum CodingKeys: String, CodingKey {
             case mode, disclaimer
             case fetchTime = "fetch_time"
             case dataPath = "data_path"
+            case marketAsOf = "market_as_of"
+            case computedAt = "computed_at"
+            case fromCache = "from_cache"
         }
     }
 

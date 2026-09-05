@@ -23,11 +23,14 @@ final class BarsCacheTests: XCTestCase {
         XCTAssertNotNil(hit)
         XCTAssertEqual(hit?.bars.count, 40)
         XCTAssertEqual(hit?.source, .yahooQuery1)
+        XCTAssertEqual(hit?.fetchedAt, result.fetchedAt)
+        XCTAssertEqual(hit?.fromCache, true)
 
         // New actor instance sharing same disk dir should still hit.
         let cache2 = BarsCache(diskDir: dir)
         let diskHit = await cache2.get("aapl", maxAge: 60)
         XCTAssertEqual(diskHit?.bars.last?.close, bars.last?.close)
+        XCTAssertEqual(diskHit?.fetchedAt, result.fetchedAt)
     }
 
     func testExpiredEntryMisses() async throws {

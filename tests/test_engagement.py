@@ -27,6 +27,9 @@ from app.server import Handler  # noqa: E402
 
 class AvoidanceLedgerTests(unittest.TestCase):
     def setUp(self) -> None:
+        patcher = mock.patch("free_engine.market_calendar.completed_session", return_value="2026-09-04")
+        patcher.start()
+        self.addCleanup(patcher.stop)
         self._td = tempfile.TemporaryDirectory()
         d = Path(self._td.name)
         self._orig_ledger = engagement.LEDGER_PATH
@@ -40,6 +43,10 @@ class AvoidanceLedgerTests(unittest.TestCase):
         self._td.cleanup()
 
     def _seed(self, entries: list[dict], cache: dict) -> None:
+        for entry in entries:
+            entry.setdefault("as_of", "2026-09-03")
+        for hit in cache.values():
+            hit.setdefault("as_of", "2026-09-04")
         engagement.LEDGER_PATH.write_text(
             json.dumps({"version": 1, "entries": entries}), encoding="utf-8"
         )
@@ -48,44 +55,44 @@ class AvoidanceLedgerTests(unittest.TestCase):
     def test_no_event_fall_10pct_counts(self) -> None:
         self._seed(
             [
-                {"ticker": "XYZ", "ts": time.time() - 86400, "action": "NO", "close": 100.0, "email": None},
+                {"ticker": "XYZ", "ts": time.time() - 86400, "action": "NO", "close": 100.0, "email": "reader@example.com"},
             ],
             {"XYZ": {"ts": time.time(), "close": 90.0}},
         )
-        events = engagement.avoidance_events(None)
+        events = engagement.avoidance_events("reader@example.com")
         self.assertEqual(len(events), 1)
         self.assertEqual(events[0]["ticker"], "XYZ")
         self.assertEqual(events[0]["drop_pct"], 10.0)
 
     def test_put_action_counts(self) -> None:
         self._seed(
-            [{"ticker": "ABC", "ts": time.time() - 100, "action": "PUT", "close": 50.0, "email": None}],
+            [{"ticker": "ABC", "ts": time.time() - 100, "action": "PUT", "close": 50.0, "email": "reader@example.com"}],
             {"ABC": {"ts": time.time(), "close": 46.0}},
         )
-        events = engagement.avoidance_events(None)
+        events = engagement.avoidance_events("reader@example.com")
         self.assertEqual(len(events), 1)
         self.assertEqual(events[0]["drop_pct"], 8.0)
 
     def test_small_fall_below_threshold_excluded(self) -> None:
         self._seed(
-            [{"ticker": "XYZ", "ts": time.time() - 100, "action": "NO", "close": 100.0, "email": None}],
+            [{"ticker": "XYZ", "ts": time.time() - 100, "action": "NO", "close": 100.0, "email": "reader@example.com"}],
             {"XYZ": {"ts": time.time(), "close": 96.0}},
         )
-        self.assertEqual(engagement.avoidance_events(None), [])
+        self.assertEqual(engagement.avoidance_events("reader@example.com"), [])
 
     def test_setup_action_never_counts(self) -> None:
         self._seed(
-            [{"ticker": "XYZ", "ts": time.time() - 100, "action": "SETUP", "close": 100.0, "email": None}],
+            [{"ticker": "XYZ", "ts": time.time() - 100, "action": "SETUP", "close": 100.0, "email": "reader@example.com"}],
             {"XYZ": {"ts": time.time(), "close": 80.0}},
         )
-        self.assertEqual(engagement.avoidance_events(None), [])
+        self.assertEqual(engagement.avoidance_events("reader@example.com"), [])
 
     def test_stale_cache_excluded(self) -> None:
         self._seed(
-            [{"ticker": "XYZ", "ts": time.time() - 100, "action": "NO", "close": 100.0, "email": None}],
+            [{"ticker": "XYZ", "ts": time.time() - 100, "action": "NO", "close": 100.0, "email": "reader@example.com"}],
             {"XYZ": {"ts": time.time() - 24 * 3600, "close": 90.0}},
         )
-        self.assertEqual(engagement.avoidance_events(None), [])
+        self.assertEqual(engagement.avoidance_events("reader@example.com"), [])
 
     def test_email_scoping(self) -> None:
         self._seed(
@@ -98,25 +105,23 @@ class AvoidanceLedgerTests(unittest.TestCase):
         self.assertEqual([e["ticker"] for e in engagement.avoidance_events("a@x.com")], ["AAA"])
         self.assertEqual(engagement.avoidance_events(None), [])
 
-    def test_record_scan_background_write(self) -> None:
-        orig = engagement._current_close
-        engagement._current_close = lambda t: 42.0
-        try:
-            engagement.record_scan(
-                "TESL",
-                {"ok": True, "primary": {"action": "NO"}, "ticker": "TESL", "score": {"final": 30}},
-                None,
-            )
-            deadline = time.time() + 5
-            while time.time() < deadline:
-                if engagement.LEDGER_PATH.is_file():
-                    break
-                time.sleep(0.05)
-            data = json.loads(engagement.LEDGER_PATH.read_text(encoding="utf-8"))
-            self.assertEqual(len(data["entries"]), 1)
-            self.assertEqual(data["entries"][0]["close"], 42.0)
-        finally:
-            engagement._current_close = orig
+    def test_record_scan_uses_its_own_close_and_ignores_demo_or_guest(self) -> None:
+        result = {"ok": True, "primary": {"action": "NO"}, "ticker": "TESL", "score": {"final": 30},
+                  "meta": {"mode": "live", "market_as_of": "2026-09-04", "market_close": 42.0}}
+        engagement.record_scan("TESL", result, None)
+        engagement.record_scan("TESL", {**result, "meta": {**result["meta"], "mode": "artifact"}}, "reader@example.com")
+        self.assertFalse(engagement.LEDGER_PATH.is_file())
+        engagement.record_scan("TESL", result, "reader@example.com")
+        data = json.loads(engagement.LEDGER_PATH.read_text())
+        self.assertEqual(data["entries"][0]["close"], 42.0)
+        self.assertEqual(data["entries"][0]["as_of"], "2026-09-04")
+        self.assertEqual(engagement.avoidance_events("reader@example.com"), [])
+
+    def test_undated_or_same_session_history_never_implies_an_avoided_loss(self) -> None:
+        self._seed([{"ticker":"XYZ", "as_of":"2026-09-04", "email":"reader@example.com", "action":"NO", "close":100}],
+                   {"XYZ":{"ts":time.time(), "as_of":"2026-09-04", "close":80}})
+        self.assertEqual(engagement.avoidance_events("reader@example.com"), [])
+        self.assertEqual(engagement.avoidance_events(None), [])
 
     def test_record_scan_ignores_failed_results(self) -> None:
         engagement.record_scan("TESL", {"ok": False}, None)
@@ -257,7 +262,7 @@ class HttpEngagementTests(unittest.TestCase):
         self.assertTrue(body.get("on"))
         # No SMTP keys in tests → honest archive note.
         self.assertFalse(body.get("smtp"))
-        self.assertIn("not enabled", body.get("note", ""))
+        self.assertIn("Email delivery is not included", body.get("note", ""))
 
     def test_guest_ledger_does_not_count_private_scans(self) -> None:
         engagement.LEDGER_PATH.write_text(
@@ -298,7 +303,11 @@ class HttpEngagementTests(unittest.TestCase):
         engagement.add_watch("other@test.local", "AAPL")
         engagement.set_digest_optin("other@test.local", True)
         source = types.ModuleType("free_sources")
-        source.fetch_all_sources = mock.Mock(return_value=({"test": [("2026-09-04", 100, 1000)] * 60}, {}))
+        from datetime import date, timedelta
+        from free_engine.market_calendar import completed_session
+        end = date.fromisoformat(completed_session())
+        rows = [((end - timedelta(days=59-i)).isoformat(), 100, 1000) for i in range(60)]
+        source.fetch_all_sources = mock.Mock(return_value=({"test": rows}, {}))
         with mock.patch.dict(sys.modules, {"free_sources": source}):
             code, body = self._post("/api/digest/build", {"email": "other@test.local"}, cookie)
         self.assertEqual(code, 200, body)

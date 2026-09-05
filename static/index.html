@@ -225,7 +225,7 @@
         <h2>quantradar.one</h2>
         <p>
           Mechanical radar in the browser. Live multi-source scans are free for everyone;
-          frozen demo artifacts for INTC and AAPL. Pro is a Stripe supporter tier with higher limits.
+          frozen demo artifacts are available for INTC and AAPL. Pro adds saved watchlist reports, longer replay and higher request limits.
         </p>
         <a class="btn secondary" href="/pricing">Web pricing</a>
       </article>
@@ -234,7 +234,7 @@
         <h2>App Store app</h2>
         <p>
           Free to install. Today’s SPY plus one ticker of yours.
-          One-time $9.99 unlock through Apple. Scores on device. Website Pro does not unlock it.
+          One-time unlock through Apple; regional price shown before purchase. Scores on device. Website Pro does not unlock it.
         </p>
         <p class="muted">In App Review — no public listing yet. We will not link a store page until Apple lists it.</p>
         <a class="btn secondary" href="/privacy-ios">iOS privacy</a>
@@ -651,8 +651,8 @@
         const ev = moments[0];
         const d = document.createElement("p");
         d.className = "engage-line good";
-        d.textContent = "Your radar said NO on " + ev.ticker + " — the price is down " +
-          ev.drop_pct + "% since that scan. Educational, not advice.";
+        d.textContent = ev.ticker + " closed " + ev.drop_pct + "% lower between " +
+          ev.then_as_of + " and " + ev.now_as_of + ". Comparison of daily closes; not a trading return.";
         avoid.appendChild(d);
         const a = document.createElement("a");
         a.className = "btn secondary small";
@@ -668,10 +668,30 @@
         replay.appendChild(sparkline(closes));
         const t = document.createElement("p");
         t.className = "engage-note";
-        t.textContent = rp.unlocked
-          ? "Full 90-day posture replay available."
-          : "Last " + rp.days_shown + " sessions (real closes). Full 90-day replay is Pro.";
+        t.textContent = rp.teaser_note || "Dated mechanical replay.";
         replay.appendChild(t);
+        if (Array.isArray(rp.rows) && rp.rows.length) {
+          const details = document.createElement("details");
+          const summary = document.createElement("summary");
+          summary.textContent = rp.days_shown + " dated sessions · " + rp.usable_days + " with usable stock history";
+          details.appendChild(summary);
+          const scroll = document.createElement("div");
+          scroll.style.cssText = "overflow:auto;max-height:360px";
+          const table = document.createElement("table");
+          const header = document.createElement("tr");
+          for (const text of ["Date","Close","Score","Posture","Market gate"]) {
+            const cell = document.createElement("th"); cell.textContent = text; header.appendChild(cell);
+          }
+          table.appendChild(header);
+          for (const row of [...rp.rows].reverse()) {
+            const tr = document.createElement("tr");
+            for (const value of [row.date,row.close == null ? "—" : Number(row.close).toFixed(2),row.score == null ? "—" : row.score,row.action,row.market_gate]) {
+              const td = document.createElement("td"); td.textContent = String(value); tr.appendChild(td);
+            }
+            table.appendChild(tr);
+          }
+          scroll.appendChild(table); details.appendChild(scroll); replay.appendChild(details);
+        }
         if (!rp.unlocked) {
           const b = document.createElement("button");
           b.type = "button";
@@ -694,7 +714,6 @@
       const wl = (authState.user && authState.user.watchlist) || [];
       const t = String(j.ticker || "").toUpperCase();
       const watching = wl.indexOf(t) >= 0;
-      const reportOwned = authState.user && authState.user.report_granted;
       const wb = document.createElement("button");
       wb.type = "button";
       wb.className = "btn";
@@ -711,12 +730,12 @@
       actions.appendChild(wb);
 
       /* Commitment ladder: micro-commitment -> $9 deep report -> Pro. */
-      if (!reportOwned) {
+      {
         const rb = document.createElement("button");
         rb.type = "button";
         rb.className = "btn";
         rb.textContent = "Deep report for " + t + " — $9";
-        rb.title = "Full contract JSON, all charts, 90-day replay, CSV. One-time. $9 credits toward Pro.";
+        rb.title = "Full JSON, four daily charts and 90 trading sessions of reconstructed posture. Optional CSV add-on.";
         rb.onclick = () => offerReportBump(t);
         actions.appendChild(rb);
       }
@@ -734,11 +753,21 @@
       }
 
       if (authState.authenticated) {
+        const saved = document.createElement("a");
+        saved.href = "/reports";
+        saved.className = "btn secondary";
+        saved.textContent = "Your reports";
+        actions.appendChild(saved);
+        const watchlist = document.createElement("a");
+        watchlist.href = "/watchlist";
+        watchlist.className = "btn secondary";
+        watchlist.textContent = "Watchlist & daily reports";
+        actions.appendChild(watchlist);
         const db = document.createElement("button");
         db.type = "button";
         db.className = "btn secondary";
         db.textContent = (authState.user && authState.user.daily_digest)
-          ? "Daily digest: on" : "Daily digest: off";
+          ? "Daily reports: on" : "Daily reports: off";
         db.onclick = digestToggle;
         actions.appendChild(db);
       }
@@ -801,53 +830,8 @@
       }
     }
 
-    /* $9 deep report — the first paid commitment. Order bump offered at checkout. */
-    async function startReportCheckout(withBump) {
-      if (!authState.authenticated) {
-        location.href = "/login?next=report";
-        return;
-      }
-      try {
-        const r = await fetch("/api/billing/checkout_report", {
-          method: "POST",
-          credentials: "same-origin",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ bump: !!withBump }),
-        });
-        const j = await r.json();
-        if (j.url) { location.href = j.url; return; }
-        showFlash("warn", j.error_detail || j.error || "Report checkout unavailable.");
-      } catch (ex) {
-        showFlash("bad", String(ex));
-      }
-    }
-
-    /* Order bump step: offered once, never pre-selected (FTC-safe), real value. */
     function offerReportBump(tickerLabel) {
-      const existing = document.getElementById("bumpModal");
-      if (existing) existing.remove();
-      const wrap = document.createElement("div");
-      wrap.id = "bumpModal";
-      wrap.className = "modal-backdrop";
-      wrap.innerHTML =
-        '<div class="modal-card" role="dialog" aria-modal="true" aria-label="Checkout option">' +
-        "<h3>Deep report — $9</h3>" +
-        "<p class=\"muted\">Full contract JSON, all charts, 90-day posture replay and CSV export for <b>" +
-        tickerLabel + "</b>. One-time purchase. The $9 counts toward Pro if you upgrade within 7 days.</p>" +
-        "<label class=\"bump-row\"><input type=\"checkbox\" id=\"bumpCheck\" /> " +
-        "<span>Add CSV export &amp; priority scan queue — <b>+$5</b> (one-time)</span></label>" +
-        '<div class="next-actions">' +
-        '<button type="button" class="btn" id="bumpGo">Continue to checkout</button>' +
-        '<button type="button" class="btn secondary" id="bumpCancel">Cancel</button>' +
-        "</div></div>";
-      document.body.appendChild(wrap);
-      wrap.addEventListener("click", (e) => { if (e.target === wrap) wrap.remove(); });
-      document.getElementById("bumpCancel").onclick = () => wrap.remove();
-      document.getElementById("bumpGo").onclick = () => {
-        const bump = document.getElementById("bumpCheck").checked;
-        wrap.remove();
-        startReportCheckout(bump);
-      };
+      location.href = "/reports?ticker=" + encodeURIComponent(tickerLabel);
     }
 
     function renderNext(j, { demo }) {
@@ -928,11 +912,11 @@
       }
 
       if (!isPro()) {
-        title.textContent = demo ? "Liked the read?" : "Support the desk";
+        title.textContent = demo ? "Keep your research together" : "Build a daily review routine";
         const freeze = eng.freeze_label || "This was a frozen demo snapshot.";
         copy.textContent = demo
-          ? freeze + " Live scans are free for everyone; Pro is the supporter tier with higher limits ($29/mo · $249/yr ≈ one avoided −8% on a $3k trade)."
-          : "Artifact path is free. Pro is the supporter tier: higher limits, keeps the free engine running.";
+          ? freeze + " Daily-close scans are free. Pro adds a 10-stock watchlist, saved daily reports and up to 90 sessions of replay."
+          : "Save your research with Pro: a 10-stock watchlist, daily reports and up to 90 sessions of replay.";
         addBtn(authState.authenticated ? "Upgrade to Pro" : "Sign in & upgrade", "btn", () => {
           if (authState.authenticated) startCheckout("monthly");
           else location.href = "/login?next=checkout&interval=monthly";
@@ -1143,7 +1127,7 @@
         } else {
           planPill.hidden = true;
           upgradeNav.hidden = false;
-          /* live is open to everyone; Pro = supporter tier with higher limits */
+          /* Daily-close scans are free; paid plans add saved research and higher limits. */
         }
       } catch (e) { /* guest */ }
     }
@@ -1314,13 +1298,13 @@
     if (checkoutKind === "success") {
       showFlash("ok", "Checkout complete. If webhook is configured, Pro unlocks within seconds — refresh if the pill does not appear.");
     } else if (checkoutKind === "report_success") {
-      showFlash("ok", "Deep report purchased — it will appear in your account. Your $9 counts toward Pro for 7 days.");
+      location.href = "/reports";
     } else if (params.get("signed_in") === "1") {
       showFlash(
         "ok",
         params.get("want") === "live"
           ? "Signed in — higher limits unlocked. Live scans are free for everyone."
-          : "Signed in. Try a demo, or upgrade as a supporter."
+          : "Signed in. Run a scan or open your saved watchlist."
       );
     }
 

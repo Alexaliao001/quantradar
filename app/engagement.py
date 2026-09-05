@@ -25,7 +25,7 @@ _LOCK = threading.Lock()
 _LEDGER_CAP = 2000
 _PRICE_TTL_SEC = 6 * 3600
 AVOID_DROP_PCT = 5.0
-WATCH_LIMITS = {"free": 1, "pro": 10}
+WATCH_LIMITS = {"free": 1, "pro": 10, "portfolio_pro": 50}
 
 
 def _load_json(path: Path, default: Any) -> Any:
@@ -47,73 +47,28 @@ def _save_json(path: Path, obj: Any) -> None:
 # ---------------------------------------------------------------- scan ledger
 
 def record_scan(ticker: str, result: dict[str, Any], email: str | None) -> None:
-    """Append a real scan event (score/action/close) for later avoidance checks.
+    """Save the authenticated scan's own completed-session close, without another fetch."""
+    import math
+    from free_engine.market_calendar import completed_session
 
-    The fresh close fetch runs in a background thread so analyze latency is
-    unaffected; the ledger entry lands a moment later.
-    """
-    if not result.get("ok"):
+    meta = result.get("meta") or {}
+    close = meta.get("market_close")
+    if (not email or not result.get("ok") or meta.get("mode") != "live"
+            or meta.get("market_as_of") != completed_session()
+            or not isinstance(close, (int, float)) or not math.isfinite(close) or close <= 0):
         return
-    t = (ticker or "").upper()
-    entry = {
-        "ticker": t,
-        "ts": time.time(),
-        "action": str((result.get("primary") or {}).get("action") or ""),
-        "score": (result.get("score") or {}).get("final"),
-        "email": email,
-    }
-
-    def _finish() -> None:
-        close = _current_close(t)
-        if close is None:
-            return
-        entry["close"] = close
-        with _LOCK:
-            store = _load_json(LEDGER_PATH, {"version": 1, "entries": []})
-            entries = store.get("entries") or []
-            entries.append(entry)
-            if len(entries) > _LEDGER_CAP:
-                entries = entries[-_LEDGER_CAP:]
-            store["entries"] = entries
-            _save_json(LEDGER_PATH, store)
-
-    threading.Thread(target=_finish, daemon=True).start()
-
-
-def _current_close(ticker: str) -> float | None:
-    cache = _load_json(PRICE_CACHE_PATH, {})
-    now = time.time()
-    hit = cache.get(ticker)
-    if isinstance(hit, dict) and now - float(hit.get("ts") or 0) < _PRICE_TTL_SEC:
-        try:
-            return float(hit.get("close"))
-        except Exception:
-            return None
-    close = _fresh_close(ticker)
-    if close is None:
-        return None
-    cache[ticker] = {"ts": now, "close": close}
+    entry = {"ticker": ticker.upper(), "ts": time.time(), "as_of": meta["market_as_of"],
+             "action": str((result.get("primary") or {}).get("action") or ""),
+             "score": (result.get("score") or {}).get("final"), "email": email, "close": close}
     with _LOCK:
+        store = _load_json(LEDGER_PATH, {"version": 2, "entries": []})
+        entries = store.get("entries") or []
+        entries.append(entry)
+        store["entries"] = entries[-_LEDGER_CAP:]
+        _save_json(LEDGER_PATH, store)
+        cache = _load_json(PRICE_CACHE_PATH, {})
+        cache[ticker.upper()] = {"close": close, "ts": entry["ts"], "as_of": entry["as_of"]}
         _save_json(PRICE_CACHE_PATH, cache)
-    return close
-
-
-def _fresh_close(ticker: str) -> float | None:
-    try:
-        import sys
-
-        engine_dir = _engine_dir()
-        if str(engine_dir) not in sys.path:
-            sys.path.insert(0, str(engine_dir))
-        import free_sources as fs  # type: ignore
-
-        bars_by_source, _errors = fs.fetch_all_sources(ticker, days=30, cache_dir=None)
-        for bars in bars_by_source.values():
-            if bars:
-                return float(bars[-1][1])
-    except Exception:
-        return None
-    return None
 
 
 def _engine_dir() -> Path:
@@ -127,6 +82,10 @@ def avoidance_events(email: str | None, limit: int = 5) -> list[dict[str, Any]]:
     Cache-only by design: the response path never makes network calls. Fresh
     closes are refreshed by record_scan (background) and the daily digest.
     """
+    from free_engine.market_calendar import completed_session
+    if not email:
+        return []
+    cutoff = completed_session()
     store = _load_json(LEDGER_PATH, {"entries": []})
     cache = _load_json(PRICE_CACHE_PATH, {})
     now = time.time()
@@ -142,6 +101,8 @@ def avoidance_events(email: str | None, limit: int = 5) -> list[dict[str, Any]]:
         hit = cache.get(str(e.get("ticker")))
         if not isinstance(hit, dict) or now - float(hit.get("ts") or 0) > _PRICE_TTL_SEC:
             continue
+        if hit.get("as_of") != cutoff or not e.get("as_of") or hit["as_of"] <= e["as_of"]:
+            continue
         try:
             cur = float(hit.get("close"))
         except Exception:
@@ -152,6 +113,8 @@ def avoidance_events(email: str | None, limit: int = 5) -> list[dict[str, Any]]:
                 {
                     "ticker": e.get("ticker"),
                     "then_ts": e.get("ts"),
+                    "then_as_of": e["as_of"],
+                    "now_as_of": hit["as_of"],
                     "then_close": then,
                     "now_close": cur,
                     "drop_pct": round(drop, 1),
@@ -207,6 +170,7 @@ def add_watch(email: str, ticker: str) -> tuple[bool, str, list[str]]:
     t = (ticker or "").strip().upper()
     if not t or not t.replace("-", "").replace(".", "").isalnum():
         return False, "invalid ticker", []
+    limit = watch_limit(email)
     with users._LOCK:  # noqa: SLF001 - same-store transactional update
         store = users._load()  # noqa: SLF001
         u = store["users"].get(users.normalize_email(email))
@@ -215,8 +179,7 @@ def add_watch(email: str, ticker: str) -> tuple[bool, str, list[str]]:
         wl = [str(x).upper() for x in (u.get("watchlist") or [])]
         if t in wl:
             return True, "already watching", wl
-        plan = str(u.get("plan") or "free").lower()
-        if len(wl) >= WATCH_LIMITS.get(plan, 1):
+        if len(wl) >= limit:
             return False, "limit", wl
         wl.append(t)
         u["watchlist"] = wl
@@ -278,16 +241,27 @@ def build_digest(email: str | None = None) -> dict[str, Any]:
         sys.path.insert(0, str(engine_dir))
     import free_sources as fs  # type: ignore
 
-    def closes_for(symbol: str) -> list[float]:
-        bars_by_source, _ = fs.fetch_all_sources(symbol, days=60, cache_dir=None)
-        for bars in bars_by_source.values():
-            if bars:
-                return [float(b[1]) for b in bars]
-        return []
+    from free_aggregate import aggregate_bars
+    from market_calendar import completed_bars, completed_session
+    from datetime import datetime, timezone
+    batch_now = datetime.now(timezone.utc)
+    from free_mechanical import core
 
-    spy_c = closes_for("SPY")
-    spy_pct = (spy_c[-1] / spy_c[-6] - 1) * 100.0 if len(spy_c) >= 6 else None
-    market_open = spy_pct >= 0 if spy_pct is not None else None
+    def bars_for(symbol: str) -> list:
+        try:
+            sources, _ = fs.fetch_all_sources(symbol, days=365, cache_dir=engine_dir / ".cache", as_of=batch_now)
+            agg = aggregate_bars(sources)
+            bars = completed_bars(agg["bars"], now=batch_now)
+            if set(agg["disagree_days"]) & {row[0] for row in bars[-50:]}:
+                return []
+            return bars
+        except Exception:
+            return []
+
+    spy_bars = bars_for("SPY")
+    market_core = core(spy_bars, spy_bars or None)
+    spy_pct = market_core["spy_pct"]
+    market_open = None if market_core["market_gate"] == "UNKNOWN" else market_core["market_gate"] == "PASS"
 
     users_rows = []
     recipients = (
@@ -297,7 +271,8 @@ def build_digest(email: str | None = None) -> dict[str, Any]:
     for row in recipients:
         items = []
         for t in row["watchlist"]:
-            closes = closes_for(t)
+            bars = bars_for(t)
+            closes = [row[1] for row in bars]
             if not closes:
                 items.append({"ticker": t, "state": "no data"})
                 continue
@@ -308,12 +283,14 @@ def build_digest(email: str | None = None) -> dict[str, Any]:
                     "ticker": t,
                     "close": last,
                     "above_sma20": last >= sma20,
+                    "as_of": bars[-1][0],
+                    "action": core(bars, spy_bars or None)["action"],
                 }
             )
         users_rows.append({"email": row["email"], "items": items})
 
     digest = {
-        "date": time.strftime("%Y-%m-%d", time.gmtime()),
+        "date": completed_session(batch_now),
         "market": {"spy_pct_5d": spy_pct, "gate_open": market_open},
         "users": users_rows,
         "sent": False,  # SMTP not configured yet — archived honestly
@@ -377,37 +354,27 @@ def _compute_today() -> dict[str, Any]:
 
     cache_dir = engine_dir / ".cache"
 
-    def _stale_cache(symbol: str) -> list:
-        """Expired cache fallback: if every live source fails (rate limit),
-        an expired-but-real close series beats nothing. Educational screen."""
-        for src in ("yahoo_q1", "yahoo_q2", "nasdaq"):
-            safe = "".join(ch if ch.isalnum() else "_" for ch in f"{src}:{symbol}")
-            p = cache_dir / f"{safe}.json"
-            try:
-                obj = json.loads(p.read_text(encoding="utf-8"))
-                rows = obj.get("v") if isinstance(obj, dict) else None
-                if isinstance(rows, list) and len(rows) >= 30:
-                    return [(str(r[0]), float(r[1]), float(r[2])) for r in rows]
-            except Exception:
-                continue
-        return []
+    from free_aggregate import aggregate_bars
+    from market_calendar import completed_bars, completed_session
+    from datetime import datetime, timezone
+    batch_now = datetime.now(timezone.utc)
 
-    def bars_for(symbol: str) -> tuple[list, bool]:
+    def bars_for(symbol: str) -> list:
         try:
-            bars_by_source, _ = fs.fetch_all_sources(symbol, days=90, cache_dir=cache_dir)
+            sources, _ = fs.fetch_all_sources(symbol, days=365, cache_dir=cache_dir, as_of=batch_now)
+            agg = aggregate_bars(sources)
+            bars = completed_bars(agg["bars"], now=batch_now)
+            if set(agg["disagree_days"]) & {row[0] for row in bars[-50:]}:
+                return []
+            return bars
         except Exception:
-            bars_by_source = {}
-        for bars in bars_by_source.values():
-            if bars:
-                return list(bars), False
-        stale = _stale_cache(symbol)
-        return stale, bool(stale)
+            return []
 
-    spy_bars, spy_stale = bars_for("SPY")
-    spy_c = [b[1] for b in spy_bars]
-    spy_pct = (spy_c[-1] / spy_c[-6] - 1) * 100.0 if len(spy_c) >= 6 else None
-    # Unknown (no SPY data at all) is NOT "closed" — keep the three states honest.
-    gate_state = "unknown" if spy_pct is None else ("open" if spy_pct >= 0 else "closed")
+    spy_bars = bars_for("SPY")
+    market_core = fm.core(spy_bars, spy_bars or None)
+    spy_pct = market_core["spy_pct"]
+    market_gate = market_core["market_gate"]
+    gate_state = {"PASS": "open", "WATCH": "watch", "NO": "closed"}.get(market_gate, "unknown")
 
     universe = [t for t in TODAY_UNIVERSE if t != "SPY"]
     results: dict[str, list] = {}
@@ -416,14 +383,14 @@ def _compute_today() -> dict[str, Any]:
         futures = {pool.submit(bars_for, t): t for t in universe}
         for fut, t in futures.items():
             try:
-                results[t] = fut.result(timeout=90)[0]
+                results[t] = fut.result(timeout=90)
             except Exception:
                 results[t] = []
 
     rows = []
     for t in universe:
         bars = results.get(t) or []
-        if len(bars) < 30:
+        if len(bars) < 50:
             continue
         c = fm.core(bars, spy_bars or None)
         rows.append(
@@ -439,12 +406,15 @@ def _compute_today() -> dict[str, Any]:
     passing.sort(key=lambda r: -r["score"])
     return {
         "ts": time.time(),
+        "market_as_of": completed_session(batch_now),
         "scanned": len(rows),
+        "unavailable": len(universe) - len(rows),
         "market": {
             "spy_pct_5d": round(spy_pct, 2) if spy_pct is not None else None,
-            "gate_open": None if spy_pct is None else spy_pct >= 0,
+            "gate_open": None if market_gate == "UNKNOWN" else market_gate == "PASS",
             "gate_state": gate_state,
-            "stale": spy_stale,
+            "stale": not bool(spy_bars),
+            "as_of": spy_bars[-1][0] if spy_bars else None,
         },
         "passing": len(passing),
         "top": passing[:5],
@@ -463,7 +433,19 @@ def build_today(force: bool = False) -> dict[str, Any]:
     global _today_building
     now = time.time()
     cached = _load_json(TODAY_CACHE_PATH, {})
-    fresh = isinstance(cached, dict) and now - float(cached.get("ts") or 0) < TODAY_TTL_SEC
+    engine_dir = _engine_dir()
+    import sys
+    if str(engine_dir) not in sys.path:
+        sys.path.insert(0, str(engine_dir))
+    from market_calendar import completed_session
+
+    expected = completed_session()
+    payload = (cached or {}).get("payload") or {}
+    current = bool(expected) and payload.get("market_as_of") == expected
+    if not current:
+        cached = {"payload": {"market": {"gate_open": None, "gate_state": "unknown", "stale": True},
+                              "top": [], "passing": 0, "scanned": 0}}
+    fresh = current and now - float(cached.get("ts") or 0) < TODAY_TTL_SEC
     if fresh and not force:
         return cached.get("payload") or {}
 

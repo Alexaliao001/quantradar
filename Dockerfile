@@ -12,6 +12,7 @@ COPY app ./app
 COPY static ./static
 COPY fixtures ./fixtures
 COPY schemas ./schemas
+COPY free_engine ./free_engine
 COPY scripts ./scripts
 
 # Non-root

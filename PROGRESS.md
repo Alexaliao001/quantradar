@@ -1,3 +1,5 @@
+2026-09-06 | **LAUNCH-HARDENING** | 完成交易日/独立数据源、持久化单股付费交付/退款/防重复订阅、每日观察列表与真实下载；Python 238 通过，iOS 46（4 外部接口检查跳过）通过，375/1440 截图；build 8 本地归档；两条遗留 Stripe 付款链接已停用；生产热备份及异机校验完成 | 尚未全量上线：待数据授权、Stripe sandbox 生命周期、正式 Portal/配置和 Apple 审核；见 docs/audit/2026-09-06/README.md
+
 # PROGRESS — QuantRadar
 
 2026-08-02 | **AUDIT-FIX** | 安全/诚实审计落地：bootstrap 默认关+公网禁 demo；SESSION_SECRET 公网失败关闭；plan 仅 users store；缺/非法分数 withheld；market/sector 不再假 pass；magic 不落盘/日志脱敏；login+magic 限流；Stripe customer_id 降级回退；health storage_note；72+ 回归测 | push 后需手动 Trigger Render

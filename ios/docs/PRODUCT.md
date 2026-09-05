@@ -1,24 +1,24 @@
 # QuantRadar iOS — Product & Monetization (locked)
 
-> **Separate from web.** App Store cash register. **iOS data plane = $0 COGS** (see [DATA_PLANE.md](./DATA_PLANE.md)).
+> **Separate from web.** App Store cash register. Data access, licensing and commercial display costs remain subject to verification; see [DATA_LICENSING.md](../../docs/DATA_LICENSING.md).
 
 ## Dual product
 
 | | Web | iOS |
 |--|-----|-----|
-| Money | Stripe Pro | **Free download → $9.99 one-time unlock** |
-| Data | **Massive / Polygon** when live | **Yahoo free + on-device score** |
+| Money | Stripe Pro | **Free download → regional one-time Unlock** |
+| Data | Yahoo/Nasdaq daily-close engine | **Yahoo free + on-device score** |
 | Fidelity | Full desk / options honesty gates | Mechanical posture only (no OPRA) |
-| Cost to you | Massive bill | **~$0 per scan** |
+| Cost to you | Hosting and licensed data costs | Commercial data authorization still needs confirmation |
 
 ## Monetization (iOS)
 
 | Lever | Choice |
 |------|--------|
 | App price | **Free** (listing) |
-| Core unlock | **Non-consumable IAP $9.99** (`one.quantradar.app.unlock`) founder price, first 1,000 |
+| Core unlock | **Non-consumable IAP** (`one.quantradar.app.unlock`); StoreKit shows regional price |
 | Free preview | Today **SPY** + **one lifetime personal ticker** (live scan, not a canned demo) |
-| Locked 2nd ticker | Score is computed, card is blurred, paywall asks the anxiety question |
+| Locked 2nd ticker | Score is computed, card is blurred, paywall explains the one-time Unlock |
 | Live+ | Code exists; **not sold in 1.2** until posture-change alerts prove value |
 | Distinct workflow | **Chase Check → radar → private Decision Journal** |
 | Why people pay | One score / most days don’t act — plus a process record, not Massive parity |
@@ -38,10 +38,10 @@
 ## Growth
 
 ```text
-ASO → Free App Store install → live SPY + one personal ticker → 2nd ticker blur → $9.99 unlock
+ASO → Free App Store install → live SPY + one personal ticker → 2nd ticker blur → one-time Unlock
 ```
 
-**CAC rule:** Unlock net ≈ $7 after Apple cut. Do **not** spray mass retail CPC.
+**CAC rule:** use actual Apple net receipts after fees, refunds and tax. Do not infer profitable acquisition from installs alone.
 
 ## Honesty
 

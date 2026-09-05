@@ -36,8 +36,9 @@ from free_mechanical import (  # noqa: E402
     pct_change_over,
 )
 from free_sources import SOURCE_NAMES, fetch_all_sources, fetch_fundamentals  # noqa: E402
+from market_calendar import completed_bars, completed_session  # noqa: E402
 
-MIN_BARS = 30
+MIN_BARS = 50
 CACHE_DIR = HERE / ".cache"
 SPY = "SPY"
 
@@ -58,22 +59,27 @@ def _log(msg: str) -> None:
     print(f"[free-engine] {msg}", file=sys.stderr, flush=True)
 
 
-def _aggregate_symbol(symbol: str) -> tuple[dict, dict[str, str]]:
-    bars_by_source, errors = fetch_all_sources(symbol, days=200, cache_dir=CACHE_DIR)
+def _aggregate_symbol(symbol: str, now: datetime | None = None) -> tuple[dict, dict[str, str]]:
+    bars_by_source, errors = fetch_all_sources(symbol, days=365, cache_dir=CACHE_DIR, as_of=now)
     if not bars_by_source:
         raise RuntimeError(
             "all free sources failed: "
             + "; ".join(f"{k}: {v}" for k, v in sorted(errors.items()))
         )
     agg = aggregate_bars(bars_by_source)
+    agg["bars"] = completed_bars(agg["bars"], now=now, minimum=MIN_BARS)
+    agg["days"] = len(agg["bars"])
+    if set(agg["disagree_days"]) & {row[0] for row in agg["bars"][-50:]}:
+        raise RuntimeError(f"independent price feeds disagree for {symbol}; score withheld")
     if agg["days"] < MIN_BARS:
         raise RuntimeError(f"too few bars for {symbol} ({agg['days']} < {MIN_BARS})")
     return agg, errors
 
 
 def _reliability(agg: dict, errors: dict[str, str]) -> str:
-    agreeing = sum(1 for n, c in agg["source_coverage"].items() if n not in errors and c > 0)
-    recent_disagree = agg["disagree_days"][-5:]
+    latest = agg["per_day_sources"].get(agg["bars"][-1][0], [])
+    agreeing = len({"yahoo" if n.startswith("yahoo_") else n for n in latest if n not in errors})
+    recent_disagree = set(agg["disagree_days"]) & {row[0] for row in agg["bars"][-5:]}
     if agreeing >= 3 and not recent_disagree:
         return "high"
     if agreeing >= 2:
@@ -96,8 +102,9 @@ def _clamp(v: float, lo: float, hi: float) -> float:
 def build_payload(ticker: str, sector_arg: str | None) -> dict:
     warnings: list[str] = []
     t0 = time.time()
+    batch_now = datetime.now(timezone.utc)
 
-    agg, errors = _aggregate_symbol(ticker)
+    agg, errors = _aggregate_symbol(ticker, batch_now)
     bars = agg["bars"]
     for name in SOURCE_NAMES:
         if name in errors:
@@ -112,7 +119,7 @@ def build_payload(ticker: str, sector_arg: str | None) -> dict:
     spy_pct = None
     spy_bars_for_gate = None
     try:
-        spy_agg, _ = _aggregate_symbol(SPY)
+        spy_agg = agg if ticker == SPY else _aggregate_symbol(SPY, batch_now)[0]
         spy_bars_for_gate = spy_agg["bars"]
         spy_pct = pct_change_over(spy_bars_for_gate, 5)
     except Exception as exc:
@@ -130,9 +137,9 @@ def build_payload(ticker: str, sector_arg: str | None) -> dict:
     sector_pct = None
     if sector_etf:
         try:
-            sec_agg, _ = _aggregate_symbol(sector_etf)
+            sec_agg, _ = _aggregate_symbol(sector_etf, batch_now)
             sector_pct = pct_change_over(sec_agg["bars"], 5)
-            sec_core = core(sec_agg["bars"], None)
+            sec_core = core(sec_agg["bars"], spy_bars_for_gate)
             sector_action = sec_core["action"]
         except Exception as exc:
             warnings.append(f"sector gate unavailable for {sector_etf}: {exc}")
@@ -142,9 +149,9 @@ def build_payload(ticker: str, sector_arg: str | None) -> dict:
     vix_current = None
     vix_trend = None
     try:
-        vix_bars, _ = fetch_all_sources("^VIX", days=30, cache_dir=CACHE_DIR)
+        vix_bars, _ = fetch_all_sources("^VIX", days=30, cache_dir=CACHE_DIR, as_of=batch_now)
         vix_agg = aggregate_bars(vix_bars)
-        vc = [b[1] for b in vix_agg["bars"]]
+        vc = [b[1] for b in completed_bars(vix_agg["bars"], now=batch_now, minimum=5)]
         if vc:
             vix_current = vc[-1]
             if len(vc) >= 5:
@@ -179,6 +186,9 @@ def build_payload(ticker: str, sector_arg: str | None) -> dict:
             "reliability": reliability,
             "timeframes_ok": 1,
             "bars": agg["days"],
+            "market_as_of": bars[-1][0],
+            "expected_session": completed_session(batch_now),
+            "market_gate": c["market_gate"],
             "sources_live": live_sources,
             "sources_failed": sorted(errors.keys()),
             "disagree_days": len(agg["disagree_days"]),
@@ -225,6 +235,8 @@ def build_payload(ticker: str, sector_arg: str | None) -> dict:
             "generated_at": datetime.now(tz=timezone.utc).isoformat(timespec="seconds"),
             "timeframe": "daily",
         },
+        "daily_bars": [list(row) for row in bars],
+        "spy_daily_bars": [list(row) for row in (spy_bars_for_gate or [])],
         "market_env": {
             "spy_change_pct": round(spy_pct, 3) if spy_pct is not None else None,
             "market_state": (

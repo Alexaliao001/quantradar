@@ -14,7 +14,7 @@ actor BarsCache {
 
         func asResult() -> FreeBarsResult? {
             guard let source else { return nil }
-            return FreeBarsResult(bars: bars, source: source)
+            return FreeBarsResult(bars: bars, source: source, fromCache: true, fetchedAt: fetchedAt)
         }
     }
 
@@ -63,7 +63,7 @@ actor BarsCache {
     func set(_ symbol: String, result: FreeBarsResult) {
         let key = FreeMarketDataClient.normalize(symbol)
         guard !key.isEmpty else { return }
-        let entry = Entry(bars: result.bars, sourceRaw: result.source.rawValue, fetchedAt: Date())
+        let entry = Entry(bars: result.bars, sourceRaw: result.source.rawValue, fetchedAt: result.fetchedAt)
         memory[key] = entry
         if let data = try? encoder.encode(entry) {
             try? data.write(to: diskURL(for: key), options: .atomic)

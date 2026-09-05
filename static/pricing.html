@@ -8,9 +8,9 @@
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Syne:wght@600;700;800&display=swap" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Pricing — QuantRadar</title>
-  <meta name="description" content="Honest QuantRadar pricing: live scans free for everyone via the multi-source free engine; Pro is a supporter tier with higher limits. No fake social proof. Educational only." />
+  <meta name="description" content="Free daily-close scans, saved research reports, and Pro watchlists for a consistent stock-review routine. Clear prices and self-service cancellation." />
   <meta property="og:image" content="/static/og-default.svg" />
-  <link rel="stylesheet" href="/static/site.css" />
+  <link rel="stylesheet" href="/static/site.css?v=4b5323a613" />
 </head>
 <body>
   <div class="page-mosaic is-soft" aria-hidden="true">
@@ -25,141 +25,59 @@
       <a href="/login">Sign in</a>
     </nav>
   </header>
-  <main class="prose">
-    <div class="price-hero">
-      <p class="brand-mark">Quant<span>Radar</span></p>
-      <h1>Pricing</h1>
-      <p class="muted">
-        Clear Free, Pro, and Portfolio Pro. No fabricated user counts. Live scans run free for everyone on this host via the
-        multi-source free engine; Pro is a supporter tier with higher limits.
-        Checkout via Stripe when configured on the host.
-      </p>
-    </div>
-    <div id="banner" class="banner" hidden></div>
-
+  <main class="prose pricing-page">
+    <div class="price-hero"><p class="brand-mark">Quant<span>Radar</span></p><h1>A repeatable review routine.</h1>
+      <p class="muted">Start with free stock scans. Pay for saved research and a watchlist you can review together. Scores use completed daily sessions, not real-time prices.</p></div>
+    <div id="banner" class="banner" role="status" aria-live="polite" hidden></div>
+    <p><a href="/watchlist">Your watchlist</a> · <a href="/reports">Your reports</a> · <button type="button" class="btn secondary" id="manageBilling">Manage or cancel subscription</button></p>
     <div class="interval-toggle" id="intervalToggle" role="group" aria-label="Billing interval">
       <button type="button" class="active" data-interval="monthly">Monthly</button>
-      <button type="button" data-interval="yearly">Yearly <span class="muted">save ~28%</span></button>
+      <button type="button" data-interval="yearly">Yearly · save 28%</button>
     </div>
-
-    <!-- Free + Pro + Portfolio Pro. No Elite. -->
     <div class="price-grid">
-      <section class="card">
-        <h2>Free / Guest</h2>
-        <p class="price">$0</p>
-        <ul>
-          <li>Demo tickers (artifact) — <strong>never bill credits</strong></li>
-          <li>Single mechanical score + primary action</li>
-          <li>Data-quality &amp; freshness flags</li>
-          <li>Live scans free (guest rate limits) · options not sold as actionable</li>
-        </ul>
-        <a class="btn secondary" href="/">Try demo radar</a>
+      <section class="card"><h2>Free</h2><p class="price">$0</p>
+        <ul><li>Daily-close mechanical scans</li><li>Data quality and market-gate checks</li><li>5-session replay preview</li><li>Save 1 ticker with an account</li></ul>
+        <a class="btn secondary" href="/">Run a free scan</a>
       </section>
-      <section class="card highlight">
-        <h2>Pro</h2>
-        <p class="price" id="proPrice">$29<span>/mo</span></p>
-        <p class="muted" id="proSub">Billed monthly. Cancel anytime via Stripe.</p>
-        <p class="muted" id="proValueNote" style="font-size:0.85rem">
-          Supporter tier — live is already free for everyone; Pro raises your limits and keeps the desk running.
-        </p>
-        <ul>
-          <li>Sign-in session (email / magic / Google when enabled)</li>
-          <li><strong>Supporter price</strong> — higher limits; keeps the free engine running</li>
-          <li>Higher rate limits</li>
-          <li>Setup-alert waitlist for your tickers</li>
-          <li>Options only when live chain is OK (honesty gate)</li>
-        </ul>
-        <p class="muted" style="font-size:0.8rem;margin:0.75rem 0 0">
-          Anchor: one avoided −8% on a $3k trade ≈ 8 months of Pro. Yearly $249 saves ~28% vs monthly when configured.
-        </p>
-        <button class="btn btn-mag" type="button" id="proCta">Get Pro</button>
-        <p class="muted" id="ctaHint" style="margin-top:0.65rem;font-size:0.8rem"></p>
+      <section class="card highlight"><h2>Pro</h2><p class="price" id="proPrice">$29<span>/mo</span></p>
+        <p class="muted" id="proSub">Billed monthly. Cancel in billing settings.</p>
+        <ul><li><strong>10-stock watchlist</strong></li><li>Daily report with posture changes and JSON download</li><li>Up to 90 sessions of dated mechanical replay</li><li>Higher scan request limits</li></ul>
+        <p class="muted">Automatic reports appear in your account when enabled. Missing data is marked UNKNOWN.</p>
+        <button class="btn btn-mag" type="button" id="proCta">Get Pro</button><p class="muted" id="ctaHint"></p>
       </section>
-      <section class="card">
-        <h2>Portfolio Pro</h2>
-        <p class="price">$99<span>/mo</span></p>
-        <p class="muted">Billed monthly only. Cancel anytime via Stripe.</p>
-        <p class="muted" id="portfolioValueNote" style="font-size:0.85rem">
-          Higher supporter tier — same desk access as Pro on this host today; portfolio monitoring and report workflow ship separately.
-        </p>
-        <ul>
-          <li>Everything in Pro (session, limits, live auto-unlock when mounted)</li>
-          <li><strong>Funds portfolio-scale roadmap</strong> — batch monitoring and report workflow, not sold as live today</li>
-          <li>Priority for portfolio feature rollouts</li>
-          <li>No live market data claims on this host until charts are mounted</li>
-        </ul>
-        <button class="btn btn-mag" type="button" id="portfolioCta">Get Portfolio Pro</button>
-        <p class="muted" id="portfolioHint" style="margin-top:0.65rem;font-size:0.8rem"></p>
+      <section class="card"><h2>Portfolio Pro</h2><p class="price">$99<span>/mo</span></p>
+        <p class="muted">Billed monthly only. Cancel in billing settings.</p>
+        <ul><li>Everything in Pro</li><li><strong>50-stock watchlist</strong></li><li>One saved daily snapshot across your list</li><li>Whole-watchlist CSV export</li></ul>
+        <p class="muted">For a larger research list. Does not calculate holdings, portfolio returns or trade sizing.</p>
+        <button class="btn btn-mag" type="button" id="portfolioCta">Get Portfolio Pro</button><p class="muted" id="portfolioHint"></p>
       </section>
     </div>
-
-    <section class="card ios-surface" aria-label="iOS App Store product">
-      <h2>iOS app — separate cash register</h2>
-      <p class="price">$0 to install</p>
-      <p class="muted">One-time Unlock $9.99 through Apple. Not a subscription. Not Stripe.</p>
-      <ul>
-        <li>Free: today’s SPY plus one personal ticker, live on device</li>
-        <li>Unlock once for every ticker, watchlist, and 90-day posture history</li>
-        <li>No account. Website Pro does not unlock iOS, and iOS Unlock does not sign you into this site.</li>
-      </ul>
-      <p class="muted">In App Review as of 2026-08-21. We will not post an App Store link until the listing is public.</p>
+    <section class="card"><h2>Just need one report?</h2><p class="price">$9<span> once</span></p>
+      <p>One stock, one dated snapshot: full JSON, four daily charts and a replay of 90 trading sessions. Optional CSV export and report queue priority: +$5 once. We check data coverage before checkout.</p>
+      <p class="muted">Includes a $9 credit toward your first Pro payment, valid for 7 days after purchase. No subscription is started by buying a report.</p>
+      <a href="/reports" class="btn secondary">Create a single-stock report</a>
+    </section>
+    <section class="card ios-surface" aria-label="iOS App Store product"><h2>QuantRadar for iOS</h2><p class="price">Free to install</p>
+      <p>Optional one-time Unlock through Apple. Your regional price is shown before purchase.</p>
+      <ul><li>Free: SPY and one personal ticker</li><li>Unlock: every ticker, watchlist and historical replay</li><li>Website Pro and iOS Unlock are independent products. Neither purchase unlocks the other.</li></ul>
+      <p class="muted">Awaiting App Review. The download link will appear when Apple makes the listing public.</p>
       <p><a href="/privacy-ios">iOS privacy</a> · <a href="/terms-ios">iOS terms</a></p>
     </section>
-
-    <h2>What we do not sell (yet)</h2>
-    <p>
-      No “Elite institutional” tier without a public track record. Portfolio Pro is scoped to portfolio monitoring
-      and report workflow on the roadmap — not a prestige jump with fake features.
-    </p>
-
-    <h2>Consistency table</h2>
-    <table>
-      <thead><tr><th></th><th>Free</th><th>Pro</th><th>Portfolio Pro</th></tr></thead>
-      <tbody>
-        <tr><td>Demo artifact</td><td>Yes</td><td>Yes</td><td>Yes</td></tr>
-        <tr><td>Live fetch</td><td>Yes (guest limits)</td><td>Yes (higher limits)</td><td>Same as Pro</td></tr>
-        <tr><td>Options as actionable</td><td>No</td><td>Only when live chain OK</td><td>Same as Pro</td></tr>
-        <tr><td>Pattern labels</td><td>If present in artifact</td><td>Same rules (+ live when mounted)</td><td>Same as Pro</td></tr>
-      </tbody>
-    </table>
-
-    <h2>FAQ</h2>
+    <h2>Compare your workflow</h2>
+    <div style="overflow-x:auto"><table><thead><tr><th>Feature</th><th>Free</th><th>Pro</th><th>Portfolio Pro</th></tr></thead>
+      <tbody><tr><td>Daily-close scans</td><td>Yes</td><td>Yes</td><td>Yes</td></tr>
+      <tr><td>Saved tickers</td><td>1</td><td>10</td><td>50</td></tr>
+      <tr><td>Replay</td><td>5 sessions</td><td>Up to 90</td><td>Up to 90</td></tr>
+      <tr><td>Saved daily watchlist reports</td><td>—</td><td>JSON</td><td>JSON + CSV</td></tr></tbody></table></div>
+    <h2>Questions before buying</h2>
     <div class="faq">
-      <details open>
-        <summary>Is live really free?</summary>
-        <p>Yes. The free multi-source engine (Yahoo/Nasdaq consensus) runs live scans for everyone. Guests get a tighter per-IP budget so the shared data path stays healthy; Pro is the supporter tier with higher limits.</p>
-      </details>
-      <details>
-        <summary>Why no Elite tier?</summary>
-        <p>No public track record, no institutional narrative. We refuse prestige pricing without evidence.</p>
-      </details>
-      <details>
-        <summary>How do refunds work?</summary>
-        <p>See the <a href="/refund">refund policy</a>. Cancel anytime via Stripe when billing is configured — no cancel maze.</p>
-      </details>
-      <details>
-        <summary>How is this different from hype tools?</summary>
-        <p>One score, one primary action, fail-closed on bad data, no fake testimonials. Most days the radar tells you <em>not</em> to engage.</p>
-      </details>
-      <details>
-        <summary>Is $29/mo worth it if live is free?</summary>
-        <p>It’s a supporter price with higher limits. Anchoring check: one avoided −8% move on a $3k position ≈ eight months of Pro.</p>
-      </details>
-      <details>
-        <summary>Does website Pro unlock the iOS app?</summary>
-        <p>No. They are independent products. iOS Unlock is Apple In-App Purchase. Website Pro is Stripe. Neither receipt unlocks the other.</p>
-      </details>
-      <details>
-        <summary>What is Portfolio Pro vs Pro?</summary>
-        <p>Pro ($29/mo) is the standard supporter plan. Portfolio Pro ($99/mo, monthly only) is a higher supporter tier with the same desk access as Pro on this host today. It funds portfolio-scale monitoring and report workflow — those features ship separately and are not sold as available now.</p>
-      </details>
-      <details>
-        <summary>Does website Pro unlock the iOS app?</summary>
-        <p>No. They are independent products. iOS Unlock is Apple In-App Purchase. Website Pro is Stripe. Neither receipt unlocks the other.</p>
-      </details>
+      <details open><summary>What does the replay show?</summary><p>Reconstructed mechanical posture from dated prices. Historical earnings and sector gates are unavailable. It is not a record of previously issued signals, investment returns or a backtest of executable trades.</p></details>
+      <details><summary>What if some data is missing?</summary><p>Unavailable or inconsistent data stays UNKNOWN. A watchlist report can be partial. Single-stock report checkout opens only after the required history is available.</p></details>
+      <details><summary>How do cancellation and refunds work?</summary><p>Use “Manage or cancel subscription” above. Cancellation stops renewal; existing paid access continues to its scheduled end unless refunded. Downloaded and saved reports remain available according to the <a href="/refund">refund policy</a>.</p></details>
+      <details><summary>Does website Pro unlock the iOS app?</summary><p>No. They are independent products: website plans use Stripe and iOS Unlock uses Apple In-App Purchase.</p></details>
+      <details><summary>Will this improve my returns?</summary><p>That is not guaranteed. QuantRadar helps you apply a consistent research checklist. It does not recommend trades, manage money or promise profitable results.</p></details>
     </div>
-
-    <p class="muted"><a href="/refund">Refund policy</a> · <a href="/terms">Terms</a> · <a href="/privacy-ios">iOS privacy</a></p>
+    <p class="muted"><a href="/refund">Refund policy</a> · <a href="/terms">Terms</a> · <a href="/privacy">Privacy</a></p>
   </main>
   <footer class="foot">
     <a href="/terms">Terms</a> · <a href="/privacy">Privacy</a> · <a href="/privacy-ios">iOS privacy</a> · <a href="/refund">Refund</a>
@@ -170,170 +88,51 @@
     </span>
   </footer>
   <script>
-    let interval = "monthly";
-    let auth = { authenticated: false, plan: "free", stripe: false };
-
     const params = new URLSearchParams(location.search);
-    if (params.get("interval") === "yearly") interval = "yearly";
-    const checkoutPlan = params.get("plan") === "portfolio_pro" ? "portfolio_pro" : "pro";
-
-    function showBanner(kind, text) {
-      const el = document.getElementById("banner");
-      if (!text) { el.hidden = true; return; }
-      el.hidden = false;
-      el.className = "banner " + kind;
-      el.textContent = text;
-    }
-
-    function syncIntervalUI() {
-      document.querySelectorAll("#intervalToggle button").forEach((b) => {
-        b.classList.toggle("active", b.dataset.interval === interval);
-      });
-      const price = document.getElementById("proPrice");
-      const sub = document.getElementById("proSub");
-      if (interval === "yearly") {
-        price.innerHTML = '$249<span>/yr</span>';
-        sub.textContent = "Billed yearly (~$20.75/mo). Integer price — no residue.";
-      } else {
-        price.innerHTML = '$29<span>/mo</span>';
-        sub.textContent = "Billed monthly. Cancel anytime via Stripe.";
+    let interval = params.get("interval") === "yearly" ? "yearly" : "monthly";
+    let account = null;
+    let availability = {};
+    function banner(text) { const el=document.getElementById("banner"); el.textContent=text; el.hidden=!text; }
+    function label(button,text) { if(window.QuantMagnetic) window.QuantMagnetic.setLabel(button,text); else button.textContent=text; }
+    function sync() {
+      document.querySelectorAll("#intervalToggle button").forEach(button => button.classList.toggle("active",button.dataset.interval===interval));
+      document.getElementById("proPrice").innerHTML=interval==="yearly" ? '$249<span>/yr</span>' : '$29<span>/mo</span>';
+      document.getElementById("proSub").textContent=interval==="yearly" ? "Billed $249 yearly ($20.75/month equivalent). Cancel in billing settings." : "Billed $29 monthly. Cancel in billing settings.";
+      for(const [plan,id,hint] of [["pro","proCta","ctaHint"],["portfolio_pro","portfolioCta","portfolioHint"]]) {
+        const button=document.getElementById(id);
+        const active=account && (account.plan===plan || (plan==="pro" && account.plan==="portfolio_pro"));
+        const available=availability[plan==="pro" ? interval : "portfolio_pro_monthly"];
+        button.disabled=!active && !available;
+        label(button,active ? "Open your watchlist" : !available ? "Checkout temporarily unavailable" : !account ? "Sign in to continue" : account.plan==="pro" ? "Review subscription change" : "Continue to checkout");
+        button.onclick=() => active ? location.href="/watchlist" : startCheckout(plan);
+        document.getElementById(hint).textContent=active ? "Included in your current plan." : available ? "Review the price and renewal terms in Stripe before paying." : "Free scans and existing reports remain available.";
       }
     }
-
-    function setCtaLabel(cta, text) {
-      if (window.QuantMagnetic) window.QuantMagnetic.setLabel(cta, text);
-      else cta.textContent = text;
-    }
-
-    function syncCta() {
-      const cta = document.getElementById("proCta");
-      const hint = document.getElementById("ctaHint");
-      const portfolioCta = document.getElementById("portfolioCta");
-      const portfolioHint = document.getElementById("portfolioHint");
-      const userPlan = String(auth.plan).toLowerCase();
-
-      if (userPlan === "portfolio_pro") {
-        setCtaLabel(portfolioCta, "Portfolio Pro active — open desk");
-        portfolioCta.onclick = () => { location.href = "/"; };
-        portfolioHint.textContent = "You already have Portfolio Pro on this account.";
-        setCtaLabel(cta, "Pro included — open desk");
-        cta.onclick = () => { location.href = "/"; };
-        hint.textContent = "Portfolio Pro includes Pro desk access.";
-        return;
-      }
-      if (userPlan === "pro") {
-        setCtaLabel(cta, "Pro active — open desk");
-        cta.onclick = () => { location.href = "/"; };
-        hint.textContent = "You already have Pro on this account.";
-        setCtaLabel(portfolioCta, "Upgrade to Portfolio Pro");
-        portfolioCta.onclick = () => startCheckout("portfolio_pro");
-        portfolioHint.textContent = auth.stripe
-          ? "Upgrade adds portfolio-scale roadmap support. Same desk access until batch features ship."
-          : "Stripe may be unavailable until keys are configured.";
-        return;
-      }
-      if (!auth.authenticated) {
-        setCtaLabel(cta, interval === "yearly" ? "Sign in · Pro yearly" : "Sign in · Pro monthly");
-        cta.onclick = () => {
-          location.href = "/login?next=checkout&interval=" + encodeURIComponent(interval);
-        };
-        hint.textContent = auth.stripe
-          ? "Sign in first, then Stripe Checkout opens."
-          : "Sign in first. Stripe may be unavailable until keys are configured.";
-        setCtaLabel(portfolioCta, "Sign in · Portfolio Pro");
-        portfolioCta.onclick = () => {
-          location.href = "/login?next=checkout&plan=portfolio_pro";
-        };
-        portfolioHint.textContent = auth.stripe
-          ? "Sign in first, then Stripe Checkout opens."
-          : "Sign in first. Stripe may be unavailable until keys are configured.";
-        return;
-      }
-      setCtaLabel(cta, interval === "yearly" ? "Checkout · $249/yr" : "Checkout · $29/mo");
-      cta.onclick = () => startCheckout("pro");
-      hint.textContent = auth.stripe
-        ? "Secure Stripe Checkout. Success returns you to the desk."
-        : "Stripe is not configured on this host — CTA will show an honest error.";
-      setCtaLabel(portfolioCta, "Checkout · $99/mo");
-      portfolioCta.onclick = () => startCheckout("portfolio_pro");
-      portfolioHint.textContent = auth.stripe
-        ? "Secure Stripe Checkout. Monthly only."
-        : "Stripe is not configured on this host — CTA will show an honest error.";
-    }
-
     async function startCheckout(plan) {
-      const checkoutPlan = plan === "portfolio_pro" ? "portfolio_pro" : "pro";
+      if(!account) { location.href="/login?next=checkout&plan="+plan+"&interval="+interval; return; }
+      const button=document.getElementById(plan==="pro" ? "proCta" : "portfolioCta"); button.disabled=true;
       try {
-        const r = await fetch("/api/billing/checkout", {
-          method: "POST",
-          credentials: "same-origin",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ interval, plan: checkoutPlan }),
-        });
-        const j = await r.json();
-        if (j.url) { location.href = j.url; return; }
-        if (j.error === "login_required") {
-          if (checkoutPlan === "portfolio_pro") {
-            location.href = "/login?next=checkout&plan=portfolio_pro";
-          } else {
-            location.href = "/login?next=checkout&interval=" + encodeURIComponent(interval);
-          }
-          return;
-        }
-        showBanner("warn", j.error_detail || j.error || "Checkout unavailable");
-      } catch (e) {
-        showBanner("bad", String(e));
-      }
+        const response=await fetch("/api/billing/checkout",{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:JSON.stringify({plan,interval})});
+        const result=await response.json();
+        if(!response.ok || !result.url) throw new Error(result.error_detail || "Checkout is temporarily unavailable. Please retry.");
+        location.href=result.url;
+      } catch(error) { banner(error.message); sync(); }
     }
-
-    document.querySelectorAll("#intervalToggle button").forEach((b) => {
-      b.addEventListener("click", () => {
-        interval = b.dataset.interval;
-        syncIntervalUI();
-        syncCta();
-      });
-    });
-
-    if (params.get("checkout") === "cancel") {
-      showBanner("warn", "Checkout canceled. Pick a plan when you are ready.");
-    }
-    if (params.get("authed") === "1") {
-      showBanner("ok", "Signed in. Choose a plan, then Checkout.");
-    }
-
-    syncIntervalUI();
-
-    fetch("/api/billing/status", { credentials: "same-origin" })
-      .then((r) => r.json())
-      .then((j) => {
-        const note = document.getElementById("proValueNote");
-        if (!note) return;
-        if (j.live_available) {
-          note.textContent =
-            j.pro_value_note ||
-            "Live is free for everyone on this host — Pro raises your limits.";
-        } else {
-          note.textContent =
-            j.pro_value_note ||
-            "Supporter tier on this host; live unlocks automatically when charts are mounted.";
-        }
-      })
-      .catch(() => {});
-
-    fetch("/api/auth/status", { credentials: "same-origin" })
-      .then((r) => r.json())
-      .then((j) => {
-        auth = {
-          authenticated: !!j.authenticated,
-          plan: (j.user && j.user.plan) || "free",
-          stripe: !!j.stripe_checkout,
-        };
-        syncCta();
-        if (params.get("authed") === "1" && auth.authenticated && auth.stripe && checkoutPlan === "portfolio_pro") {
-          /* optional auto-start — keep manual click for clarity */
-        }
-      })
-      .catch(() => syncCta());
+    document.getElementById("manageBilling").onclick=async () => {
+      if(!account) { location.href="/login?next=checkout"; return; }
+      try {
+        const response=await fetch("/api/billing/portal",{method:"POST",credentials:"same-origin"}); const result=await response.json();
+        if(!result.url) throw new Error(result.error_detail || "Billing management is temporarily unavailable.");
+        location.href=result.url;
+      } catch(error) { banner(error.message); }
+    };
+    document.querySelectorAll("#intervalToggle button").forEach(button => button.onclick=() => { interval=button.dataset.interval; sync(); });
+    if(params.get("checkout")==="cancel") banner("Checkout canceled. You can return when ready.");
+    if(params.get("authed")==="1") banner("Signed in. Choose a plan to review its checkout.");
+    sync();
+    Promise.all([fetch("/api/auth/status",{credentials:"same-origin"}).then(r=>r.json()),fetch("/api/billing/status").then(r=>r.json())])
+      .then(([auth,billing]) => { account=auth.authenticated ? auth.user : null; availability=billing.available_prices || {}; sync(); })
+      .catch(() => banner("Could not load current billing availability. Please refresh."));
   </script>
   <script src="/static/mosaic.js" defer></script>
   <script src="/static/magnetic-btn.js" defer></script>

@@ -54,14 +54,14 @@ struct DepthFactsView: View {
                     .foregroundStyle(QRTheme.warn)
             }
             if let ago = depth.lastSetupAgoDays, let fwd = depth.lastSetupForwardPct, ago > 0 {
-                Text(String(format: "Last SETUP %d sessions ago · %+.1f%% since. Educational — not a promise.", ago, fwd))
+                Text(String(format: "Reconstructed SETUP %d sessions ago · close change %+.1f%%. Not a trading return.", ago, fwd))
                     .font(.footnote)
                     .foregroundStyle(QRTheme.muted)
             }
             if let n = depth.setupCount, n > 0, let m5 = depth.medianForward5dPct {
                 let m20 = depth.medianForward20dPct
                 let extra = m20.map { String(format: " · 20-day median %+.1f%%", $0) } ?? ""
-                Text(String(format: "When SETUP printed here: 5-day median %+.1f%% (n=%d)%@.", m5, n, extra))
+                Text(String(format: "Reconstructed SETUP days: 5-day median price change %+.1f%% (n=%d)%@. Historical earnings and sector gates unavailable.", m5, n, extra))
                     .font(.caption)
                     .foregroundStyle(QRTheme.muted)
             }

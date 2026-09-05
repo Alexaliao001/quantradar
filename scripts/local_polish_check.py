@@ -28,7 +28,7 @@ def main() -> int:
 
     print("-- unittest --")
     u = subprocess.run(
-        [sys.executable, "-m", "unittest", "discover", "-s", "tests", "-v"],
+        [sys.executable, str(REPO / "scripts" / "test_isolated.py")],
         cwd=REPO,
         capture_output=True,
         text=True,
@@ -47,7 +47,9 @@ def main() -> int:
     checks = [
         ("/health", 200, b"quantradar-shell"),
         ("/", 200, b"Quant"),
-        ("/pricing", 200, b"supporter"),
+        ("/pricing", 200, b"Portfolio Pro"),
+        ("/reports", 200, b"report"),
+        ("/watchlist", 200, b"Watchlist"),
         ("/methodology", 200, b"Methodology"),
         ("/track", 200, b"track"),
         ("/r/INTC", 200, b"INTC"),
@@ -96,7 +98,7 @@ def main() -> int:
         print(f"RESULT: FAIL ({fails})")
         print("Fix issues, then re-run. Deploy only when PASS. See docs/LOCAL_POLISH.md")
         return 1
-    print("RESULT: PASS — local polish gate green. Next: commit → push → docs/SELF_DEPLOY.md (Render, no Manus)")
+    print("RESULT: PASS — local gate green. Production verification is separate: docs/CORRECT_OPS.md")
     return 0
 
 

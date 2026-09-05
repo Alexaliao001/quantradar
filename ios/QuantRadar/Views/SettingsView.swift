@@ -99,6 +99,6 @@ struct SettingsView: View {
     }
 
     private var unlockPrice: String {
-        purchases.unlockProduct?.displayPrice ?? "$9.99"
+        purchases.unlockProduct?.displayPrice ?? "App Store price"
     }
 }

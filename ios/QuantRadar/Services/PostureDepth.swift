@@ -74,11 +74,16 @@ enum PostureDepth {
         let start = max(minBarsForDay - 1, bars.count - historyDays)
         var out: [String] = []
         out.reserveCapacity(bars.count - start)
+        let datedSPY = (spyBars ?? []).map { (MarketCalendar.barDay($0.date), $0) }
         for i in start..<bars.count {
             let slice = Array(bars.prefix(i + 1))
             var spySlice: [FreeBar]?
-            if let spy = spyBars, spy.count >= min(slice.count, 5) {
-                spySlice = Array(spy.prefix(min(spy.count, slice.count)))
+            if spyBars != nil {
+                let day = MarketCalendar.barDay(bars[i].date)
+                let aligned = datedSPY.filter { $0.0 <= day }.map { $0.1 }
+                if let last = aligned.last, MarketCalendar.barDay(last.date) == day {
+                    spySlice = aligned
+                }
             }
             let core = FreeMechanicalScorer.core(
                 bars: slice,

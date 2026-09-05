@@ -28,6 +28,9 @@ class EngagementStoreFixture(unittest.TestCase):
     """Temp-dir isolation for engagement JSON stores."""
 
     def setUp(self) -> None:
+        patcher = mock.patch("free_engine.market_calendar.completed_session", return_value="2026-09-04")
+        patcher.start()
+        self.addCleanup(patcher.stop)
         self._td = tempfile.TemporaryDirectory()
         d = Path(self._td.name)
         self._orig = (engagement.LEDGER_PATH, engagement.PRICE_CACHE_PATH, engagement.DIGEST_DIR, engagement.TODAY_CACHE_PATH)
@@ -41,6 +44,10 @@ class EngagementStoreFixture(unittest.TestCase):
         self._td.cleanup()
 
     def _seed(self, entries, cache) -> None:
+        for entry in entries:
+            entry.setdefault("as_of", "2026-09-03")
+        for hit in cache.values():
+            hit.setdefault("as_of", "2026-09-04")
         engagement.LEDGER_PATH.write_text(json.dumps({"version": 1, "entries": entries}), encoding="utf-8")
         engagement.PRICE_CACHE_PATH.write_text(json.dumps(cache), encoding="utf-8")
 
@@ -49,88 +56,88 @@ class AvoidanceAtoms(EngagementStoreFixture):
     def test_exact_threshold_5pct_counts(self) -> None:
         # drop of exactly 5.0 is >= threshold → counts
         self._seed(
-            [{"ticker": "T", "ts": time.time() - 10, "action": "NO", "close": 100.0, "email": None}],
+            [{"ticker": "T", "ts": time.time() - 10, "action": "NO", "close": 100.0, "email": "reader@example.com"}],
             {"T": {"ts": time.time(), "close": 95.0}},
         )
-        ev = engagement.avoidance_events(None)
+        ev = engagement.avoidance_events("reader@example.com")
         self.assertEqual(len(ev), 1)
         self.assertEqual(ev[0]["drop_pct"], 5.0)
 
     def test_drop_4_9pct_excluded(self) -> None:
         self._seed(
-            [{"ticker": "T", "ts": time.time() - 10, "action": "NO", "close": 100.0, "email": None}],
+            [{"ticker": "T", "ts": time.time() - 10, "action": "NO", "close": 100.0, "email": "reader@example.com"}],
             {"T": {"ts": time.time(), "close": 95.1}},
         )
-        self.assertEqual(engagement.avoidance_events(None), [])
+        self.assertEqual(engagement.avoidance_events("reader@example.com"), [])
 
     def test_price_rise_never_counts(self) -> None:
         self._seed(
-            [{"ticker": "T", "ts": time.time() - 10, "action": "NO", "close": 100.0, "email": None}],
+            [{"ticker": "T", "ts": time.time() - 10, "action": "NO", "close": 100.0, "email": "reader@example.com"}],
             {"T": {"ts": time.time(), "close": 130.0}},
         )
-        self.assertEqual(engagement.avoidance_events(None), [])
+        self.assertEqual(engagement.avoidance_events("reader@example.com"), [])
 
     def test_wait_action_never_counts(self) -> None:
         self._seed(
-            [{"ticker": "T", "ts": time.time() - 10, "action": "WAIT", "close": 100.0, "email": None}],
+            [{"ticker": "T", "ts": time.time() - 10, "action": "WAIT", "close": 100.0, "email": "reader@example.com"}],
             {"T": {"ts": time.time(), "close": 50.0}},
         )
-        self.assertEqual(engagement.avoidance_events(None), [])
+        self.assertEqual(engagement.avoidance_events("reader@example.com"), [])
 
     def test_zero_then_close_skipped(self) -> None:
         self._seed(
-            [{"ticker": "T", "ts": time.time() - 10, "action": "NO", "close": 0.0, "email": None}],
+            [{"ticker": "T", "ts": time.time() - 10, "action": "NO", "close": 0.0, "email": "reader@example.com"}],
             {"T": {"ts": time.time(), "close": 1.0}},
         )
-        self.assertEqual(engagement.avoidance_events(None), [])
+        self.assertEqual(engagement.avoidance_events("reader@example.com"), [])
 
     def test_missing_cache_entry_skipped(self) -> None:
         self._seed(
-            [{"ticker": "T", "ts": time.time() - 10, "action": "NO", "close": 100.0, "email": None}],
+            [{"ticker": "T", "ts": time.time() - 10, "action": "NO", "close": 100.0, "email": "reader@example.com"}],
             {},
         )
-        self.assertEqual(engagement.avoidance_events(None), [])
+        self.assertEqual(engagement.avoidance_events("reader@example.com"), [])
 
     def test_cache_older_than_ttl_excluded(self) -> None:
         stale_ts = time.time() - engagement._PRICE_TTL_SEC - 10
         self._seed(
-            [{"ticker": "T", "ts": time.time() - 10, "action": "NO", "close": 100.0, "email": None}],
+            [{"ticker": "T", "ts": time.time() - 10, "action": "NO", "close": 100.0, "email": "reader@example.com"}],
             {"T": {"ts": stale_ts, "close": 90.0}},
         )
-        self.assertEqual(engagement.avoidance_events(None), [])
+        self.assertEqual(engagement.avoidance_events("reader@example.com"), [])
 
     def test_limit_parameter(self) -> None:
         entries = [
-            {"ticker": f"T{i}", "ts": time.time() - 10, "action": "NO", "close": 100.0, "email": None}
+            {"ticker": f"T{i}", "ts": time.time() - 10, "action": "NO", "close": 100.0, "email": "reader@example.com"}
             for i in range(8)
         ]
         cache = {f"T{i}": {"ts": time.time(), "close": 90.0} for i in range(8)}
         self._seed(entries, cache)
-        self.assertEqual(len(engagement.avoidance_events(None, limit=3)), 3)
-        self.assertEqual(len(engagement.avoidance_events(None, limit=100)), 8)
+        self.assertEqual(len(engagement.avoidance_events("reader@example.com", limit=3)), 3)
+        self.assertEqual(len(engagement.avoidance_events("reader@example.com", limit=100)), 8)
 
     def test_most_recent_scans_first(self) -> None:
         self._seed(
             [
-                {"ticker": "OLD", "ts": time.time() - 5000, "action": "NO", "close": 100.0, "email": None},
-                {"ticker": "NEW", "ts": time.time() - 10, "action": "NO", "close": 100.0, "email": None},
+                {"ticker": "OLD", "ts": time.time() - 5000, "action": "NO", "close": 100.0, "email": "reader@example.com"},
+                {"ticker": "NEW", "ts": time.time() - 10, "action": "NO", "close": 100.0, "email": "reader@example.com"},
             ],
             {"OLD": {"ts": time.time(), "close": 90.0}, "NEW": {"ts": time.time(), "close": 90.0}},
         )
-        ev = engagement.avoidance_events(None)
+        ev = engagement.avoidance_events("reader@example.com")
         self.assertEqual(ev[0]["ticker"], "NEW")
 
     def test_corrupt_cache_file_yields_empty(self) -> None:
         engagement.LEDGER_PATH.write_text("{not json", encoding="utf-8")
         engagement.PRICE_CACHE_PATH.write_text("{not json", encoding="utf-8")
-        self.assertEqual(engagement.avoidance_events(None), [])
+        self.assertEqual(engagement.avoidance_events("reader@example.com"), [])
 
     def test_drop_pct_rounded_to_one_decimal(self) -> None:
         self._seed(
-            [{"ticker": "T", "ts": time.time() - 10, "action": "NO", "close": 100.0, "email": None}],
+            [{"ticker": "T", "ts": time.time() - 10, "action": "NO", "close": 100.0, "email": "reader@example.com"}],
             {"T": {"ts": time.time(), "close": 93.3333}},
         )
-        ev = engagement.avoidance_events(None)
+        ev = engagement.avoidance_events("reader@example.com")
         self.assertEqual(ev[0]["drop_pct"], 6.7)
 
 
@@ -140,41 +147,20 @@ class RecordScanAtoms(EngagementStoreFixture):
         time.sleep(0.15)
         self.assertFalse(engagement.LEDGER_PATH.is_file())
 
-    def test_demo_result_not_recorded_by_caller_convention(self) -> None:
-        # The server skips demos before calling; record_scan itself only
-        # checks ok — verify it writes when called directly with ok=True.
-        with mock.patch.object(engagement, "_current_close", return_value=10.0):
-            engagement.record_scan("T", {"ok": True, "primary": {"action": "SETUP"}, "score": {"final": 70}}, None)
-            deadline = time.time() + 5
-            while time.time() < deadline and not engagement.LEDGER_PATH.is_file():
-                time.sleep(0.05)
-        data = json.loads(engagement.LEDGER_PATH.read_text(encoding="utf-8"))
-        self.assertEqual(data["entries"][0]["action"], "SETUP")
-        self.assertEqual(data["entries"][0]["close"], 10.0)
-        self.assertIsNone(data["entries"][0]["email"])
+    def test_demo_result_not_recorded_even_when_called_directly(self) -> None:
+        engagement.record_scan("T", {"ok": True, "meta": {"mode":"artifact"}}, "reader@example.com")
+        self.assertFalse(engagement.LEDGER_PATH.is_file())
 
-    def test_close_fetch_failure_skips_entry(self) -> None:
-        with mock.patch.object(engagement, "_current_close", return_value=None):
-            engagement.record_scan("T", {"ok": True, "primary": {"action": "NO"}}, None)
-            time.sleep(0.4)
+    def test_missing_snapshot_close_skips_entry(self) -> None:
+        engagement.record_scan("T", {"ok": True, "meta": {"mode":"live", "market_as_of":"2026-09-04"}}, "reader@example.com")
         self.assertFalse(engagement.LEDGER_PATH.is_file())
 
     def test_ledger_capped_at_2000(self) -> None:
-        big = [
-            {"ticker": f"T{i}", "ts": time.time(), "action": "NO", "close": 1.0, "email": None}
-            for i in range(2050)
-        ]
-        engagement.LEDGER_PATH.write_text(json.dumps({"version": 1, "entries": big}), encoding="utf-8")
-        with mock.patch.object(engagement, "_current_close", return_value=2.0):
-            engagement.record_scan("CAP", {"ok": True, "primary": {"action": "NO"}}, None)
-            deadline = time.time() + 5
-            while time.time() < deadline:
-                if engagement.LEDGER_PATH.is_file():
-                    data = json.loads(engagement.LEDGER_PATH.read_text(encoding="utf-8"))
-                    if len(data["entries"]) <= engagement._LEDGER_CAP:
-                        break
-                time.sleep(0.05)
-        data = json.loads(engagement.LEDGER_PATH.read_text(encoding="utf-8"))
+        big = [{"ticker": f"T{i}"} for i in range(2050)]
+        engagement.LEDGER_PATH.write_text(json.dumps({"version": 2, "entries": big}), encoding="utf-8")
+        engagement.record_scan("CAP", {"ok": True, "primary": {"action":"NO"},
+            "meta":{"mode":"live", "market_as_of":"2026-09-04", "market_close":2}}, "reader@example.com")
+        data = json.loads(engagement.LEDGER_PATH.read_text())
         self.assertEqual(len(data["entries"]), 2000)
         self.assertEqual(data["entries"][-1]["ticker"], "CAP")
 
@@ -441,9 +427,8 @@ class StripeReportAtoms(unittest.TestCase):
                 customer_email="x@y.com", interval="monthly", coupon_id=None
             )
 
-    def test_webhook_report_branch_grants_and_mints(self) -> None:
-        """checkout.session.completed with metadata.product=quantradar_report
-        must grant the report (never elevate plan) and mint the $9 credit."""
+    def test_webhook_report_requires_a_bound_order(self) -> None:
+        """A paid flag without an order/session binding cannot grant reports or Pro."""
         users_td = tempfile.TemporaryDirectory()
         orig = users_mod.USERS_PATH
         users_mod.USERS_PATH = Path(users_td.name) / "users.json"
@@ -451,6 +436,7 @@ class StripeReportAtoms(unittest.TestCase):
         try:
             users_mod.register_user("buyer@test.local", "hunter2secret")
             event = {
+                "id": "evt_atomic_checkout",
                 "type": "checkout.session.completed",
                 "data": {
                     "object": {
@@ -460,32 +446,32 @@ class StripeReportAtoms(unittest.TestCase):
                     }
                 },
             }
-            with mock.patch.object(stripe_billing, "create_credit_coupon", return_value="cpn_test") as mint:
-                res = stripe_billing.apply_webhook_event(event)
-            self.assertTrue(res["ok"], res)
-            self.assertEqual(res["action"], "report_granted")
-            mint.assert_called_once_with("buyer@test.local")
+            with mock.patch.object(stripe_billing, "create_credit_coupon") as mint:
+                with self.assertRaises(ValueError):
+                    stripe_billing.apply_webhook_event(event)
+            mint.assert_not_called()
             u = users_mod.get_user("buyer@test.local")
-            self.assertTrue(u["report_granted"])
-            self.assertTrue(u["bump_csv_priority"])
-            self.assertEqual(u["report_coupon"], "cpn_test")
-            # CRITICAL: buying the $9 report must NOT grant Pro
+            self.assertFalse(u.get("report_granted"))
             self.assertEqual(u["plan"], "free")
         finally:
             users_mod.USERS_PATH = orig
             users_td.cleanup()
 
     def test_webhook_pro_branch_still_sets_pro(self) -> None:
-        """Regression: pro checkout still elevates plan (metadata.product=pro)."""
+        """A verified active subscription with an allowlisted price grants Pro."""
+        from stripe_fixtures import mock_subscription
+        mock_subscription(self, "sub@test.local")
         users_td = tempfile.TemporaryDirectory()
         orig = users_mod.USERS_PATH
         users_mod.USERS_PATH = Path(users_td.name) / "users.json"
         os.environ["ALLOW_REGISTER"] = "1"
         try:
             event = {
+                "id": "evt_atomic_checkout",
                 "type": "checkout.session.completed",
                 "data": {
                     "object": {
+                        "mode": "subscription", "subscription": "sub_test",
                         "customer_email": "sub@test.local",
                         "payment_status": "paid",
                         "metadata": {"product": "quantradar_pro", "email": "sub@test.local"},
@@ -508,6 +494,7 @@ class StripeReportAtoms(unittest.TestCase):
         try:
             users_mod.register_user("np@test.local", "hunter2secret")
             event = {
+                "id": "evt_atomic_checkout",
                 "type": "checkout.session.completed",
                 "data": {
                     "object": {
@@ -518,8 +505,8 @@ class StripeReportAtoms(unittest.TestCase):
                 },
             }
             res = stripe_billing.apply_webhook_event(event)
-            self.assertFalse(res["ok"])
-            self.assertEqual(res["error"], "not_paid")
+            self.assertTrue(res["ok"])
+            self.assertEqual(res["action"], "awaiting_payment")
             self.assertFalse(users_mod.get_user("np@test.local").get("report_granted"))
         finally:
             users_mod.USERS_PATH = orig

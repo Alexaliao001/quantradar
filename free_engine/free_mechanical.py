@@ -142,10 +142,12 @@ def core(bars: Sequence[Bar], spy_bars: Sequence[Bar] | None) -> dict[str, Any]:
         vol_adj = -4.0
     score += vol_adj
 
-    market_gate = "PASS"
+    market_gate = "UNKNOWN"
     spy_pct: float | None = None
     spy_adj = 0.0
-    if spy_bars is not None and len(spy_bars) >= 5:
+    if (spy_bars is not None and len(spy_bars) >= 5
+            and all(math.isfinite(row[1]) and row[1] > 0 for row in spy_bars[-5:])):
+        market_gate = "PASS"
         a = spy_bars[-5][1]
         b = spy_bars[-1][1]
         if a > 0:
@@ -164,6 +166,9 @@ def core(bars: Sequence[Bar], spy_bars: Sequence[Bar] | None) -> dict[str, Any]:
     if market_gate == "NO" or score < 38.0:
         action, label = "NO", "Avoid"
         reason = "Posture is weak or the market gate is blocked — do not force a trade."
+    elif market_gate == "UNKNOWN":
+        action, label = "WAIT", "Wait & Watch"
+        reason = "SPY market data is unavailable — wait until the market gate can be checked."
     elif score >= 68.0 and -2.0 <= pullback <= 8.0 and (rsi if rsi is not None else 50.0) < 68.0:
         action, label = "SETUP", "Setup zone"
         reason = (

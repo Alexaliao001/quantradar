@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -165,15 +166,17 @@ def main() -> int:
         else:
             ok(f"{name} has no `{banned}`")
 
-    if 'MARKETING_VERSION: "1.2.0"' not in project or 'CURRENT_PROJECT_VERSION: "7"' not in project:
-        bad("project.yml should be 1.2.0 / build 7")
+    builds = re.findall(r'CURRENT_PROJECT_VERSION: "([0-9]+)"', project)
+    versions = re.findall(r'MARKETING_VERSION: "([0-9.]+)"', project)
+    if len(builds) != 2 or len(set(builds)) != 1 or int(builds[0]) < 1 or len(versions) != 2 or len(set(versions)) != 1:
+        bad("App and Widget must have matching marketing and positive build versions")
     else:
-        ok("project.yml 1.2.0 / 7")
+        ok(f"App/Widget {versions[0]} / build {builds[0]}")
 
-    if "Cancel any in-flight paid 1.0" not in launch:
-        bad("APP_STORE_LAUNCH missing paid-1.0 cancel / free listing strategy")
+    if "WAITING_FOR_REVIEW" not in launch or "IAP" not in launch:
+        bad("APP_STORE_LAUNCH must distinguish pending review and IAP submission")
     else:
-        ok("APP_STORE_LAUNCH ships free + Unlock, not paid download")
+        ok("APP_STORE_LAUNCH records pending review and existing IAP")
 
     if "one lifetime personal ticker" not in product:
         bad("PRODUCT.md should describe one personal ticker preview")

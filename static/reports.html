@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex"><title>Your reports · QuantRadar</title>
+  <link rel="stylesheet" href="/static/site.css?v=4b5323a613"><link rel="icon" href="/favicon.svg">
+</head>
+<body>
+  <header class="top"><a class="brand" href="/">Quant<span>Radar</span></a><nav aria-label="Main navigation"><a href="/">Scan</a><a href="/watchlist">Watchlist</a><a href="/pricing">Pricing</a></nav></header>
+  <main class="prose report-page">
+    <h1>Your reports</h1>
+    <p>Keep a dated snapshot you can return to. Purchased reports stay in your account after a subscription ends.</p>
+    <div id="status" class="banner" role="status" aria-live="polite" hidden></div>
+    <section class="card" aria-labelledby="newTitle">
+      <h2 id="newTitle">One stock, one complete report · $9</h2>
+      <p>A fixed snapshot with full JSON, four daily charts and a reconstructed replay of 90 trading sessions. We check coverage before opening checkout.</p>
+      <form id="purchase">
+        <label for="symbol">US stock ticker</label>
+        <input id="symbol" name="ticker" required maxlength="12" pattern="[A-Za-z0-9.\-]+" placeholder="AAPL" autocomplete="off" style="text-transform:uppercase">
+        <p><label><input id="csv" type="checkbox"> Add CSV export and report queue priority when busy · +$5 one-time</label></p>
+        <p id="total">Total $9 · one-time payment. No subscription.</p>
+        <button id="buy" class="btn" type="submit">Check data &amp; continue — $9</button>
+      </form>
+      <p class="muted">The $9 report credit can be used toward Pro within 7 days of payment. Historical replay uses mechanical price rules; historical earnings and sector gates are unavailable. Educational research, not trading performance.</p>
+    </section>
+    <h2>Saved reports</h2>
+    <div id="orders" aria-live="polite"><p>Loading your reports…</p></div>
+    <p><a href="/refund">Refund policy</a> · <a href="/privacy">Privacy</a></p>
+  </main>
+  <script>
+    const params = new URLSearchParams(location.search);
+    const symbol = document.getElementById("symbol");
+    const csv = document.getElementById("csv");
+    const buy = document.getElementById("buy");
+    const status = document.getElementById("status");
+    symbol.value = (params.get("ticker") || "").toUpperCase();
+    let authenticated = false;
+    let pending = false;
+    let requestKey = crypto.randomUUID();
+    function message(text) { status.textContent = text; status.hidden = false; }
+    function updatePrice() {
+      requestKey = crypto.randomUUID();
+      const total = csv.checked ? "$14" : "$9";
+      document.getElementById("total").textContent = "Total " + total + " · one-time payment. No subscription.";
+      buy.textContent = "Check data & continue — " + total;
+    }
+    csv.onchange = updatePrice;
+    symbol.onchange = () => { requestKey = crypto.randomUUID(); };
+    document.getElementById("purchase").onsubmit = async event => {
+      event.preventDefault();
+      if (!authenticated) {
+        location.href = "/login?next=reports&ticker=" + encodeURIComponent(symbol.value.trim().toUpperCase());
+        return;
+      }
+      buy.disabled = true;
+      message("Checking completed-session data and report coverage…");
+      try {
+        const response = await fetch("/api/billing/checkout_report", {method:"POST", credentials:"same-origin",
+          headers:{"Content-Type":"application/json"},
+          body:JSON.stringify({ticker:symbol.value.trim().toUpperCase(), bump:csv.checked, request_key:requestKey})});
+        const result = await response.json();
+        if (!response.ok || !result.url) throw new Error(result.error_detail || "Checkout is unavailable. No payment was started.");
+        location.href = result.url;
+      } catch (error) { message(error.message); buy.disabled = false; }
+    };
+    function addText(parent, tag, value) {
+      const node = document.createElement(tag); node.textContent = value; parent.appendChild(node); return node;
+    }
+    async function refresh() {
+      try {
+        const response = await fetch("/api/reports", {credentials:"same-origin"});
+        const target = document.getElementById("orders");
+        if (response.status === 401) {
+          target.replaceChildren();
+          const link = addText(target,"a","Sign in to view your reports");
+          link.href = "/login?next=reports&ticker=" + encodeURIComponent(symbol.value);
+          return;
+        }
+        const body = await response.json();
+        if (!response.ok) throw new Error("Could not load your reports. Please retry.");
+        authenticated = true; pending = false; target.replaceChildren();
+        if (!body.reports.length) addText(target,"p","Your purchased reports will appear here.");
+        for (const report of body.reports) {
+          const card = document.createElement("article"); card.className = "card"; target.appendChild(card);
+          addText(card,"h3",report.ticker ? report.ticker + " · " + report.as_of : "Your previous report purchase");
+          if (report.delivery_state === "awaiting_ticker" && ["paid","partially_refunded"].includes(report.payment_state)) {
+            addText(card,"p","Choose one stock for your previous purchase. Full JSON, charts, replay and CSV are included at no additional charge.");
+            const form = document.createElement("form"); card.appendChild(form);
+            const input = document.createElement("input"); input.required = true; input.maxLength = 12;
+            input.placeholder = "Ticker, e.g. AAPL"; input.setAttribute("aria-label","Ticker for previous purchase");
+            form.appendChild(input);
+            const claim = addText(form,"button","Create my report · no charge"); claim.type="submit"; claim.className="btn";
+            form.onsubmit = async event => {
+              event.preventDefault(); claim.disabled = true;
+              try {
+                const response = await fetch("/api/reports/" + encodeURIComponent(report.id) + "/claim", {
+                  method:"POST", credentials:"same-origin", headers:{"Content-Type":"application/json"},
+                  body:JSON.stringify({ticker:input.value.trim().toUpperCase()})});
+                const body = await response.json();
+                if (!response.ok) throw new Error(body.error_detail || "Report data unavailable. Your claim is preserved.");
+                refresh();
+              } catch (error) { message(error.message); claim.disabled = false; }
+            };
+            continue;
+          }
+          const paid = ["paid","partially_refunded"].includes(report.payment_state);
+          const ready = paid && report.delivery_state === "ready";
+          const label = ready ? "Ready to download" : report.payment_state === "refunded" ? "Refunded" : paid ? "Payment recorded · preparing your report" : "Awaiting payment confirmation";
+          addText(card,"p",label);
+          if (report.error && paid) addText(card,"p",report.error);
+          if (paid && report.credit_state === "pending") addText(card,"p","Your report is separate from the Pro credit. Credit activation is pending; no extra purchase is required.");
+          if (ready) {
+            const assets = [["report.zip","Download all"],["report.json","Full JSON"],["price.svg","Price & moving averages"],["rsi.svg","RSI"],["volume.svg","Volume"],["posture.svg","Posture history"]];
+            if (report.bump || report.legacy) assets.push(["replay.csv","Replay CSV"]);
+            for (const [name,label] of assets) {
+              const link = addText(card,"a",label); link.className = "btn secondary";
+              link.href = "/api/reports/" + encodeURIComponent(report.id) + "/assets/" + name;
+              link.style.margin = "4px";
+            }
+          }
+          pending = pending || (paid && !ready) || (params.get("order") === report.id && report.payment_state === "unpaid");
+        }
+        if (pending) setTimeout(refresh, 5000);
+      } catch (error) { message(error.message); }
+    }
+    refresh();
+  </script>
+</body>
+</html>

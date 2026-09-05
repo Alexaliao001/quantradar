@@ -100,11 +100,12 @@
         const state = mkt.gate_state || (mkt.gate_open === true ? "open" : mkt.gate_open === false ? "closed" : "unknown");
         const open = state === "open";
         const unknown = state === "unknown";
-        document.getElementById("mGate").textContent = open ? "OPEN" : unknown ? "UNKNOWN" : "CLOSED";
+        document.getElementById("mGate").textContent = open ? "OPEN" : unknown ? "UNKNOWN" : state === "watch" ? "WATCH" : "CLOSED";
         document.getElementById("mGate").dataset.tone = open ? "pass" : unknown ? "neutral" : "fail";
         const st = document.getElementById("mGateStatus");
         st.textContent = mkt.spy_pct_5d != null ? "SPY " + Number(mkt.spy_pct_5d).toFixed(2) + "% / 5d" : "SPY data unavailable";
         if (mkt.stale) st.textContent += " · delayed data";
+        if (mkt.as_of) st.textContent += " · daily close " + mkt.as_of;
         document.getElementById("evMarket").dataset.gate = open ? "pass" : unknown ? "unknown" : "fail";
         document.getElementById("mScanned").textContent = j.scanned != null ? j.scanned : "—";
         document.getElementById("mPassing").textContent = j.passing != null ? j.passing : "—";

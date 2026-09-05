@@ -8,7 +8,7 @@
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Syne:wght@600;700;800&display=swap" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Sign in — QuantRadar</title>
-  <meta name="description" content="QuantRadar own login — email and password. No Manus platform account." />
+  <meta name="description" content="Sign in to QuantRadar to save your watchlist and access your reports." />
   <link rel="stylesheet" href="/static/site.css" />
 </head>
 <body class="auth-shell">
@@ -29,11 +29,10 @@
     <section class="auth-card">
       <h1 id="title">Sign in</h1>
       <p class="lede" id="lede">
-        Own account — email + password. No Manus.
-        Guest demo radar stays open without signing in.
+        Save your watchlist and keep your reports in one place.
+        You can also run free scans without an account.
       </p>
       <div id="banner" class="banner" hidden></div>
-      <div class="hint" id="bootstrapHint" hidden></div>
 
       <div class="tabs">
         <button type="button" class="active" id="tabLogin">Sign in</button>
@@ -52,8 +51,7 @@
         <button class="btn btn-mag" id="pwBtn" type="submit">Sign in</button>
       </form>
 
-      <div class="divider">or</div>
-      <button class="btn secondary" id="magicToggle" type="button">Email me a magic link</button>
+      <button class="btn secondary" id="magicToggle" type="button" hidden>Email me a sign-in link</button>
       <form id="magicForm" hidden>
         <label for="magicEmail" style="margin-top:0.75rem">Email for magic link</label>
         <input id="magicEmail" type="email" placeholder="you@email.com" />
@@ -62,7 +60,7 @@
 
       <a class="btn secondary" id="googleBtn" href="/api/auth/google/start" hidden>Continue with Google</a>
       <a class="btn secondary" href="/">Continue as guest</a>
-      <p class="note" id="statusNote">Loading auth config…</p>
+      <p class="note" id="statusNote">Your purchased reports stay linked to this email.</p>
     </section>
   </main>
   <script>
@@ -90,10 +88,11 @@
         location.href = "/?signed_in=1&want=live";
         return;
       }
-      if (next === "report") {
-        location.href = "/?signed_in=1&want=report";
+      if (next === "report" || next === "reports") {
+        location.href = "/reports?ticker=" + encodeURIComponent(params.get("ticker") || "");
         return;
       }
+      if (next === "watchlist") { location.href = "/watchlist"; return; }
       location.href = "/?signed_in=1";
     }
 
@@ -126,7 +125,7 @@
     } else if (next === "live") {
       document.getElementById("lede").textContent =
         "Sign in to use the desk. Live scans are free — an account keeps your watchlist and history.";
-    } else if (next === "report") {
+    } else if (next === "report" || next === "reports") {
       document.getElementById("lede").textContent =
         "Sign in to buy the deep report. Your $9 one-time purchase counts toward Pro for 7 days.";
     }
@@ -218,21 +217,9 @@
           document.getElementById("tabRegister").disabled = true;
           document.getElementById("tabRegister").style.opacity = "0.4";
         }
-        statusNote.textContent =
-          "auth=" + (j.auth_mode || "?") +
-          " · password=" + !!j.password_auth +
-          " · magic=" + !!j.magic_link +
-          " · google=" + !!j.google_oauth +
-          " · stripe=" + !!j.stripe_checkout;
-
-        if (j.user_count === 1 || j.user_count === 0) {
-          const h = document.getElementById("bootstrapHint");
-          h.hidden = false;
-          h.textContent =
-            "First-run tip: register above — or bootstrap admin@local.test / quantradar when QUANTRADAR_BOOTSTRAP_DEMO=1.";
-        }
+        document.getElementById("magicToggle").hidden = !(j.magic_link && j.smtp_configured);
       } catch (e) {
-        statusNote.textContent = String(e);
+        statusNote.textContent = "Connection interrupted. Please refresh and try again.";
       }
       if (params.get("error")) showBanner("bad", "Error: " + params.get("error"));
       if (params.get("checkout") === "cancel") {

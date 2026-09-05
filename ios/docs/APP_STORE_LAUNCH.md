@@ -3,33 +3,31 @@
 ## Product decisions (locked for this ship)
 
 - **Free App Store download**
-- **$9.99 Non-Consumable unlock** (`one.quantradar.app.unlock`) — founder price, first 1,000
+- **Non-Consumable unlock** (`one.quantradar.app.unlock`) — regional price displayed by StoreKit
 - Free preview: Today SPY + **one lifetime personal ticker** — no daily quotas
-- Second ticker: live score, **blurred** card, anxiety paywall
+- Second ticker: live score, **blurred** card, one-time Unlock offer
 - Distinct core: **Chase Check → mechanical radar → private Decision Journal**
 - Live+ **not listed** (keep StoreKit products for later)
 - Separate from web Stripe / Massive
 - User-facing copy: posture only (no COGS / Massive / yahoo_q1)
-- Binary: **1.2.0 / build 7**
+- Binary: **1.2.0 / build 8**
 
-## Listing strategy
+## 已核验审核状态（2026-09-06）
 
-Paid-download 1.0 is the wrong cash register. The public product is **free + Unlock**.
+App Store Connect 的公开版本 1.0 当前为 **WAITING_FOR_REVIEW**，关联 build 7；安装价已为 Free，Unlock IAP 已存在并包含在审核中。美国 Unlock 当前配置 $9.90，其他地区由 Apple 定价。不能从本地 StoreKit 测试价格推断所有地区售价。
 
-If 1.0 is still Waiting for Review: **cancel that thread**, set price Free, create Unlock IAP, submit **1.2**. Do not launch $9.99-to-download then convert later.
+### 替换构建
 
-### Cutover / first public listing
+1. 先完成数据授权与实际 StoreKit 验收；核对 App 协议、税务、银行及销售地区。
+2. build 8（1.2.0）本地测试和归档后上传，等待 Apple 处理为 VALID。上传成功不等于已审核或上架。
+3. 备份现有版本、构建关系、审核项目和 IAP 配置。新构建可用之前保留当前审核。
+4. 如确需替换，取消现有审核并等待可编辑，再关联已验证可用于该版本的新构建。
+5. 新 review submission 必须同时包含 App version 和现有 Unlock IAP version，核对后提交；保持 AFTER_APPROVAL。
+6. Live+ 不上架、不另建订阅。网页 Stripe 权限不进入 iOS。
+7. 截图和说明使用真实界面；无虚构前 1,000 名、倒计时或收益。
+8. 隐私：`https://quantradar.one/privacy-ios`；条款：`https://quantradar.one/terms-ios`。
 
-1. Cancel any in-flight paid 1.0 review submission
-2. Set App price to **Free**
-3. Create IAP: Non-Consumable **QuantRadar Unlock** $9.99 · id `one.quantradar.app.unlock`
-4. Skip Live+ subscription group on the listing (products may exist in StoreKit config only)
-5. Paid Apps / IAP agreements + tax/banking current
-6. Version **1.2** binary (build 7+) with Chase Check, Decision Journal, StoreKit gates, and depth features
-7. Screenshots: Chase Check · three-gate verdict · private journal/Plan · blurred 2nd-ticker paywall · Unlock sheet. No “paid download” / COGS / Massive captions
-8. Privacy URL: `https://quantradar.one/privacy-ios` · Terms: `https://quantradar.one/terms-ios`
-9. Review note: free SPY + one personal ticker; second ticker scores but stays locked; unlock once; no account; educational; not a broker; SETUP ≠ buy order; weekday briefing is a local reminder, not a signal
-10. Submit 1.2 — After Approval
+此流程尚未执行本次上传/替换；实际发布时间由 Apple 审核与商店状态决定。
 
 ## Local build
 
@@ -55,7 +53,7 @@ Start with Chase Check: confirm that your entry existed before the move, define 
 
 Save the decision before you know the outcome. The private on-device journal records whether you chose to pause, wait, pass, or review — so discipline becomes a process, not a victory-lap screenshot.
 
-Free to install: see today’s SPY posture and scan one ticker of yours. Unlock once ($9.99) for every supported ticker, Watch, and 90-day posture history.
+Free to install: see today’s SPY posture and scan one ticker of yours. Unlock once (your regional price is shown before purchase) for every supported ticker, Watch, and 90-day posture history.
 
 This is not a broker, does not place trades, and is not investment advice or a tipster feed. Most days the honest answer is wait.
 
@@ -71,12 +69,12 @@ Apple rejects new localizations while the version is in review. After Ready for 
 /tmp/asc-jwt/bin/python ios/scripts/ship_locales_after_approval.py
 ```
 
-Copy lives in that script. Markets already include US + 175 App Store territories (Unlock IAP).
+Copy lives in that script. Unlock IAP availability was observed for 175 territories; app availability, agreements and public listing must be checked separately.
 
 ## Ads → cash register
 
 - Send traffic to **free** listing (lower friction)
-- Optimize toward **unlock CPA** vs ~$7 net, not install vanity
+- Evaluate acquisition cost against actual net Unlock receipts after Apple fees, tax and refunds
 - Use Offer Codes for creative tests
 - Kill campaigns that only buy installs without unlocks
 

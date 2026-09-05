@@ -76,9 +76,19 @@ class SMARSITests(unittest.TestCase):
 class CoreParityTests(unittest.TestCase):
     """Each case hand-computed from the iOS FreeMechanicalScorer formula."""
 
+    def test_missing_or_invalid_spy_never_passes(self) -> None:
+        bars = bars_seq(uptrend_closes(), uptrend_vols())
+        for spy in (None, [], bars_seq([100.0] * 4), bars_seq([0, 100, 100, 100, 100]),
+                    bars_seq([100, 100, float("nan"), 100, 100])):
+            with self.subTest(spy=spy):
+                result = core(bars, spy)
+                self.assertEqual(result["market_gate"], "UNKNOWN")
+                self.assertEqual(result["action"], "WAIT")
+                self.assertIsNone(result["spy_pct"])
+
     def test_uptrend_setup(self) -> None:
         closes = uptrend_closes()
-        c = core(bars_seq(closes, uptrend_vols()), None)
+        c = core(bars_seq(closes, uptrend_vols()), bars_seq([100.0] * 5))
         # +18 trend, +12 momentum, +8 volume → 88
         self.assertEqual(c["score"], 88.0)
         self.assertEqual(c["adjustments"]["trend_sma"], 18.0)
@@ -118,7 +128,7 @@ class CoreParityTests(unittest.TestCase):
         self.assertIsNone(pct_change_over(spy[:4], 5))
 
     def test_earnings_gate_flips_setup_to_wait(self) -> None:
-        c = core(bars_seq(uptrend_closes(), uptrend_vols()), None)
+        c = core(bars_seq(uptrend_closes(), uptrend_vols()), bars_seq([100.0] * 5))
         self.assertEqual(c["action"], "SETUP")
         gated = apply_post_gates(c, earnings_near=True, sector_action=None)
         self.assertEqual(gated["action"], "WAIT")
@@ -126,7 +136,7 @@ class CoreParityTests(unittest.TestCase):
         self.assertEqual(gated["stock_gate"], "WATCH")
 
     def test_sector_no_blocks_setup(self) -> None:
-        c = core(bars_seq(uptrend_closes(), uptrend_vols()), None)
+        c = core(bars_seq(uptrend_closes(), uptrend_vols()), bars_seq([100.0] * 5))
         gated = apply_post_gates(c, earnings_near=False, sector_action="NO")
         self.assertEqual(gated["action"], "WAIT")
 
@@ -137,6 +147,15 @@ class CoreParityTests(unittest.TestCase):
 
 
 class AggregationTests(unittest.TestCase):
+    def test_yahoo_hosts_share_one_vote(self) -> None:
+        agg = aggregate_bars({
+            "yahoo_q1": [("2026-09-04", 100.0, 1000)],
+            "yahoo_q2": [("2026-09-04", 100.0, 1000)],
+            "nasdaq": [("2026-09-04", 110.0, 1000)],
+        })
+        self.assertEqual(agg["bars"][0][1], 105.0)
+        self.assertEqual(agg["disagree_days"], ["2026-09-04"])
+
     def test_median_voting(self) -> None:
         a = [("2026-01-02", 100.0, 1e6), ("2026-01-03", 101.0, 1e6)]
         b = [("2026-01-02", 100.0, 1e6), ("2026-01-03", 101.0, 1e6)]
@@ -165,7 +184,7 @@ class ContractFitTests(unittest.TestCase):
         closes = uptrend_closes()
         bars = bars_seq(closes, uptrend_vols())
         # Build the same structural payload the engine emits (no network)
-        c = core(bars, None)
+        c = core(bars, bars_seq([100.0] * 5))
         signal = action_to_signal(c["action"])
         state = {"code": "A", "name": "setup_zone", "reason": c["reason"]}
         payload = {

@@ -137,19 +137,21 @@ final class RadarService: ObservableObject {
             symbol: symbol,
             bypassCache: bypassCache
         )
-        async let spy = FreeMarketDataClient.dailyBars(
+        async let spy: FreeBarsResult? = symbol == "SPY" ? nil : try? await FreeMarketDataClient.dailyBars(
             symbol: "SPY",
-            rangeHintDays: 90,
+            rangeHintDays: 365,
             bypassCache: bypassCache && symbol == "SPY"
         )
         async let fund = FreeMarketDataClient.fundamentals(symbol: symbol)
         let result = try await primary
-        let spyBars = try? await spy
+        let spyBars = symbol == "SPY" ? result : await spy
         let fundamentals = await fund
         var sectorAction: String?
         if let etf = PostureDepth.etf(forSector: fundamentals.sector), etf != symbol {
-            if let sectorBars = try? await FreeMarketDataClient.dailyBars(symbol: etf, rangeHintDays: 90) {
-                sectorAction = FreeMechanicalScorer.core(bars: sectorBars.bars, spyBars: spyBars?.bars).action
+            if let sectorBars = try? await FreeMarketDataClient.dailyBars(symbol: etf),
+               let completed = MarketCalendar.completedBars(sectorBars.bars) {
+                let marketBars = spyBars.flatMap { MarketCalendar.completedBars($0.bars, minimum: 5) }
+                sectorAction = FreeMechanicalScorer.core(bars: completed, spyBars: marketBars).action
             }
         }
         return FreeMechanicalScorer.score(
@@ -160,14 +162,18 @@ final class RadarService: ObservableObject {
             source: result.source,
             earningsDate: fundamentals.earningsDate,
             sectorName: fundamentals.sector,
-            sectorAction: sectorAction
+            sectorAction: sectorAction,
+            fetchedAt: result.fetchedAt,
+            fromCache: result.fromCache
         )
     }
 
     /// Unlocked Today: sector ETF posture chips. Cached bars, limited concurrency.
     func refreshSectors() async {
         var rows: [SectorChip] = []
+        let batchNow = Date()
         let spy = try? await FreeMarketDataClient.dailyBars(symbol: "SPY", rangeHintDays: 90)
+        let spyBars = spy.flatMap { MarketCalendar.completedBars($0.bars, now: batchNow, minimum: 5, fetchedAt: $0.fetchedAt) }
         let etfs = Array(PostureDepth.sectorETF.keys).sorted()
         await withTaskGroup(of: SectorChip?.self) { group in
             var i = 0
@@ -179,7 +185,8 @@ final class RadarService: ObservableObject {
                     guard let bars = try? await FreeMarketDataClient.dailyBars(symbol: etf, rangeHintDays: 90) else {
                         return nil
                     }
-                    let action = FreeMechanicalScorer.core(bars: bars.bars, spyBars: spy?.bars).action
+                    guard let completed = MarketCalendar.completedBars(bars.bars, now: batchNow, fetchedAt: bars.fetchedAt) else { return nil }
+                    let action = FreeMechanicalScorer.core(bars: completed, spyBars: spyBars).action
                     let label = PostureDepth.sectorETF[etf] ?? etf
                     return SectorChip(etf: etf, label: label, action: action)
                 }

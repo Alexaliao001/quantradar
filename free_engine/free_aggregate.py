@@ -14,6 +14,7 @@ series". Rules:
 from __future__ import annotations
 
 import statistics
+import math
 from typing import Iterable
 
 MIN_AGREE = 1
@@ -51,8 +52,12 @@ def aggregate_bars(
         entries = by_day[day]
         if len(entries) < MIN_AGREE:
             continue
-        closes = [c for c, _ in entries.values() if c > 0]
-        volumes = [v for _, v in entries.values() if v > 0]
+        # Yahoo's two hosts serve one underlying feed, so they get one vote.
+        providers = dict(entries)
+        if "yahoo_q1" in providers and "yahoo_q2" in providers:
+            providers.pop("yahoo_q2")
+        closes = [c for c, _ in providers.values() if math.isfinite(c) and c > 0]
+        volumes = [v for _, v in providers.values() if math.isfinite(v) and v > 0]
         if not closes:
             continue
         close = _median(closes)

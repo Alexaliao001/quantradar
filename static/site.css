@@ -216,6 +216,24 @@ a:hover { color: #6ee4ad; }
   padding: 2rem 1.25rem 3rem;
   line-height: 1.6;
 }
+.pricing-page { max-width: 1180px; }
+
+.report-page input:not([type="checkbox"]) {
+  display: block;
+  width: 100%;
+  padding: 0.8rem;
+  margin: 0.4rem 0 1rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  background: var(--bg);
+  font: inherit;
+}
+.report-page input[type="checkbox"] { width: 1.1rem; height: 1.1rem; vertical-align: middle; accent-color: var(--accent); }
+.report-page .card { margin-bottom: 1rem; }
+.report-page .card h2 { margin-top: 0; }
+.report-page .table-scroll { overflow-x: auto; }
+.report-page .watch-tickers { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 1rem 0; }
 
 .prose h1 {
   font-family: var(--display);

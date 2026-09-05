@@ -9,6 +9,7 @@ Start:
 from __future__ import annotations
 
 import json
+import ipaddress
 import os
 import re
 import subprocess
@@ -21,8 +22,8 @@ from typing import Any
 
 from app import CONTRACT_VERSION, __version__
 from app import auth as authlib
-from app import engagement
-from app.charts_facade import analyze, charts_dir, resolve_chart_asset
+from app import engagement, paid_delivery, watch_reports
+from app.charts_facade import analyze, charts_dir, resolve_chart_asset, resolve_mode
 from app.contract import validate_response
 from app.envload import load_dotenv
 from app import funnel
@@ -60,13 +61,14 @@ _RATE_LOCK = threading.Lock()
 _RATE_HITS: dict[str, list[float]] = {}
 
 
-def _rate_limit_max(authenticated: bool = False) -> int:
+def _rate_limit_max(authenticated: bool = False, plan: str = "free") -> int:
     try:
         guest = max(1, int(os.environ.get("QUANTRADAR_RATE_LIMIT", "30")))
         authed = max(guest, int(os.environ.get("QUANTRADAR_RATE_LIMIT_AUTH", "120")))
+        paid = max(authed, int(os.environ.get("QUANTRADAR_RATE_LIMIT_PRO", "240")))
     except ValueError:
-        guest, authed = 30, 120
-    return authed if authenticated else guest
+        guest, authed, paid = 30, 120, 240
+    return paid if authenticated and is_paid_plan(plan) else authed if authenticated else guest
 
 
 def _rate_limit_window() -> float:
@@ -76,11 +78,11 @@ def _rate_limit_window() -> float:
         return 60.0
 
 
-def check_rate_limit(client: str, *, authenticated: bool = False) -> bool:
+def check_rate_limit(client: str, *, authenticated: bool = False, plan: str = "free") -> bool:
     """Return True if allowed, False if limited."""
     now = time.time()
     window = _rate_limit_window()
-    limit = _rate_limit_max(authenticated)
+    limit = _rate_limit_max(authenticated, plan)
     key = f"{'a' if authenticated else 'g'}:{client}"
     with _RATE_LOCK:
         hits = [t for t in _RATE_HITS.get(key, []) if now - t < window]
@@ -125,6 +127,12 @@ def git_sha() -> str | None:
     global _GIT_SHA_CACHE, _GIT_SHA_RESOLVED
     if _GIT_SHA_RESOLVED:
         return _GIT_SHA_CACHE
+    manifest = REPO_ROOT / "SOURCE_HEAD"
+    if manifest.is_file():
+        value = manifest.read_text(encoding="utf-8").strip()
+        if re.fullmatch(r"[0-9a-f]{40}", value):
+            _GIT_SHA_CACHE, _GIT_SHA_RESOLVED = value, True
+            return value
     try:
         out = subprocess.check_output(
             ["git", "-C", str(REPO_ROOT), "rev-parse", "--short", "HEAD"],
@@ -161,12 +169,11 @@ def health_payload() -> dict[str, Any]:
         data_path = "charts_engine"
         product_note = (
             "charts engine mounted; live multi-source scans are open to everyone "
-            "(guests rate-limited tighter; Pro = supporter tier with higher limits)."
+            "(guests have tighter limits; paid plans add saved research)."
         )
         pro_value = "live_ready"
         pro_value_note = (
-            "Live analyze is open to everyone on this host. Pro is the supporter "
-            "plan — higher limits."
+            "Pro includes 10 saved tickers, daily watchlist reports, up to 90 sessions of replay, and higher scan request limits."
         )
     elif fixture_tickers:
         charts_status = "artifact_only"
@@ -177,8 +184,7 @@ def health_payload() -> dict[str, Any]:
         )
         pro_value = "supporter_until_mount"
         pro_value_note = (
-            "Pro is a supporter plan on this host; live unlocks automatically when "
-            "charts_status=mounted. See docs/PRO_VALUE.md."
+            "Live scans and new reports are unavailable until a working data engine is mounted."
         )
     else:
         charts_status = "unavailable"
@@ -186,7 +192,7 @@ def health_payload() -> dict[str, Any]:
         product_note = "no charts dir and no fixtures — analyze will fail until data is mounted."
         pro_value = "supporter_until_mount"
         pro_value_note = (
-            "Pro is a supporter plan until a charts engine is mounted. See docs/PRO_VALUE.md."
+            "Live scans and new reports are unavailable until a working data engine is mounted."
         )
 
     return {
@@ -301,7 +307,14 @@ class Handler(BaseHTTPRequestHandler):
         print(f"[shell] {self.address_string()} {line}", file=sys_stderr)
 
     def _client_id(self) -> str:
-        return self.client_address[0] if self.client_address else "unknown"
+        peer = self.client_address[0] if self.client_address else "unknown"
+        if peer in {"127.0.0.1", "::1"}:
+            forwarded = self.headers.get("X-Forwarded-For", "").rsplit(",", 1)[-1].strip()
+            try:
+                return str(ipaddress.ip_address(forwarded))
+            except ValueError:
+                pass
+        return peer
 
     def _current_user(self) -> dict[str, Any] | None:
         user = authlib.user_from_cookie_header(self.headers.get("Cookie"))
@@ -319,7 +332,7 @@ class Handler(BaseHTTPRequestHandler):
     def _send(
         self,
         code: int,
-        body: dict[str, Any] | bytes,
+        body: dict[str, Any] | bytes | str,
         content_type: str = "application/json",
         *,
         extra_headers: list[tuple[str, str]] | None = None,
@@ -332,10 +345,13 @@ class Handler(BaseHTTPRequestHandler):
             raw = json.dumps(
                 body, ensure_ascii=False, indent=2, allow_nan=False
             ).encode("utf-8")
+        elif isinstance(body, str):
+            raw = body.encode("utf-8")
         else:
             raw = body
         self.send_response(code)
-        self.send_header("Content-Type", f"{content_type}; charset=utf-8")
+        textual = content_type.startswith("text/") or content_type in {"application/json", "image/svg+xml"}
+        self.send_header("Content-Type", f"{content_type}; charset=utf-8" if textual else content_type)
         self.send_header("Content-Length", str(len(raw)))
         self.send_header("Cache-Control", cache_control or "no-store")
         if etag:
@@ -497,17 +513,6 @@ class Handler(BaseHTTPRequestHandler):
                         "avoided": events,
                         "note": "Real history from your scans — the radar said NO and the price fell. Educational, not advice.",
                     }
-                teaser = engagement.recent_closes(str(result.get("ticker") or ""), n=5)
-                is_pro = str((user or {}).get("plan") or "") == "pro"
-                result["engagement_replay"] = {
-                    "recent_closes": teaser,
-                    "days_shown": len(teaser),
-                    "full_days": 90,
-                    "unlocked": is_pro,
-                    "teaser_note": "Free shows the last 5 sessions; the full 90-day posture replay is Pro."
-                    if not is_pro
-                    else "Full 90-day replay available.",
-                }
         except Exception:
             pass
         public = harden_public_analyze(result, user=user)
@@ -525,7 +530,7 @@ class Handler(BaseHTTPRequestHandler):
         request_id: str | None = None,
     ) -> None:
         user = self._current_user()
-        if not check_rate_limit(self._client_id(), authenticated=bool(user)):
+        if not check_rate_limit(str(user["email"]) if user else self._client_id(), authenticated=bool(user), plan=user["plan"] if user else "free"):
             self._send(
                 429,
                 {
@@ -540,8 +545,8 @@ class Handler(BaseHTTPRequestHandler):
         mode_norm = (mode or "").strip().lower() or None
         # Live is open to everyone (free multi-source engine); guests get a
         # tighter per-IP budget so a crawler cannot burn host + upstream APIs.
-        # Pro remains the supporter plan with higher limits.
-        if mode_norm == "live" and not user:
+        # Paid plans add saved research and higher request limits.
+        if resolve_mode(mode_norm) == "live" and not user:
             if not _live_guest_budget(self._client_id()):
                 self._send(
                     429,
@@ -550,8 +555,8 @@ class Handler(BaseHTTPRequestHandler):
                         "error": "rate_limited",
                         "error_detail": (
                             "Guest live scans are limited to protect the free data "
-                            "path. Sign in (free) for higher limits, or Pro for the "
-                            "supporter tier."
+                            "path. Sign in (free) for higher limits, or view paid plans "
+                            "for saved research and larger watchlists."
                         ),
                         "login": "/login",
                         "contract_version": CONTRACT_VERSION,
@@ -635,6 +640,68 @@ class Handler(BaseHTTPRequestHandler):
             return
 
         # --- Auth API (own session, not Manus) ---
+        if path == "/api/watch-reports" or path.startswith("/api/watch-reports/"):
+            user = self._current_user()
+            if not user:
+                self._send(401, {"ok": False, "error": "login_required"})
+                return
+            if path == "/api/watch-reports":
+                self._send(200, {"ok": True, "reports": watch_reports.list_reports(user["email"]),
+                                 "can_create": is_paid_plan(user["plan"]),
+                                 "watchlist": engagement.get_watchlist(user["email"]),
+                                 "watchlist_limit": engagement.watch_limit(user["email"]),
+                                 "automatic": bool(engagement.public_engagement(user).get("daily_digest"))})
+                return
+            parts = path.split("/")
+            report = watch_reports.get_report(user["email"], parts[3])
+            if not report or len(parts) != 5 or parts[4] not in {"json", "csv"}:
+                self._send(404, {"ok": False, "error": "report_not_found"})
+                return
+            if parts[4] == "csv" and not report["csv_enabled"]:
+                self._send(403, {"ok": False, "error": "portfolio_export_required"})
+                return
+            data = watch_reports.csv_export(report) if parts[4] == "csv" else json.dumps(report, indent=2)
+            self._send(200, data, content_type="text/csv" if parts[4] == "csv" else "application/json",
+                       cache_control="private, no-store", extra_headers=[("Content-Disposition", f'attachment; filename="watchlist-{report["as_of"]}.{parts[4]}"')])
+            return
+
+        if path == "/api/reports" or path.startswith("/api/reports/"):
+            user = self._current_user()
+            if not user:
+                self._send(401, {"ok": False, "error": "login_required"})
+                return
+            owner = str(user["email"])
+            if path == "/api/reports":
+                self._send(200, {"ok": True, "reports": paid_delivery.list_reports(owner)})
+                return
+            parts = path.split("/")
+            report = paid_delivery.get_report(owner, parts[3])
+            if not report:
+                self._send(404, {"ok": False, "error": "report_not_found"})
+                return
+            bundle = report.pop("bundle", None)
+            if len(parts) == 4:
+                report["assets"] = list(bundle["assets"]) + ["report.zip"] if bundle else []
+                self._send(200, {"ok": True, "report": report})
+                return
+            if len(parts) == 6 and parts[4] == "assets" and bundle:
+                name = parts[5]
+                if name == "report.zip":
+                    from free_engine.replay import zip_bundle
+                    data, mime = zip_bundle(bundle), "application/zip"
+                elif name in bundle["assets"]:
+                    data = bundle["assets"][name].encode("utf-8")
+                    mime = {"json": "application/json", "csv": "text/csv", "svg": "image/svg+xml"}[name.rsplit(".", 1)[1]]
+                else:
+                    self._send(404, {"ok": False, "error": "asset_not_found"})
+                    return
+                self._send(200, data, content_type=mime, cache_control="private, no-store",
+                           extra_headers=[("Content-Disposition", f'attachment; filename="{report["ticker"]}-{name}"'),
+                                          ("X-Content-Type-Options", "nosniff")])
+                return
+            self._send(404, {"ok": False, "error": "report_not_ready"})
+            return
+
         if path in {"/api/auth/status", "/api/me"}:
             user = self._current_user()
             public = None
@@ -787,6 +854,12 @@ class Handler(BaseHTTPRequestHandler):
                         "monthly": "$29",
                         "yearly": "$249",
                         "portfolio_pro_monthly": "$99",
+                    },
+                    "available_prices": {
+                        "monthly": bool(stripe_billing.stripe_configured() and stripe_billing.price_id_for_interval("monthly")),
+                        "yearly": bool(stripe_billing.stripe_configured() and stripe_billing.price_id_for_interval("yearly")),
+                        "portfolio_pro_monthly": bool(stripe_billing.stripe_configured() and stripe_billing.price_id_for_plan("portfolio_pro")),
+                        "report": bool(stripe_billing.stripe_configured() and stripe_billing.price_id_report()),
                     },
                     "live_available": bool(health.get("live_available")),
                     "pro_value": health.get("pro_value"),
@@ -957,6 +1030,8 @@ class Handler(BaseHTTPRequestHandler):
             "/pricing": "pricing.html",
             "/track": "track.html",
             "/today": "today.html",
+            "/reports": "reports.html",
+            "/watchlist": "watchlist.html",
             "/terms": "terms.html",
             "/privacy": "privacy.html",
             "/terms-ios": "terms-ios.html",
@@ -1239,8 +1314,7 @@ class Handler(BaseHTTPRequestHandler):
                         "watchlist": wl,
                         "limit": engagement.watch_limit(email),
                         "error_detail": (
-                            "Free accounts watch 1 ticker. Pro watches up to 10 — "
-                            "and keeps the free engine running."
+                            "Free accounts watch 1 ticker, Pro up to 10, and Portfolio Pro up to 50."
                         ),
                         "pricing": "/pricing",
                     },
@@ -1279,18 +1353,29 @@ class Handler(BaseHTTPRequestHandler):
                     "ok": True,
                     "on": on,
                     "smtp": engagement.smtp_configured(),
-                    "note": (
-                        "Archived for now — outbound email is not enabled yet. We will not pretend it was sent."
-                        if not engagement.smtp_configured()
-                        else "Daily radar digest enabled."
-                    ),
+                    "note": "Daily reports appear in your watchlist with Pro. Email delivery is not included." if on else "Automatic daily reports turned off.",
                 },
             )
             return
 
+        if path == "/api/watch-reports":
+            user = self._current_user()
+            if not user:
+                self._send(401, {"ok": False, "error": "login_required"})
+                return
+            if not self._check_rate_or_reject(authenticated=True):
+                return
+            try:
+                report_id = watch_reports.request_report(user["email"])
+            except ValueError as exc:
+                self._send(400, {"ok": False, "error": "report_unavailable", "error_detail": str(exc)})
+                return
+            self._send(200, {"ok": True, "id": report_id})
+            return
+
         if path == "/api/digest/build":
             user = self._current_user()
-            if not user or str(user.get("plan")) != "pro":
+            if not user or not is_paid_plan(user.get("plan")):
                 self._send(403, {"ok": False, "error": "pro_required"})
                 return
             if not self._check_rate_or_reject(authenticated=True):
@@ -1315,24 +1400,48 @@ class Handler(BaseHTTPRequestHandler):
                 body = self._read_json()
             except Exception:
                 body = {}
-            with_bump = bool(body.get("bump"))
+            if not self._check_rate_or_reject(authenticated=True):
+                return
             try:
+                order = paid_delivery.prepare_report_order(
+                    str(user["email"]), str(body.get("ticker") or ""), sector=body.get("sector"),
+                    bump=body.get("bump", False), request_key=body.get("request_key"),
+                )
                 session = stripe_billing.create_report_checkout(
                     customer_email=str(user.get("email") or ""),
-                    with_bump=with_bump,
+                    with_bump=bool(order["bump"]), order=order,
                 )
+            except ValueError as exc:
+                self._send(400, {"ok": False, "error": "report_unavailable", "error_detail": str(exc)})
+                return
             except Exception as exc:
                 self._send(502, {"ok": False, "error": "stripe_error", "error_detail": str(exc)[:500]})
                 return
             try:
                 funnel.track(
                     "report_checkout_start",
-                    bump=with_bump,
+                    extra={"bump": bool(order["bump"])},
+                    ticker=order["ticker"],
                     email=str(user.get("email") or ""),
                     ok=True,
                 )
             except Exception:
                 pass
+            self._send(200, {"ok": True, **session})
+            return
+
+        if path == "/api/billing/portal":
+            user = self._current_user()
+            if not user:
+                self._send(401, {"ok": False, "error": "login_required"})
+                return
+            if not self._check_rate_or_reject(authenticated=True):
+                return
+            try:
+                session = stripe_billing.create_billing_portal(str(user["email"]))
+            except Exception:
+                self._send(503, {"ok": False, "error": "billing_portal_unavailable", "error_detail": "Billing management is temporarily unavailable. Please retry or contact support."})
+                return
             self._send(200, {"ok": True, **session})
             return
 
@@ -1370,15 +1479,11 @@ class Handler(BaseHTTPRequestHandler):
             plan = stripe_billing.normalize_checkout_plan(str(body.get("plan") or "pro"))
             email = str(user.get("email") or "")
             # $9 report buyers carry a once-only credit toward Pro's first month.
-            coupon = None
-            from app.users import get_user as _get_user
-
-            u = _get_user(email)
-            if isinstance(u, dict) and u.get("report_granted") and u.get("report_coupon"):
-                coupon = str(u.get("report_coupon"))
+            coupon = paid_delivery.report_credit(email)
             try:
-                session = stripe_billing.pro_checkout_with_credit(
-                    customer_email=email or None,
+                from app import subscription_checkout
+                session = subscription_checkout.start(
+                    email,
                     interval=interval,
                     coupon_id=coupon,
                     plan=plan,
@@ -1447,7 +1552,7 @@ class Handler(BaseHTTPRequestHandler):
             if not result.get("ok"):
                 self._send(422, {"ok": False, **result})
                 return
-            if result.get("action") in {"plan_pro", "plan_portfolio_pro"}:
+            if result.get("activated") and not result.get("duplicate"):
                 try:
                     funnel.track(
                         "pro_active",
@@ -1459,6 +1564,28 @@ class Handler(BaseHTTPRequestHandler):
                 except Exception:
                     pass
             self._send(200, {"ok": True, **result})
+            return
+
+        if path.startswith("/api/reports/") and path.endswith("/claim"):
+            user = self._current_user()
+            if not user:
+                self._send(401, {"ok": False, "error": "login_required"})
+                return
+            if not self._check_rate_or_reject(authenticated=True):
+                return
+            parts = path.split("/")
+            try:
+                if len(parts) != 5:
+                    raise ValueError("Invalid report route")
+                body = self._read_json()
+                report = paid_delivery.claim_legacy_report(str(user["email"]), parts[3], str(body.get("ticker") or ""))
+            except ValueError as exc:
+                self._send(400, {"ok": False, "error": "claim_unavailable", "error_detail": str(exc)})
+                return
+            except Exception:
+                self._send(503, {"ok": False, "error": "data_unavailable", "error_detail": "Current report data is unavailable. Your claim is preserved."})
+                return
+            self._send(200, {"ok": True, "report": report})
             return
 
         if path != "/api/analyze":
@@ -1496,6 +1623,7 @@ def main() -> None:
     host = os.environ.get("HOST", "0.0.0.0")
     port = int(os.environ.get("PORT", "8765"))
     server = ThreadingHTTPServer((host, port), Handler)
+    paid_delivery.start_worker()
     a = authlib.auth_status_public()
     print(
         f"quantradar shell v{__version__} contract={CONTRACT_VERSION} "

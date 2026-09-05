@@ -277,6 +277,10 @@ def resolve_plan(email: str | None, *, session_plan: str | None = None) -> str:
     u = get_user(email)
     if not u:
         return "free"
+    from app.paid_delivery import subscription_plan
+    billed_plan = subscription_plan(email)
+    if billed_plan is not None:
+        return billed_plan
     plan = str(u.get("plan") or "free").strip().lower()
     return plan if plan in VALID_PLANS else "free"
 

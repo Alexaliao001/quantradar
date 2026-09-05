@@ -26,6 +26,7 @@ from app import auth as authlib  # noqa: E402
 from app import stripe_billing  # noqa: E402
 from app.server import Handler  # noqa: E402
 from app import users as users_mod  # noqa: E402
+from stripe_fixtures import mock_subscription
 
 
 class PriceIntervalTests(unittest.TestCase):
@@ -123,12 +124,15 @@ class BillingHttpTests(unittest.TestCase):
         self.assertEqual(body.get("error"), "stripe_not_configured")
 
     def test_webhook_sets_pro(self) -> None:
+        mock_subscription(self, "buyer@test.local")
         users_mod.register_user("buyer@test.local", "password12", name="Buyer")
         self.assertEqual(users_mod.resolve_plan("buyer@test.local"), "free")
         event = {
+            "id": "evt_checkout",
             "type": "checkout.session.completed",
             "data": {
                 "object": {
+                    "mode": "subscription", "subscription": "sub_test",
                     "customer_email": "buyer@test.local",
                     "payment_status": "paid",
                     "status": "complete",
@@ -143,12 +147,15 @@ class BillingHttpTests(unittest.TestCase):
         self.assertEqual(users_mod.resolve_plan("buyer@test.local"), "pro")
 
     def test_webhook_sets_portfolio_pro(self) -> None:
+        mock_subscription(self, "portfolio@test.local", plan="portfolio_pro")
         users_mod.register_user("portfolio@test.local", "password12", name="Portfolio")
         self.assertEqual(users_mod.resolve_plan("portfolio@test.local"), "free")
         event = {
+            "id": "evt_checkout",
             "type": "checkout.session.completed",
             "data": {
                 "object": {
+                    "mode": "subscription", "subscription": "sub_test",
                     "customer_email": "portfolio@test.local",
                     "payment_status": "paid",
                     "status": "complete",
@@ -175,21 +182,23 @@ class BillingHttpTests(unittest.TestCase):
             status = json.loads(r.read().decode())
         self.assertEqual(status["user"]["plan"], "portfolio_pro")
 
-    def test_webhook_unpaid_rejected(self) -> None:
+    def test_webhook_unpaid_waits_for_async_confirmation(self) -> None:
         event = {
+            "id": "evt_checkout",
             "type": "checkout.session.completed",
             "data": {
                 "object": {
+                    "mode": "subscription", "subscription": "sub_test",
                     "customer_email": "unpaid@test.local",
                     "payment_status": "unpaid",
                     "status": "complete",
-                    "metadata": {"email": "unpaid@test.local"},
+                    "metadata": {"email": "unpaid@test.local", "product": "quantradar_pro"},
                 }
             },
         }
         code, body = self._post("/api/billing/webhook", event)
-        self.assertEqual(code, 422, body)
-        self.assertEqual(body.get("error"), "not_paid")
+        self.assertEqual(code, 200, body)
+        self.assertEqual(body.get("action"), "awaiting_payment")
         self.assertEqual(users_mod.resolve_plan("unpaid@test.local"), "free")
 
     def test_billing_status_shape(self) -> None:
@@ -214,22 +223,27 @@ class ApplyEventUnitTests(unittest.TestCase):
         self._tmpdir.cleanup()
 
     def test_subscription_deleted_downgrades(self) -> None:
+        mock_subscription(self, "gone@test.local", status="canceled")
         users_mod.set_plan("gone@test.local", "pro")
         out = stripe_billing.apply_webhook_event(
             {
+                "id": "evt_deleted",
                 "type": "customer.subscription.deleted",
-                "data": {"object": {"metadata": {"email": "gone@test.local"}}},
+                "data": {"object": {"id": "sub_test"}},
             }
         )
         self.assertEqual(out.get("action"), "plan_free")
         self.assertEqual(users_mod.resolve_plan("gone@test.local"), "free")
 
     def test_subscription_deleted_without_email_fails(self) -> None:
+        sub = mock_subscription(self, "", status="canceled")
+        sub["metadata"].pop("email")
         users_mod.set_plan("stuck@test.local", "pro")
         out = stripe_billing.apply_webhook_event(
             {
+                "id": "evt_deleted",
                 "type": "customer.subscription.deleted",
-                "data": {"object": {"metadata": {}}},
+                "data": {"object": {"id": "sub_test"}},
             }
         )
         self.assertFalse(out.get("ok"))

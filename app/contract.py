@@ -384,6 +384,8 @@ def map_charts_payload(
             "engine": "charts",
             "mode": mode,
             "fetch_time": fetch_time,
+            "market_as_of": (payload.get("data_quality") or {}).get("market_as_of"),
+            "market_close": payload["daily_bars"][-1][1] if payload.get("daily_bars") else None,
             "generated_at": (indicator_data or {}).get("generated_at")
             if isinstance(indicator_data, dict)
             else None,

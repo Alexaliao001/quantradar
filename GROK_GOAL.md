@@ -1,3 +1,5 @@
+> **2026-09-06 状态更正**：下文为历史计划，旧 Manus/Render、支持者权益和已上架推断不作为当前事实。当前运行于 Nube VPS，待发布成果与剩余闸门见 [验收记录](docs/audit/2026-09-06/README.md) 和 [CORRECT_OPS](docs/CORRECT_OPS.md)。本次未宣称全量上线或盈利；数据许可、真实 Stripe sandbox 和 Apple 审核尚未完成。
+
 # GROK /goal — QuantRadar 极致产品优化 v3
 
 > **唯一主任务源**（产品仓 SSOT）：本文件 `Alexaliao001/quantradar/GROK_GOAL.md`  

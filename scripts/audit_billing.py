@@ -1,167 +1,87 @@
-"""Billing checkout-session audit: verify currency/amount/lines for every path.
+#!/usr/bin/env python3
+"""Inspect real Stripe TEST Checkout amounts; never charge or load local .env.
 
-Creates real Stripe Checkout Sessions in LIVE mode but NEVER charges
-(sessions are inspect-only; they expire if abandoned). Each scenario asserts
-the exact USD amounts and line counts that the buyer would see.
+Set a test secret, test Price IDs, and QR_STRIPE_TEST_ACCOUNT explicitly.
+This verifies Checkout creation only. Payment, webhook, renewal, refund, and
+portal acceptance still require separate Stripe sandbox end-to-end checks.
 """
 from __future__ import annotations
 
 import json
 import os
-import sys
 from pathlib import Path
+import sys
+import time
+import uuid
+from unittest import mock
 
-REPO = Path(__file__).resolve().parent.parent
+REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
-
-# Load .env like the server does
-from app.envload import load_dotenv  # noqa: E402
-
-load_dotenv()
-
-import urllib.request  # noqa: E402
-from app import stripe_billing as sb  # noqa: E402
-
-SECRET = sb.stripe_secret()
-assert SECRET, "no stripe key"
+from app import stripe_billing as stripe
 
 
-def get_session(session_id: str) -> dict:
-    req = urllib.request.Request(
-        f"https://api.stripe.com/v1/checkout/sessions/{session_id}?expand[]=line_items",
-        headers={"Authorization": f"Bearer {SECRET}"},
-    )
-    with urllib.request.urlopen(req, timeout=30) as resp:
-        return json.loads(resp.read().decode())
-
-
-def summarize(sess: dict) -> dict:
-    items = (sess.get("line_items") or {}).get("data") or []
-    lines = []
-    for it in items:
-        price = it.get("price") or {}
-        lines.append(
-            {
-                "price_id": price.get("id"),
-                "currency": (price.get("currency") or "").upper(),
-                "amount": (price.get("unit_amount") or 0) / 100,
-                "type": price.get("type"),
-                "interval": (price.get("recurring") or {}).get("interval"),
-                "qty": it.get("quantity"),
-            }
-        )
-    return {
-        "mode": sess.get("mode"),
-        "currency": (sess.get("currency") or "").upper(),
-        "amount_total": (sess.get("amount_total") or 0) / 100,
-        "line_count": len(lines),
-        "lines": lines,
-        "has_discounts": bool(sess.get("discounts")),
-        "allow_promo": sess.get("allow_promotion_codes"),
-    }
-
-
-def check(name: str, fn) -> bool:
+def main() -> int:
+    if not stripe.stripe_secret().startswith(("sk_test_", "rk_test_")):
+        raise SystemExit("TEST key required in the environment; live mode is refused. No .env was loaded.")
+    expected = os.environ.get("QR_STRIPE_TEST_ACCOUNT", "")
+    if not expected.startswith("acct_") or stripe.stripe_get("account")["id"] != expected:
+        raise SystemExit("Set QR_STRIPE_TEST_ACCOUNT to the intended sandbox account.")
+    prices = [(stripe.price_id_report(), 900, None), (stripe.price_id_bump(), 500, None),
+              (stripe.price_id_for_plan("pro", "monthly"), 2900, "month"),
+              (stripe.price_id_for_plan("pro", "yearly"), 24900, "year"),
+              (stripe.price_id_for_plan("portfolio_pro"), 9900, "month")]
+    for price_id, amount, interval in prices:
+        if not price_id.startswith("price_"):
+            raise SystemExit("Configure all five test Price IDs before running this audit.")
+        price = stripe.stripe_get("prices/" + price_id)
+        assert price["livemode"] is False and price["active"] is True
+        assert price["unit_amount"] == amount and price["currency"] == "usd"
+        assert (price.get("recurring") or {}).get("interval") == interval
+    os.environ["PUBLIC_BASE_URL"] = "http://127.0.0.1:8769"
+    run_id = "qr-audit-" + uuid.uuid4().hex
+    email = "billing-audit@example.com"
+    sessions, coupons = [], []
     try:
-        sess = fn()
-        sid = sess["id"]
-        full = get_session(sid)
-        s = summarize(full)
-        print(f"\n[{name}] session={sid}")
-        print(json.dumps(s, indent=2))
-        return s
-    except Exception as exc:
-        print(f"\n[{name}] ERROR: {exc}")
-        FAILURES.append(f"{name}: {exc}")
-        return None
-
-
-FAILURES: list[str] = []
-
-
-def main() -> None:
-    email = "billing-audit@quantradar.one"
-    results = {}
-
-    results["report_no_bump"] = check(
-        "Report $9 (no bump)",
-        lambda: sb.create_report_checkout(customer_email=email, with_bump=False),
-    )
-    results["report_with_bump"] = check(
-        "Report $9 + $5 bump",
-        lambda: sb.create_report_checkout(customer_email=email, with_bump=True),
-    )
-    results["pro_monthly_no_coupon"] = check(
-        "Pro monthly (no coupon)",
-        lambda: sb.pro_checkout_with_credit(customer_email=email, interval="monthly", coupon_id=None),
-    )
-    results["pro_yearly_no_coupon"] = check(
-        "Pro yearly (no coupon)",
-        lambda: sb.pro_checkout_with_credit(customer_email=email, interval="yearly", coupon_id=None),
-    )
-
-    # coupon path — mint a real coupon then attach
-    coupon = sb.create_credit_coupon(email)
-    print(f"\nminted coupon: {coupon}")
-    results["pro_monthly_with_coupon"] = check(
-        "Pro monthly WITH $9 credit coupon",
-        lambda: sb.pro_checkout_with_credit(customer_email=email, interval="monthly", coupon_id=coupon),
-    )
-
-    # Assertions
-    failures = list(FAILURES)
-
-    def expect(name, key, got, want):
-        ok = got == want
-        if not ok:
-            failures.append(f"{name}.{key}: got {got!r} want {want!r}")
-
-    # Sessions that failed to create are hard failures.
-    for name, r in results.items():
-        if r is None:
-            failures.append(f"{name}: session creation failed")
-
-    r = results["report_no_bump"]
-    if r:
-        expect("report", "currency", r["currency"], "USD")
-        expect("report", "amount_total", r["amount_total"], 9.0)
-        expect("report", "line_count", r["line_count"], 1)
-        expect("report", "mode", r["mode"], "payment")
-
-    r = results["report_with_bump"]
-    if r:
-        expect("report+bump", "currency", r["currency"], "USD")
-        expect("report+bump", "amount_total", r["amount_total"], 14.0)
-        expect("report+bump", "line_count", r["line_count"], 2)
-        expect("report+bump", "mode", r["mode"], "payment")
-
-    r = results["pro_monthly_no_coupon"]
-    if r:
-        expect("pro/mo", "currency", r["currency"], "USD")
-        expect("pro/mo", "amount_total", r["amount_total"], 29.0)
-        expect("pro/mo", "mode", r["mode"], "subscription")
-        expect("pro/mo", "interval", r["lines"][0]["interval"], "month")
-
-    r = results["pro_yearly_no_coupon"]
-    if r:
-        expect("pro/yr", "currency", r["currency"], "USD")
-        expect("pro/yr", "amount_total", r["amount_total"], 249.0)
-        expect("pro/yr", "interval", r["lines"][0]["interval"], "year")
-
-    r = results["pro_monthly_with_coupon"]
-    if r:
-        expect("pro/mo+coupon", "currency", r["currency"], "USD")
-        expect("pro/mo+coupon", "amount_total", r["amount_total"], 20.0)  # 29 - 9
-        expect("pro/mo+coupon", "has_discounts", r["has_discounts"], True)
-
-    print("\n" + "=" * 50)
-    if failures:
-        print("FAILURES:")
-        for f in failures:
-            print("  -", f)
-        sys.exit(1)
-    print("ALL BILLING CHECKOUT ASSERTIONS PASSED")
+        scenarios = []
+        for bump in (False, True):
+            order = {"id": run_id + str(int(bump)), "owner": email, "bump": bump,
+                     "ticker": "TESTCO", "as_of": "2026-09-04"}
+            # Synthetic test order; never touch production or local account storage.
+            with mock.patch("app.paid_delivery.attach_checkout"):
+                session = stripe.create_report_checkout(customer_email=email, with_bump=bump, order=order)
+            sessions.append(session["id"])
+            scenarios.append((session, 1400 if bump else 900, "payment", 2 if bump else 1))
+        coupon = stripe.create_credit_coupon(email, order_id=run_id, paid_at=time.time())
+        assert coupon, "Test coupon creation failed"
+        coupons.append(coupon)
+        for plan, interval, credit, amount in (("pro", "monthly", None, 2900),
+                ("pro", "yearly", None, 24900), ("pro", "monthly", coupon, 2000),
+                ("portfolio_pro", "monthly", None, 9900)):
+            session = stripe.create_checkout_session(customer_email=email, plan=plan,
+                interval=interval, coupon_id=credit, idempotency_key=run_id + str(len(sessions)))
+            sessions.append(session["id"])
+            scenarios.append((session, amount, "subscription", 1))
+        for session, amount, mode, count in scenarios:
+            full = stripe.stripe_get("checkout/sessions/" + session["id"] + "?expand[]=line_items")
+            assert full["livemode"] is False
+            assert full["amount_total"] == amount and full["currency"] == "usd"
+            assert full["mode"] == mode and len(full["line_items"]["data"]) == count
+            print(json.dumps({"session": full["id"], "test_mode": True, "amount_cents": amount, "mode": mode}))
+    finally:
+        failures = []
+        for session_id in sessions:
+            try:
+                stripe.stripe_post("checkout/sessions/" + session_id + "/expire", {}, idempotency_key="expire-" + session_id)
+            except Exception:
+                failures.append(session_id)
+        for coupon in coupons:
+            if not stripe.revoke_credit_coupon(coupon):
+                failures.append(coupon)
+        if failures:
+            raise RuntimeError("Test cleanup incomplete: " + ", ".join(failures))
+    print("PASS: test Checkout amounts only; no payment or webhook lifecycle was exercised.")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

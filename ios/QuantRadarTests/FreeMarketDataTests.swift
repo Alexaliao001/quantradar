@@ -2,7 +2,22 @@ import XCTest
 @testable import QuantRadar
 
 final class FreeMarketDataTests: XCTestCase {
+    private func requireLiveData() throws {
+        try XCTSkipUnless(ProcessInfo.processInfo.environment["QR_LIVE_DATA_TESTS"] == "1",
+                          "Live provider check; enable QR_LIVE_DATA_TESTS separately from offline CI.")
+    }
+
+    private func currentBars() -> [FreeBar] {
+        let day = MarketCalendar.completedSession()!
+        let end = ISO8601DateFormatter().date(from: day + "T14:00:00Z")!
+        return (0..<60).map { i in
+            FreeBar(date: end.addingTimeInterval(Double(i - 59) * 86400), close: 100 + Double(i) * 0.1, volume: 1000)
+        }
+    }
+
     func testYahooQ1AAPL() async throws {
+        try requireLiveData()
+        await BarsCache.shared.clear()
         FreeMarketDataClient.sourceOrder = [.yahooQuery1]
         let result = try await FreeMarketDataClient.dailyBars(symbol: "AAPL", rangeHintDays: 90)
         XCTAssertEqual(result.source, .yahooQuery1)
@@ -11,6 +26,8 @@ final class FreeMarketDataTests: XCTestCase {
     }
 
     func testYahooQ2INTC() async throws {
+        try requireLiveData()
+        await BarsCache.shared.clear()
         FreeMarketDataClient.sourceOrder = [.yahooQuery2]
         let result = try await FreeMarketDataClient.dailyBars(symbol: "INTC", rangeHintDays: 90)
         XCTAssertEqual(result.source, .yahooQuery2)
@@ -18,6 +35,8 @@ final class FreeMarketDataTests: XCTestCase {
     }
 
     func testNasdaqAAPL() async throws {
+        try requireLiveData()
+        await BarsCache.shared.clear()
         FreeMarketDataClient.sourceOrder = [.nasdaq]
         let result = try await FreeMarketDataClient.dailyBars(symbol: "AAPL", rangeHintDays: 120)
         XCTAssertEqual(result.source, .nasdaq)
@@ -25,6 +44,8 @@ final class FreeMarketDataTests: XCTestCase {
     }
 
     func testFailoverSkipsBadFirstSource() async throws {
+        try requireLiveData()
+        await BarsCache.shared.clear()
         // Force order: nasdaq on SPY often empty → should fall to yahoo
         FreeMarketDataClient.sourceOrder = [.nasdaq, .yahooQuery1]
         let result = try await FreeMarketDataClient.dailyBars(symbol: "SPY", rangeHintDays: 90)
@@ -33,9 +54,8 @@ final class FreeMarketDataTests: XCTestCase {
     }
 
     func testScorerProducesAction() async throws {
-        FreeMarketDataClient.sourceOrder = [.yahooQuery1, .yahooQuery2, .nasdaq]
-        let result = try await FreeMarketDataClient.dailyBars(symbol: "AAPL")
-        let spy = try await FreeMarketDataClient.dailyBars(symbol: "SPY", rangeHintDays: 90)
+        let result = FreeBarsResult(bars: currentBars(), source: .yahooQuery1)
+        let spy = result
         let verdict = FreeMechanicalScorer.score(
             symbol: "AAPL",
             company: "Apple",
@@ -54,8 +74,8 @@ final class FreeMarketDataTests: XCTestCase {
     func testDailyBarsCacheHitSetsFromCacheFlag() async throws {
         await BarsCache.shared.clear()
         FreeMarketDataClient.sourceOrder = [.yahooQuery1]
-        let first = try await FreeMarketDataClient.dailyBars(symbol: "AAPL", rangeHintDays: 90)
-        XCTAssertFalse(first.fromCache)
+        let first = FreeBarsResult(bars: currentBars(), source: .yahooQuery1)
+        await BarsCache.shared.set("AAPL", result: first)
         let second = try await FreeMarketDataClient.dailyBars(symbol: "AAPL", rangeHintDays: 90)
         XCTAssertTrue(second.fromCache)
         XCTAssertEqual(second.bars.count, first.bars.count)
@@ -63,8 +83,6 @@ final class FreeMarketDataTests: XCTestCase {
     }
 
     func testBundledSampleDecodes() throws {
-        let url = Bundle.main.url(forResource: "SampleVerdict", withExtension: "json")
-            ?? Bundle(for: FreeMarketDataTests.self).url(forResource: "SampleVerdict", withExtension: "json")
         // App bundle resource may not be in test bundle — load from path relative to source
         let path = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent()

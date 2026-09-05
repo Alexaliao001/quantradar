@@ -18,8 +18,10 @@ from __future__ import annotations
 import gzip
 import io
 import json
+import os
 import ssl
 import threading
+import tempfile
 import time
 import urllib.error
 import urllib.parse
@@ -397,7 +399,7 @@ def _cache_path(cache_dir: Path, key: str) -> Path:
     return cache_dir / f"{safe}.json"
 
 
-def _cache_read(cache_dir: Path | None, key: str) -> Any | None:
+def _cache_read(cache_dir: Path | None, key: str, *, not_before: float = 0) -> Any | None:
     if cache_dir is None:
         return None
     p = _cache_path(cache_dir, key)
@@ -405,20 +407,26 @@ def _cache_read(cache_dir: Path | None, key: str) -> Any | None:
         obj = json.loads(p.read_text(encoding="utf-8"))
     except Exception:
         return None
-    if not isinstance(obj, dict) or time.time() - float(obj.get("t", 0)) > _CACHE_TTL_SEC:
+    if (not isinstance(obj, dict) or time.time() - float(obj.get("t", 0)) > _CACHE_TTL_SEC
+            or float(obj.get("t", 0)) < not_before):
         return None
     return obj.get("v")
 
 
-def _cache_write(cache_dir: Path | None, key: str, value: Any) -> None:
+def _cache_write(cache_dir: Path | None, key: str, value: Any, *, fetched_at: float | None = None) -> None:
     if cache_dir is None:
         return
     try:
         cache_dir.mkdir(parents=True, exist_ok=True)
         with _CACHE_LOCK:
-            _cache_path(cache_dir, key).write_text(
-                json.dumps({"t": time.time(), "v": value}), encoding="utf-8"
-            )
+            with tempfile.NamedTemporaryFile(mode="w", dir=cache_dir, prefix=".cache-", suffix=".tmp", delete=False) as temporary:
+                temp_path = Path(temporary.name)
+                try:
+                    json.dump({"t": time.time() if fetched_at is None else fetched_at, "v": value}, temporary, allow_nan=False)
+                    temporary.flush()
+                    os.replace(temp_path, _cache_path(cache_dir, key))
+                finally:
+                    temp_path.unlink(missing_ok=True)
         _cache_prune(cache_dir)
     except OSError:
         pass
@@ -459,6 +467,7 @@ def fetch_all_sources(
     symbol: str,
     days: int = 200,
     cache_dir: Path | None = None,
+    as_of: datetime | None = None,
 ) -> tuple[dict[str, list[tuple[str, float, float]]], dict[str, str]]:
     """Fetch every source in parallel.
 
@@ -467,17 +476,28 @@ def fetch_all_sources(
     """
     bars: dict[str, list[tuple[str, float, float]]] = {}
     errors: dict[str, str] = {}
+    from market_calendar import completed_bars, completed_session, session_close
+    as_of = as_of or datetime.now(timezone.utc)
+    cutoff = completed_session(as_of)
+    if cutoff is None:
+        return {}, {name: "calendar coverage unavailable" for name in SOURCE_NAMES}
+    not_before = session_close(cutoff).timestamp()
 
     def worker(name: str) -> tuple[str, list[tuple[str, float, float]] | None, str]:
-        cached = _cache_read(cache_dir, f"{name}:{symbol}")
+        cached = _cache_read(cache_dir, f"{name}:{symbol}", not_before=not_before)
         if cached is not None:
             rows = [(str(r[0]), float(r[1]), float(r[2])) for r in cached]
-            return name, rows, ""
+            try:
+                completed_bars(rows, now=as_of, minimum=min(139, max(5, days // 2)))
+                return name, rows, ""
+            except ValueError:
+                pass
         try:
+            started = time.time()
             rows = _fetch_source(name, symbol, days)
             if len(rows) < 10:
                 return name, None, f"{name}: too few bars ({len(rows)})"
-            _cache_write(cache_dir, f"{name}:{symbol}", rows)
+            _cache_write(cache_dir, f"{name}:{symbol}", rows, fetched_at=started)
             return name, rows, ""
         except SourceError as exc:
             return name, None, str(exc)

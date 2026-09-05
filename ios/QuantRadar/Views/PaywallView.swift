@@ -96,11 +96,11 @@ struct PaywallView: View {
         if let p = purchases.unlockProduct {
             return "Unlock · \(p.displayPrice)"
         }
-        return "Unlock · $9.99"
+        return "Check App Store price"
     }
 
     private var unlockPrice: String {
-        purchases.unlockProduct?.displayPrice ?? "$9.99"
+        purchases.unlockProduct?.displayPrice ?? "Price loading"
     }
 
     private func bullet(_ text: String) -> some View {
