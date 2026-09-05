@@ -34,6 +34,7 @@ from app.track_record import load_track_record
 from app.users import (
     authenticate as password_login,
     ensure_bootstrap_admin,
+    is_paid_plan,
     register_user,
     resolve_plan,
 )
@@ -781,9 +782,11 @@ class Handler(BaseHTTPRequestHandler):
                     "webhook_configured": bool(stripe_billing.webhook_secret()),
                     "checkout": "/api/billing/checkout",
                     "intervals": ["monthly", "yearly"],
+                    "plans": ["pro", "portfolio_pro"],
                     "prices": {
                         "monthly": "$29",
                         "yearly": "$249",
+                        "portfolio_pro_monthly": "$99",
                     },
                     "live_available": bool(health.get("live_available")),
                     "pro_value": health.get("pro_value"),
@@ -1364,6 +1367,7 @@ class Handler(BaseHTTPRequestHandler):
             except Exception:
                 body = {}
             interval = str(body.get("interval") or "monthly")
+            plan = stripe_billing.normalize_checkout_plan(str(body.get("plan") or "pro"))
             email = str(user.get("email") or "")
             # $9 report buyers carry a once-only credit toward Pro's first month.
             coupon = None
@@ -1377,6 +1381,7 @@ class Handler(BaseHTTPRequestHandler):
                     customer_email=email or None,
                     interval=interval,
                     coupon_id=coupon,
+                    plan=plan,
                 )
             except Exception as exc:
                 self._send(
@@ -1391,6 +1396,7 @@ class Handler(BaseHTTPRequestHandler):
                     interval=interval,
                     email=str(user.get("email") or ""),
                     ok=True,
+                    extra={"checkout_plan": plan},
                 )
             except Exception:
                 pass
@@ -1441,11 +1447,11 @@ class Handler(BaseHTTPRequestHandler):
             if not result.get("ok"):
                 self._send(422, {"ok": False, **result})
                 return
-            if result.get("action") == "plan_pro":
+            if result.get("action") in {"plan_pro", "plan_portfolio_pro"}:
                 try:
                     funnel.track(
                         "pro_active",
-                        plan="pro",
+                        plan=str(result.get("plan") or "pro"),
                         email=str(result.get("email") or ""),
                         ok=True,
                         extra={"source": "stripe_webhook"},

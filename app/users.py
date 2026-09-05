@@ -255,6 +255,14 @@ def count_users() -> int:
         return len(_load().get("users") or {})
 
 
+VALID_PLANS = frozenset({"free", "pro", "portfolio_pro"})
+
+
+def is_paid_plan(plan: str | None) -> bool:
+    """Return True for Stripe-paid tiers that unlock Pro desk privileges."""
+    return str(plan or "").strip().lower() in {"pro", "portfolio_pro"}
+
+
 def resolve_plan(email: str | None, *, session_plan: str | None = None) -> str:
     """Plan SSOT is the users store only.
 
@@ -270,7 +278,7 @@ def resolve_plan(email: str | None, *, session_plan: str | None = None) -> str:
     if not u:
         return "free"
     plan = str(u.get("plan") or "free").strip().lower()
-    return plan if plan in {"free", "pro"} else "free"
+    return plan if plan in VALID_PLANS else "free"
 
 
 def set_plan(
@@ -284,7 +292,7 @@ def set_plan(
     if not _EMAIL_RE.match(email_n):
         raise ValueError("invalid email")
     plan_n = (plan or "free").strip().lower()
-    if plan_n not in {"free", "pro"}:
+    if plan_n not in VALID_PLANS:
         raise ValueError("invalid plan")
     with _LOCK:
         store = _load()

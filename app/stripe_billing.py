@@ -14,6 +14,8 @@ from typing import Any
 
 from app.auth import public_base_url
 
+CHECKOUT_PLANS = frozenset({"pro", "portfolio_pro"})
+
 
 def stripe_secret() -> str:
     return (
@@ -31,6 +33,24 @@ def webhook_secret() -> str:
         os.environ.get("STRIPE_WEBHOOK_SECRET", "").strip()
         or os.environ.get("QUANTRADAR_STRIPE_WEBHOOK_SECRET", "").strip()
     )
+
+
+def normalize_checkout_plan(plan: str | None) -> str:
+    plan_n = (plan or "pro").strip().lower().replace("-", "_")
+    if plan_n in {"portfolio", "portfolio_pro"}:
+        return "portfolio_pro"
+    return "pro"
+
+
+def stripe_product_slug(plan: str) -> str:
+    return "quantradar_portfolio_pro" if plan == "portfolio_pro" else "quantradar_pro"
+
+
+def plan_from_product(product: str | None) -> str:
+    slug = str(product or "").strip().lower()
+    if slug in {"quantradar_portfolio_pro", "portfolio_pro"}:
+        return "portfolio_pro"
+    return "pro"
 
 
 def price_id_for_interval(interval: str | None) -> str:
@@ -62,28 +82,49 @@ def price_id_bump() -> str:
         or os.environ.get("QUANTRADAR_STRIPE_PRICE_ID_BUMP", "").strip()
     )
 
+def price_id_for_plan(plan: str | None, interval: str | None = None) -> str:
+    """Resolve Stripe Price ID for checkout plan + interval."""
+    plan_n = normalize_checkout_plan(plan)
+    if plan_n == "portfolio_pro":
+        return (
+            os.environ.get("STRIPE_PRICE_ID_PORTFOLIO_PRO_MONTHLY", "").strip()
+            or os.environ.get("QUANTRADAR_STRIPE_PRICE_ID_PORTFOLIO_PRO_MONTHLY", "").strip()
+        )
+    return price_id_for_interval(interval)
+
 
 def create_checkout_session(
     *,
     customer_email: str | None = None,
     price_id: str | None = None,
     interval: str | None = None,
+    plan: str | None = "pro",
     mode: str = "subscription",
+    coupon_id: str | None = None,
 ) -> dict[str, Any]:
-    """Create a Stripe Checkout Session. Returns {id, url}."""
+    """Create a Stripe Checkout Session. Returns {id, url, plan}."""
     secret = stripe_secret()
     if not secret:
         raise RuntimeError("Stripe not configured")
-    price = (price_id or price_id_for_interval(interval)).strip()
+    plan_n = normalize_checkout_plan(plan)
+    if plan_n == "portfolio_pro":
+        iv = "monthly"
+    else:
+        iv = (interval or "monthly").strip().lower()
+        if iv in {"year", "yearly", "annual", "annually"}:
+            iv = "yearly"
+        else:
+            iv = "monthly"
+    price = (price_id or price_id_for_plan(plan_n, iv)).strip()
     if not price:
+        if plan_n == "portfolio_pro":
+            raise RuntimeError(
+                "Stripe Price ID not configured — set STRIPE_PRICE_ID_PORTFOLIO_PRO_MONTHLY"
+            )
         raise RuntimeError(
             "Stripe Price ID not configured — set STRIPE_PRICE_ID_MONTHLY / STRIPE_PRICE_ID_YEARLY"
         )
-    iv = (interval or "monthly").strip().lower()
-    if iv in {"year", "yearly", "annual", "annually"}:
-        iv = "yearly"
-    else:
-        iv = "monthly"
+    product = stripe_product_slug(plan_n)
     base = public_base_url()
     data: dict[str, str] = {
         "mode": "subscription",
@@ -98,11 +139,17 @@ def create_checkout_session(
         data["client_reference_id"] = customer_email
         data["metadata[email]"] = customer_email
         data["metadata[interval]"] = iv
-        data["metadata[product]"] = "quantradar_pro"
+        data["metadata[plan]"] = plan_n
+        data["metadata[product]"] = product
         # Stripe does not copy session metadata onto the subscription — required for cancel→free.
         data["subscription_data[metadata][email]"] = customer_email
         data["subscription_data[metadata][interval]"] = iv
-        data["subscription_data[metadata][product]"] = "quantradar_pro"
+        data["subscription_data[metadata][plan]"] = plan_n
+        data["subscription_data[metadata][product]"] = product
+
+    if coupon_id and plan_n == "pro" and coupon_redeemable(coupon_id):
+        data.pop("allow_promotion_codes", None)
+        data["discounts[0][coupon]"] = coupon_id
 
     body = urllib.parse.urlencode(data).encode()
     req = urllib.request.Request(
@@ -126,6 +173,7 @@ def create_checkout_session(
         "url": obj.get("url"),
         "raw_status": obj.get("status"),
         "interval": iv,
+        "plan": plan_n,
     }
 
 
@@ -244,53 +292,14 @@ def coupon_redeemable(coupon_id: str | None) -> bool:
     return True
 
 
-def pro_checkout_with_credit(*, customer_email: str, interval: str, coupon_id: str | None) -> dict[str, Any]:
-    secret = stripe_secret()
-    if not secret:
-        raise RuntimeError("Stripe not configured")
-    price = price_id_for_interval(interval)
-    if not price:
-        raise RuntimeError("Stripe Price ID not configured")
-    iv = "yearly" if (interval or "").lower().startswith("y") else "monthly"
-    base = public_base_url()
-    data: dict[str, str] = {
-        "mode": "subscription",
-        "success_url": f"{base}/?checkout=success",
-        "cancel_url": f"{base}/pricing?checkout=cancel",
-        "line_items[0][price]": price,
-        "line_items[0][quantity]": "1",
-        "customer_email": customer_email,
-        "client_reference_id": customer_email,
-        "metadata[email]": customer_email,
-        "metadata[interval]": iv,
-        "metadata[product]": "quantradar_pro",
-        "subscription_data[metadata][email]": customer_email,
-        "subscription_data[metadata][interval]": iv,
-        "subscription_data[metadata][product]": "quantradar_pro",
-    }
-    if coupon_id and coupon_redeemable(coupon_id):
-        data["discounts[0][coupon]"] = coupon_id
-    else:
-        # No valid server-side credit — allow buyer promo codes instead.
-        data["allow_promotion_codes"] = "true"
-    body = urllib.parse.urlencode(data).encode()
-    req = urllib.request.Request(
-        "https://api.stripe.com/v1/checkout/sessions",
-        data=body,
-        headers={
-            "Authorization": f"Bearer {secret}",
-            "Content-Type": "application/x-www-form-urlencoded",
-            "User-Agent": "QuantRadar-Stripe/0.5",
-        },
-        method="POST",
+def pro_checkout_with_credit(
+    *, customer_email: str, interval: str = "monthly", coupon_id: str | None = None,
+    plan: str = "pro",
+) -> dict[str, Any]:
+    return create_checkout_session(
+        customer_email=customer_email, interval=interval, plan=plan,
+        coupon_id=coupon_id if plan == "pro" else None,
     )
-    try:
-        with urllib.request.urlopen(req, timeout=30) as resp:
-            obj = json.loads(resp.read().decode())
-    except urllib.error.HTTPError as exc:
-        detail = exc.read().decode(errors="replace")[:800]
-        raise RuntimeError(f"stripe checkout failed: {exc.code} {detail}") from exc
-    return {"id": obj.get("id"), "url": obj.get("url"), "interval": iv}
 
 
 def verify_webhook_signature(payload: bytes, sig_header: str | None, *, tolerance_sec: int = 300) -> bool:
@@ -331,6 +340,14 @@ def _email_from_checkout_session(session: dict[str, Any]) -> str | None:
     return None
 
 
+def _plan_from_metadata(meta: dict[str, Any] | None) -> str:
+    if not isinstance(meta, dict):
+        return "pro"
+    if meta.get("plan"):
+        return normalize_checkout_plan(str(meta.get("plan")))
+    return plan_from_product(str(meta.get("product") or ""))
+
+
 def apply_webhook_event(event: dict[str, Any]) -> dict[str, Any]:
     """Apply plan changes from a verified Stripe event. Returns action summary."""
     from app.users import set_plan
@@ -364,15 +381,18 @@ def apply_webhook_event(event: dict[str, Any]) -> dict[str, Any]:
 
             set_report_coupon(email, coupon)
             return {"ok": True, "action": "report_granted", "email": email, "type": etype}
+
+        plan_n = _plan_from_metadata(meta)
         customer_id = data_obj.get("customer")
         if isinstance(customer_id, dict):
             customer_id = customer_id.get("id")
         user = set_plan(
             email,
-            "pro",
+            plan_n,
             stripe_customer_id=str(customer_id) if customer_id else None,
         )
-        return {"ok": True, "action": "plan_pro", "email": email, "user": user, "type": etype}
+        action = "plan_portfolio_pro" if plan_n == "portfolio_pro" else "plan_pro"
+        return {"ok": True, "action": action, "email": email, "user": user, "type": etype, "plan": plan_n}
 
     if etype in {
         "customer.subscription.deleted",

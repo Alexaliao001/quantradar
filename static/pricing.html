@@ -30,7 +30,7 @@
       <p class="brand-mark">Quant<span>Radar</span></p>
       <h1>Pricing</h1>
       <p class="muted">
-        Clear Free vs Pro. No fabricated user counts. Live scans run free for everyone on this host via the
+        Clear Free, Pro, and Portfolio Pro. No fabricated user counts. Live scans run free for everyone on this host via the
         multi-source free engine; Pro is a supporter tier with higher limits.
         Checkout via Stripe when configured on the host.
       </p>
@@ -42,7 +42,7 @@
       <button type="button" data-interval="yearly">Yearly <span class="muted">save ~28%</span></button>
     </div>
 
-    <!-- D-P0: exactly two interactive cards — Free + Pro. No Elite. -->
+    <!-- Free + Pro + Portfolio Pro. No Elite. -->
     <div class="price-grid">
       <section class="card">
         <h2>Free / Guest</h2>
@@ -70,10 +70,26 @@
           <li>Options only when live chain is OK (honesty gate)</li>
         </ul>
         <p class="muted" style="font-size:0.8rem;margin:0.75rem 0 0">
-          Anchor: one avoided −8% on a $3k trade ≈ 8 months of Pro. Yearly $249 saves ~28% vs monthly.
+          Anchor: one avoided −8% on a $3k trade ≈ 8 months of Pro. Yearly $249 saves ~28% vs monthly when configured.
         </p>
         <button class="btn btn-mag" type="button" id="proCta">Get Pro</button>
         <p class="muted" id="ctaHint" style="margin-top:0.65rem;font-size:0.8rem"></p>
+      </section>
+      <section class="card">
+        <h2>Portfolio Pro</h2>
+        <p class="price">$99<span>/mo</span></p>
+        <p class="muted">Billed monthly only. Cancel anytime via Stripe.</p>
+        <p class="muted" id="portfolioValueNote" style="font-size:0.85rem">
+          Higher supporter tier — same desk access as Pro on this host today; portfolio monitoring and report workflow ship separately.
+        </p>
+        <ul>
+          <li>Everything in Pro (session, limits, live auto-unlock when mounted)</li>
+          <li><strong>Funds portfolio-scale roadmap</strong> — batch monitoring and report workflow, not sold as live today</li>
+          <li>Priority for portfolio feature rollouts</li>
+          <li>No live market data claims on this host until charts are mounted</li>
+        </ul>
+        <button class="btn btn-mag" type="button" id="portfolioCta">Get Portfolio Pro</button>
+        <p class="muted" id="portfolioHint" style="margin-top:0.65rem;font-size:0.8rem"></p>
       </section>
     </div>
 
@@ -92,18 +108,18 @@
 
     <h2>What we do not sell (yet)</h2>
     <p>
-      No “Elite institutional” tier without a public track record. If we add a mid tier later, it will be
-      clearly scoped (batch limits / API lite) — not a prestige jump.
+      No “Elite institutional” tier without a public track record. Portfolio Pro is scoped to portfolio monitoring
+      and report workflow on the roadmap — not a prestige jump with fake features.
     </p>
 
     <h2>Consistency table</h2>
     <table>
-      <thead><tr><th></th><th>Free</th><th>Pro</th></tr></thead>
+      <thead><tr><th></th><th>Free</th><th>Pro</th><th>Portfolio Pro</th></tr></thead>
       <tbody>
-        <tr><td>Demo artifact</td><td>Yes</td><td>Yes</td></tr>
-        <tr><td>Live fetch</td><td>Yes (guest limits)</td><td>Yes (higher limits)</td></tr>
-        <tr><td>Options as actionable</td><td>No</td><td>Only when live chain OK</td></tr>
-        <tr><td>Pattern labels</td><td>If present in artifact</td><td>Same rules (+ live when mounted)</td></tr>
+        <tr><td>Demo artifact</td><td>Yes</td><td>Yes</td><td>Yes</td></tr>
+        <tr><td>Live fetch</td><td>Yes (guest limits)</td><td>Yes (higher limits)</td><td>Same as Pro</td></tr>
+        <tr><td>Options as actionable</td><td>No</td><td>Only when live chain OK</td><td>Same as Pro</td></tr>
+        <tr><td>Pattern labels</td><td>If present in artifact</td><td>Same rules (+ live when mounted)</td><td>Same as Pro</td></tr>
       </tbody>
     </table>
 
@@ -133,6 +149,14 @@
         <summary>Does website Pro unlock the iOS app?</summary>
         <p>No. They are independent products. iOS Unlock is Apple In-App Purchase. Website Pro is Stripe. Neither receipt unlocks the other.</p>
       </details>
+      <details>
+        <summary>What is Portfolio Pro vs Pro?</summary>
+        <p>Pro ($29/mo) is the standard supporter plan. Portfolio Pro ($99/mo, monthly only) is a higher supporter tier with the same desk access as Pro on this host today. It funds portfolio-scale monitoring and report workflow — those features ship separately and are not sold as available now.</p>
+      </details>
+      <details>
+        <summary>Does website Pro unlock the iOS app?</summary>
+        <p>No. They are independent products. iOS Unlock is Apple In-App Purchase. Website Pro is Stripe. Neither receipt unlocks the other.</p>
+      </details>
     </div>
 
     <p class="muted"><a href="/refund">Refund policy</a> · <a href="/terms">Terms</a> · <a href="/privacy-ios">iOS privacy</a></p>
@@ -140,6 +164,10 @@
   <footer class="foot">
     <a href="/terms">Terms</a> · <a href="/privacy">Privacy</a> · <a href="/privacy-ios">iOS privacy</a> · <a href="/refund">Refund</a>
     · Fortune Insight, LLC
+    <span class="foot-partner">
+      <a href="https://t.me/storefrontbrief" rel="noopener noreferrer">Storefront Brief — weekly App Store intel (Telegram)</a>
+      <a href="https://buy.stripe.com/6oUcMZ17IbCk4X3dmle7m02" rel="noopener noreferrer">Full brief $12/mo</a>
+    </span>
   </footer>
   <script>
     let interval = "monthly";
@@ -147,6 +175,7 @@
 
     const params = new URLSearchParams(location.search);
     if (params.get("interval") === "yearly") interval = "yearly";
+    const checkoutPlan = params.get("plan") === "portfolio_pro" ? "portfolio_pro" : "pro";
 
     function showBanner(kind, text) {
       const el = document.getElementById("banner");
@@ -179,10 +208,28 @@
     function syncCta() {
       const cta = document.getElementById("proCta");
       const hint = document.getElementById("ctaHint");
-      if (String(auth.plan).toLowerCase() === "pro") {
+      const portfolioCta = document.getElementById("portfolioCta");
+      const portfolioHint = document.getElementById("portfolioHint");
+      const userPlan = String(auth.plan).toLowerCase();
+
+      if (userPlan === "portfolio_pro") {
+        setCtaLabel(portfolioCta, "Portfolio Pro active — open desk");
+        portfolioCta.onclick = () => { location.href = "/"; };
+        portfolioHint.textContent = "You already have Portfolio Pro on this account.";
+        setCtaLabel(cta, "Pro included — open desk");
+        cta.onclick = () => { location.href = "/"; };
+        hint.textContent = "Portfolio Pro includes Pro desk access.";
+        return;
+      }
+      if (userPlan === "pro") {
         setCtaLabel(cta, "Pro active — open desk");
         cta.onclick = () => { location.href = "/"; };
         hint.textContent = "You already have Pro on this account.";
+        setCtaLabel(portfolioCta, "Upgrade to Portfolio Pro");
+        portfolioCta.onclick = () => startCheckout("portfolio_pro");
+        portfolioHint.textContent = auth.stripe
+          ? "Upgrade adds portfolio-scale roadmap support. Same desk access until batch features ship."
+          : "Stripe may be unavailable until keys are configured.";
         return;
       }
       if (!auth.authenticated) {
@@ -193,27 +240,44 @@
         hint.textContent = auth.stripe
           ? "Sign in first, then Stripe Checkout opens."
           : "Sign in first. Stripe may be unavailable until keys are configured.";
+        setCtaLabel(portfolioCta, "Sign in · Portfolio Pro");
+        portfolioCta.onclick = () => {
+          location.href = "/login?next=checkout&plan=portfolio_pro";
+        };
+        portfolioHint.textContent = auth.stripe
+          ? "Sign in first, then Stripe Checkout opens."
+          : "Sign in first. Stripe may be unavailable until keys are configured.";
         return;
       }
       setCtaLabel(cta, interval === "yearly" ? "Checkout · $249/yr" : "Checkout · $29/mo");
-      cta.onclick = () => startCheckout();
+      cta.onclick = () => startCheckout("pro");
       hint.textContent = auth.stripe
         ? "Secure Stripe Checkout. Success returns you to the desk."
         : "Stripe is not configured on this host — CTA will show an honest error.";
+      setCtaLabel(portfolioCta, "Checkout · $99/mo");
+      portfolioCta.onclick = () => startCheckout("portfolio_pro");
+      portfolioHint.textContent = auth.stripe
+        ? "Secure Stripe Checkout. Monthly only."
+        : "Stripe is not configured on this host — CTA will show an honest error.";
     }
 
-    async function startCheckout() {
+    async function startCheckout(plan) {
+      const checkoutPlan = plan === "portfolio_pro" ? "portfolio_pro" : "pro";
       try {
         const r = await fetch("/api/billing/checkout", {
           method: "POST",
           credentials: "same-origin",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ interval }),
+          body: JSON.stringify({ interval, plan: checkoutPlan }),
         });
         const j = await r.json();
         if (j.url) { location.href = j.url; return; }
         if (j.error === "login_required") {
-          location.href = "/login?next=checkout&interval=" + encodeURIComponent(interval);
+          if (checkoutPlan === "portfolio_pro") {
+            location.href = "/login?next=checkout&plan=portfolio_pro";
+          } else {
+            location.href = "/login?next=checkout&interval=" + encodeURIComponent(interval);
+          }
           return;
         }
         showBanner("warn", j.error_detail || j.error || "Checkout unavailable");
@@ -234,7 +298,7 @@
       showBanner("warn", "Checkout canceled. Pick a plan when you are ready.");
     }
     if (params.get("authed") === "1") {
-      showBanner("ok", "Signed in. Choose monthly or yearly, then Checkout.");
+      showBanner("ok", "Signed in. Choose a plan, then Checkout.");
     }
 
     syncIntervalUI();
@@ -265,7 +329,7 @@
           stripe: !!j.stripe_checkout,
         };
         syncCta();
-        if (params.get("authed") === "1" && auth.authenticated && auth.stripe) {
+        if (params.get("authed") === "1" && auth.authenticated && auth.stripe && checkoutPlan === "portfolio_pro") {
           /* optional auto-start — keep manual click for clarity */
         }
       })

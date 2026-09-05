@@ -111,6 +111,10 @@ def render_share_html(ticker: str, result: dict[str, Any]) -> bytes:
     <a href="/terms">Terms</a> ·
     <a href="/privacy">Privacy</a> ·
     <a href="/refund">Refund</a>
+    <span class="foot-partner">
+      <a href="https://t.me/storefrontbrief" rel="noopener noreferrer">Storefront Brief — weekly App Store intel (Telegram)</a>
+      <a href="https://buy.stripe.com/6oUcMZ17IbCk4X3dmle7m02" rel="noopener noreferrer">Full brief $12/mo</a>
+    </span>
   </footer>
 </body>
 </html>
