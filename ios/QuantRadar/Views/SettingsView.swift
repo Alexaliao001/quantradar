@@ -2,7 +2,9 @@ import SwiftUI
 
 struct SettingsView: View {
     @EnvironmentObject private var purchases: PurchaseStore
+    @EnvironmentObject private var journal: DecisionJournal
     @State private var showPaywall = false
+    @State private var showClearJournalConfirmation = false
 
     var body: some View {
         NavigationStack {
@@ -10,9 +12,9 @@ struct SettingsView: View {
                 Section("Purchase") {
                     LabeledContent(
                         "Core",
-                        value: purchases.effectiveUnlocked ? "Unlocked" : "Locked · $9.99"
+                        value: purchases.effectiveUnlocked ? "Unlocked" : "Locked · \(unlockPrice)"
                     )
-                    Text("One-time unlock for any ticker, watchlist, and 90-day evidence.")
+                    Text("One-time unlock for every supported ticker, watchlist, and 90-day evidence.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
 
@@ -42,9 +44,15 @@ struct SettingsView: View {
                 Section("Discipline") {
                     LabeledContent("Streak", value: "\(DisciplineLedger.streak) days")
                     LabeledContent("Waits logged", value: "\(DisciplineLedger.waitCount)")
+                    LabeledContent("Decisions saved", value: "\(journal.entries.count)")
                     Text(DisciplineLedger.summaryLine)
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                    if !journal.entries.isEmpty {
+                        Button("Clear decision history", role: .destructive) {
+                            showClearJournalConfirmation = true
+                        }
+                    }
                 }
 
                 Section("Legal") {
@@ -68,12 +76,29 @@ struct SettingsView: View {
                 }
             }
             .scrollContentBackground(.hidden)
+            .frame(maxWidth: 760)
+            .frame(maxWidth: .infinity)
             .background(QRTheme.bg.ignoresSafeArea())
             .navigationTitle("Settings")
             .sheet(isPresented: $showPaywall) {
                 PaywallView()
                     .environmentObject(purchases)
             }
+            .confirmationDialog(
+                "Clear decision history?",
+                isPresented: $showClearJournalConfirmation,
+                titleVisibility: .visible
+            ) {
+                Button("Clear history", role: .destructive) {
+                    journal.clear()
+                }
+            } message: {
+                Text("This removes the private on-device journal. It cannot be undone.")
+            }
         }
+    }
+
+    private var unlockPrice: String {
+        purchases.unlockProduct?.displayPrice ?? "$9.99"
     }
 }

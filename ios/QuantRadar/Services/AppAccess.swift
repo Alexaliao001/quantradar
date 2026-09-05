@@ -16,7 +16,7 @@ enum AppAccess {
 
     static let differentiationLine = "One score. Most days: don’t act — not tipster noise."
     static let previewLine = "Free: today’s SPY plus one ticker of yours."
-    static let founderPriceLine = "Founder price $9.99 — first 1,000 unlocks. One-time, not a subscription."
+    static let founderPriceLine = "Launch unlock. One-time, not a subscription. Restore anytime."
 
     static let previewTickerKey = "qr.preview.personal_ticker"
 

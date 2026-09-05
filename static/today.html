@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Syne:wght@600;700;800&display=swap" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Today — QuantRadar</title>
+  <meta name="description" content="Daily mechanical gate screen: how many tickers pass today. Real scans only — no invented numbers." />
+  <meta property="og:title" content="Today's gate screen — QuantRadar" />
+  <meta property="og:description" content="Daily mechanical screen across our ticker universe. Real scans only. Educational — not investment advice." />
+  <meta property="og:image" content="/static/og-default.svg" />
+  <meta property="og:type" content="website" />
+  <link rel="canonical" href="/today" />
+  <link rel="stylesheet" href="/static/site.css" />
+</head>
+<body>
+  <div class="page-mosaic is-soft" aria-hidden="true">
+    <div class="hero-mosaic-wave" id="heroMosaicWave"></div>
+  </div>
+  <header class="top">
+    <a class="brand" href="/">Quant<span>Radar</span></a>
+    <nav>
+      <a href="/today" aria-current="page">Today</a>
+      <a href="/methodology">Methodology</a>
+      <a href="/track">Track</a>
+      <a href="/pricing">Pricing</a>
+      <a href="/login">Sign in</a>
+    </nav>
+  </header>
+  <main class="prose">
+    <h1>Today&rsquo;s gate screen</h1>
+    <p class="muted" id="todayNote">Mechanical screen only — educational, not investment advice.</p>
+    <div class="banner warn" id="todayLoading">Computing today&rsquo;s screen from the free multi-source engine…</div>
+    <div class="banner bad" id="todayError" hidden>Screen unavailable right now — try again in a few minutes. <button type="button" class="btn small secondary" id="todayRetry" style="margin-left:0.6rem">Retry</button></div>
+
+    <div id="todayBody" hidden>
+      <div class="evidence-strip" style="margin-bottom:1.2rem">
+        <div class="ev" id="evMarket" data-gate="unknown">
+          <small>Market gate</small><b id="mGate">—</b>
+          <span class="gate-status" id="mGateStatus">—</span>
+        </div>
+        <div class="ev" data-gate="unknown">
+          <small>Scanned</small><b id="mScanned">—</b>
+        </div>
+        <div class="ev" data-gate="unknown">
+          <small>Passing</small><b id="mPassing">—</b>
+        </div>
+      </div>
+
+      <h3 style="margin-top:0.2rem">Passing the gate now <span class="muted" id="asOf" style="font-size:0.75rem;font-weight:normal"></span></h3>
+      <table class="today-table" id="todayTable" hidden>
+        <thead>
+          <tr><th>Ticker</th><th>Close</th><th>Score</th><th>Signal</th><th></th></tr>
+        </thead>
+        <tbody id="todayRows"></tbody>
+      </table>
+      <div class="banner" id="todayNone" hidden>No ticker passes the gate right now — that is the honest answer, and it&rsquo;s valuable too.</div>
+
+      <p class="muted" style="margin-top:1rem">
+        Only tickers with score ≥ 68, healthy pullback, calm RSI and an open market gate show up here. Everything else stays silent.
+      </p>
+
+      <div class="next-actions" style="margin-top:1.2rem">
+        <a class="btn" href="/?live=" id="scanCta">Scan any ticker free</a>
+        <a class="btn secondary" href="/login">Sign in — watchlist &amp; daily digest</a>
+        <a class="btn secondary" href="/methodology">How the score works</a>
+      </div>
+    </div>
+
+    <p class="muted" style="margin-top:1.5rem">
+      <a href="/">Desk</a> · <a href="/track">Track notes</a> · <a href="/pricing">Pricing</a>
+    </p>
+  </main>
+  <footer class="foot">
+    <a href="/methodology">Methodology</a> ·
+    <a href="/track">Track</a> ·
+    <a href="/pricing">Pricing</a> ·
+    <a href="/terms">Terms</a> ·
+    <a href="/privacy">Privacy</a> ·
+    <a href="/refund">Refund</a>
+    <span class="muted" style="display:block;margin-top:0.45rem;font-size:0.75rem">
+      Machine-readable: <a href="/api/today">/api/today</a> · Cached hourly.
+    </span>
+  </footer>
+  <script>
+    (async () => {
+      const loading = document.getElementById("todayLoading");
+      const errBox = document.getElementById("todayError");
+      const body = document.getElementById("todayBody");
+
+      function paint(j) {
+        loading.hidden = true;
+        errBox.hidden = true;
+        body.hidden = false;
+
+        const mkt = j.market || {};
+        const state = mkt.gate_state || (mkt.gate_open === true ? "open" : mkt.gate_open === false ? "closed" : "unknown");
+        const open = state === "open";
+        const unknown = state === "unknown";
+        document.getElementById("mGate").textContent = open ? "OPEN" : unknown ? "UNKNOWN" : "CLOSED";
+        document.getElementById("mGate").dataset.tone = open ? "pass" : unknown ? "neutral" : "fail";
+        const st = document.getElementById("mGateStatus");
+        st.textContent = mkt.spy_pct_5d != null ? "SPY " + Number(mkt.spy_pct_5d).toFixed(2) + "% / 5d" : "SPY data unavailable";
+        if (mkt.stale) st.textContent += " · delayed data";
+        document.getElementById("evMarket").dataset.gate = open ? "pass" : unknown ? "unknown" : "fail";
+        document.getElementById("mScanned").textContent = j.scanned != null ? j.scanned : "—";
+        document.getElementById("mPassing").textContent = j.passing != null ? j.passing : "—";
+        const asOf = document.getElementById("asOf");
+        if (asOf && j.ts) {
+          const mins = Math.max(0, Math.floor((Date.now() / 1000 - j.ts) / 60));
+          asOf.textContent = mins < 1 ? "computed just now" : "computed " + mins + " min ago";
+        }
+
+        const rows = document.getElementById("todayRows");
+        const table = document.getElementById("todayTable");
+        const none = document.getElementById("todayNone");
+        rows.innerHTML = "";
+        const top = Array.isArray(j.top) ? j.top : [];
+        if (top.length) {
+          table.hidden = false;
+          none.hidden = true;
+          top.forEach((row, i) => {
+            const tr = document.createElement("tr");
+            tr.style.animationDelay = (i * 60) + "ms";
+            tr.className = "today-row-in";
+            const td1 = document.createElement("td");
+            const b = document.createElement("b");
+            b.textContent = row.ticker;
+            td1.appendChild(b);
+            const td2 = document.createElement("td");
+            td2.textContent = row.close != null ? "$" + Number(row.close).toFixed(2) : "—";
+            const td3 = document.createElement("td");
+            td3.textContent = row.score != null ? row.score : "—";
+            const td4 = document.createElement("td");
+            const sig = document.createElement("span");
+            sig.style.color = "var(--accent)";
+            sig.textContent = "SETUP";
+            td4.appendChild(sig);
+            const td5 = document.createElement("td");
+            const a = document.createElement("a");
+            a.className = "btn small";
+            a.href = "/?live=" + encodeURIComponent(row.ticker);
+            a.textContent = "Scan";
+            td5.appendChild(a);
+            tr.append(td1, td2, td3, td4, td5);
+            rows.appendChild(tr);
+          });
+        } else {
+          table.hidden = true;
+          none.hidden = false;
+        }
+        const cta = document.getElementById("scanCta");
+        if (top.length) cta.href = "/?live=" + encodeURIComponent(top[0].ticker);
+        else cta.href = "/";
+      }
+
+      let tries = 0;
+      async function poll() {
+        tries += 1;
+        try {
+          const r = await fetch("/api/today");
+          const j = await r.json();
+          if (!r.ok || !j.ok) throw new Error(j.error_detail || j.error || "failed");
+          if (j.computing && tries < 20) {
+            setTimeout(poll, 3000);
+            return;
+          }
+          if (j.computing && j.scanned == null) {
+            // Still computing and nothing cached — keep showing loader.
+            setTimeout(poll, 3000);
+            return;
+          }
+          paint(j);
+        } catch (e) {
+          if (tries >= 20) {
+            loading.hidden = true;
+            errBox.hidden = false;
+            return;
+          }
+          setTimeout(poll, 3000);
+        }
+      }
+      poll();
+
+      const retryBtn = document.getElementById("todayRetry");
+      if (retryBtn) {
+        retryBtn.addEventListener("click", () => {
+          errBox.hidden = true;
+          loading.hidden = false;
+          tries = 0;
+          poll();
+        });
+      }
+    })();
+  </script>
+</body>
+</html>

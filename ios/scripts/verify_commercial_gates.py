@@ -42,7 +42,10 @@ def main() -> int:
     depth = (ROOT / "QuantRadar/Services/PostureDepth.swift").read_text()
     briefing = (ROOT / "QuantRadar/Services/DailyBriefing.swift").read_text()
     ledger = (ROOT / "QuantRadar/Services/DisciplineLedger.swift").read_text()
+    chase = (ROOT / "QuantRadar/Services/ChaseCheck.swift").read_text()
+    journal = (ROOT / "QuantRadar/Services/DecisionJournal.swift").read_text()
     widget = (ROOT / "QuantRadarWidget/QuantRadarWidget.swift").read_text()
+    privacy = (ROOT / "QuantRadar/PrivacyInfo.xcprivacy").read_text()
 
     for pid in (
         "one.quantradar.app.unlock",
@@ -104,7 +107,8 @@ def main() -> int:
         ("SearchView", search, "claimPreviewTickerIfNeeded"),
         ("SearchView", search, "isPreviewLocked"),
         ("SearchView", search, "LockedVerdictView"),
-        ("RootTabView", root_tab, "effectiveUnlocked"),
+        ("RootTabView", root_tab, "WatchlistView()"),
+        ("WatchlistView", watch, "Unlock Watch"),
         ("PaywallView", paywall, "Unlock any ticker"),
         ("PaywallView", paywall, "founderPriceLine"),
         ("OnboardingView", onboarding, "Open radar"),
@@ -122,10 +126,17 @@ def main() -> int:
         ("FreeMechanicalScorer", scorer, "earningsForced"),
         ("WatchlistView", watch, "Remind if posture changes"),
         ("RadarService", radar, "Do not assign `latest`"),
+        ("RadarService", radar, "refreshToday"),
         ("LockedVerdictView", locked, "Unlock to see"),
         ("PostureDepth", depth, "historyDays"),
         ("DailyBriefing", briefing, "Today's radar is ready"),
         ("DisciplineLedger", ledger, "qr.discipline.streak"),
+        ("ChaseCheck", chase, "PROCESS CLEAR"),
+        ("DecisionJournal", journal, "qr.decision.journal"),
+        ("SearchView", search, "DecisionCommitView"),
+        ("WatchlistView", watch, "Decision journal"),
+        ("Privacy manifest", privacy, "NSPrivacyAccessedAPICategoryUserDefaults"),
+        ("Privacy manifest", privacy, "CA92.1"),
         ("Widget", widget, "QuantRadarSPY"),
     ):
         if needle not in blob:
@@ -154,10 +165,10 @@ def main() -> int:
         else:
             ok(f"{name} has no `{banned}`")
 
-    if 'MARKETING_VERSION: "1.2.0"' not in project or 'CURRENT_PROJECT_VERSION: "6"' not in project:
-        bad("project.yml should be 1.2.0 / build 6")
+    if 'MARKETING_VERSION: "1.2.0"' not in project or 'CURRENT_PROJECT_VERSION: "7"' not in project:
+        bad("project.yml should be 1.2.0 / build 7")
     else:
-        ok("project.yml 1.2.0 / 6")
+        ok("project.yml 1.2.0 / 7")
 
     if "Cancel any in-flight paid 1.0" not in launch:
         bad("APP_STORE_LAUNCH missing paid-1.0 cancel / free listing strategy")
@@ -169,7 +180,7 @@ def main() -> int:
     else:
         ok("PRODUCT.md free-download + one personal ticker")
 
-    if "Stock scanner: wait or act" not in launch:
+    if "Stop chasing stock setups" not in launch:
         bad("APP_STORE_LAUNCH missing ASO subtitle")
     else:
         ok("APP_STORE_LAUNCH ASO subtitle")

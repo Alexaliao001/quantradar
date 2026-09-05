@@ -103,20 +103,22 @@ class PasswordHttpTests(unittest.TestCase):
         self.assertTrue(me.get("authenticated"))
         self.assertEqual(me["user"]["email"], "desk@test.local")
 
-        # free plan → live requires Pro
+        # free plan → live is open (no plan gate); with CHARTS_DIR missing it
+        # fails closed but never 401/403.
         req = urllib.request.Request(
             f"http://127.0.0.1:{self.port}/api/analyze?ticker=INTC&mode=live",
             headers={"Cookie": f"qr_session={token}"},
         )
         try:
-            with urllib.request.urlopen(req, timeout=5) as r:
+            with urllib.request.urlopen(req, timeout=30) as r:
                 code = r.status
                 j = json.loads(r.read().decode())
         except urllib.error.HTTPError as e:
             code = e.code
             j = json.loads(e.read().decode())
-        self.assertEqual(code, 403, j)
-        self.assertEqual(j.get("error"), "plan_required")
+        self.assertNotIn(code, (401, 403), j)
+        self.assertNotEqual(j.get("error"), "plan_required")
+        self.assertNotEqual(j.get("error"), "login_required")
 
         from app.users import set_plan
 

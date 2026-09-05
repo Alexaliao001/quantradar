@@ -246,41 +246,84 @@ enum FreeMarketDataClient {
 
 enum QuoteFundamentals: Sendable {
     case missing
-    case loaded(sector: String?, earningsDate: Date?)
+    case loaded(sector: String?, earningsDate: Date?, company: String?)
 
     var sector: String? {
-        if case .loaded(let s, _) = self { return s }
+        if case .loaded(let s, _, _) = self { return s }
         return nil
     }
 
     var earningsDate: Date? {
-        if case .loaded(_, let d) = self { return d }
+        if case .loaded(_, let d, _) = self { return d }
         return nil
+    }
+
+    var company: String? {
+        if case .loaded(_, _, let c) = self { return c }
+        return nil
+    }
+
+    var isUseful: Bool {
+        sector != nil || earningsDate != nil || company != nil
     }
 }
 
 extension FreeMarketDataClient {
-    /// Yahoo quoteSummary — fail-open. Never blocks a scan.
+    /// Sector / earnings / name. Yahoo first, Nasdaq summary fallback. Fail-open.
     static func fundamentals(symbol: String) async -> QuoteFundamentals {
         let sym = normalize(symbol)
         guard !sym.isEmpty else { return .missing }
-        let encoded = sym.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? sym
+        if let yahoo = await yahooFundamentals(symbol: sym), yahoo.isUseful {
+            return yahoo
+        }
+        if let nasdaq = await nasdaqSummary(symbol: sym), nasdaq.isUseful {
+            return nasdaq
+        }
+        return .missing
+    }
+
+    private static func yahooFundamentals(symbol: String) async -> QuoteFundamentals? {
+        let encoded = symbol.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? symbol
         guard var components = URLComponents(string: "https://query1.finance.yahoo.com/v10/finance/quoteSummary/\(encoded)") else {
-            return .missing
+            return nil
         }
         components.queryItems = [
             URLQueryItem(name: "modules", value: "assetProfile,calendarEvents"),
         ]
-        guard let url = components.url else { return .missing }
+        guard let url = components.url else { return nil }
         do {
             let data = try await get(url, headers: [
                 "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) QuantRadar/1.2",
                 "Accept": "application/json",
             ])
-            return parseFundamentals(data)
+            let parsed = parseFundamentals(data)
+            return parsed.isUseful ? parsed : nil
         } catch {
-            return .missing
+            return nil
         }
+    }
+
+    private static func nasdaqSummary(symbol: String) async -> QuoteFundamentals? {
+        let encoded = symbol.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? symbol
+        let classes = ["stocks", "etf"]
+        for asset in classes {
+            guard let url = URL(string: "https://api.nasdaq.com/api/quote/\(encoded)/summary?assetclass=\(asset)") else {
+                continue
+            }
+            do {
+                let data = try await get(url, headers: [
+                    "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15",
+                    "Accept": "application/json, text/plain, */*",
+                    "Origin": "https://www.nasdaq.com",
+                    "Referer": "https://www.nasdaq.com/",
+                ])
+                let parsed = parseNasdaqSummary(data)
+                if parsed.isUseful { return parsed }
+            } catch {
+                continue
+            }
+        }
+        return nil
     }
 
     static func parseFundamentals(_ data: Data) -> QuoteFundamentals {
@@ -309,7 +352,19 @@ extension FreeMarketDataClient {
             }
         }
         if sector == nil && earnings == nil { return .missing }
-        return .loaded(sector: sector, earningsDate: earnings)
+        return .loaded(sector: sector, earningsDate: earnings, company: nil)
+    }
+
+    static func parseNasdaqSummary(_ data: Data) -> QuoteFundamentals {
+        guard
+            let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+            let dataObj = root["data"] as? [String: Any],
+            let summary = dataObj["summaryData"] as? [String: Any]
+        else { return .missing }
+        let sector = ((summary["Sector"] as? [String: Any])?["value"] as? String)
+            .flatMap { $0.isEmpty ? nil : $0 }
+        if sector == nil { return .missing }
+        return .loaded(sector: sector, earningsDate: nil, company: nil)
     }
 }
 

@@ -34,8 +34,8 @@ def charts_dir() -> Path:
 def resolve_mode(explicit: str | None = None) -> str:
     if explicit in {"live", "artifact"}:
         return explicit
-    env = os.environ.get("QUANTRADAR_MODE", "artifact").strip().lower()
-    return env if env in {"live", "artifact"} else "artifact"
+    env = os.environ.get("QUANTRADAR_MODE", "live").strip().lower()
+    return env if env in {"live", "artifact"} else "live"
 
 
 def resolve_chart_asset(basename: str) -> Path | None:
@@ -235,11 +235,11 @@ def analyze(
         return fail_response(
             ticker=t,
             contract_version=req["contract_version"],
-            error="artifact_not_found",
-            error_detail=(
-                f"no charts artifact for {t}; place fixtures/charts_sample/{t}_analysis.json "
-                "or set CHARTS_DIR with reports/**/assets"
-            ),
+                error="artifact_not_found",
+                error_detail=(
+                    f"No frozen sample for {t} — frozen demos cover INTC and AAPL only. "
+                    "Switch Mode → live for a free multi-source scan of any ticker."
+                ),
             mode="artifact",
             sources=[{"name": "charts.artifact", "role": "engine", "status": "missing"}],
             warnings=[f"no charts artifact for {t}"],

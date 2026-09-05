@@ -17,15 +17,23 @@ struct OnboardingView: View {
                     .foregroundStyle(QRTheme.text)
 
                 VStack(spacing: 10) {
-                    Text("Should you act today?")
+                    Text("Before you chase, check your process.")
                         .font(.title3.weight(.semibold))
                         .foregroundStyle(QRTheme.text)
                         .multilineTextAlignment(.center)
-                    Text("One mechanical posture score for US tickers. Most days the honest answer is wait.")
+                    Text("Chase Check asks three questions, then the radar gives one mechanical posture. Most days the honest answer is wait.")
                         .font(.body)
                         .foregroundStyle(QRTheme.muted)
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 28)
+                    Text("Free includes today’s SPY plus one ticker of yours. Unlock once for the full radar.")
+                        .font(.footnote.weight(.medium))
+                        .foregroundStyle(QRTheme.text)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 28)
+                    Text("No account. Your decision journal stays on this device.")
+                        .font(.caption)
+                        .foregroundStyle(QRTheme.radar)
                 }
 
                 Button {
@@ -46,6 +54,7 @@ struct OnboardingView: View {
                     .foregroundStyle(QRTheme.muted)
                     .padding(.bottom, 24)
             }
+            .frame(maxWidth: 620)
         }
     }
 }

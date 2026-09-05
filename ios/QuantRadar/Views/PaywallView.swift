@@ -10,6 +10,10 @@ struct PaywallView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
+                    Text(AppAccess.differentiationLine)
+                        .font(.headline)
+                        .foregroundStyle(QRTheme.radar)
+
                     Text("Unlock any ticker.")
                         .font(.title2.bold())
                         .foregroundStyle(QRTheme.text)
@@ -19,10 +23,10 @@ struct PaywallView: View {
                         .foregroundStyle(QRTheme.muted)
 
                     VStack(alignment: .leading, spacing: 10) {
-                        bullet("Any US ticker scan")
-                        bullet("Watchlist with posture-change alerts")
+                        bullet("Every supported US ticker scan")
+                        bullet("Watchlist refreshed when you open the app")
                         bullet("90-day posture strip and setup evidence")
-                        bullet("One-time $9.99 — not a subscription")
+                        bullet("One-time \(unlockPrice) — not a subscription")
                     }
                     .padding(14)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -66,6 +70,8 @@ struct PaywallView: View {
                         .foregroundStyle(QRTheme.muted)
                 }
                 .padding(20)
+                .frame(maxWidth: 620)
+                .frame(maxWidth: .infinity)
             }
             .background(QRTheme.bg.ignoresSafeArea())
             .navigationTitle("Unlock")
@@ -80,9 +86,9 @@ struct PaywallView: View {
 
     private var headline: String {
         if let t = focusTicker, !t.isEmpty {
-            return "\(AppAccess.anxietyCopy(ticker: t)) You already have today’s SPY and one personal scan. Unlock once for every US ticker plus a watchlist. Most days the honest answer is still wait."
+            return "\(AppAccess.anxietyCopy(ticker: t)) You already have today’s SPY and one personal scan. Unlock once for every supported US ticker plus a watchlist. Most days the honest answer is still wait."
         }
-        return "You already have today’s SPY and one personal scan. Unlock once for every US ticker plus a watchlist. Most days the honest answer is still wait."
+        return "You already have today’s SPY and one personal scan. Unlock once for every supported US ticker plus a watchlist. Most days the honest answer is still wait."
     }
 
     private var unlockButtonTitle: String {
@@ -91,6 +97,10 @@ struct PaywallView: View {
             return "Unlock · \(p.displayPrice)"
         }
         return "Unlock · $9.99"
+    }
+
+    private var unlockPrice: String {
+        purchases.unlockProduct?.displayPrice ?? "$9.99"
     }
 
     private func bullet(_ text: String) -> some View {

@@ -27,7 +27,7 @@ targets:
       PRODUCT_BUNDLE_IDENTIFIER: one.quantradar.app
       PRODUCT_NAME: QuantRadar
       MARKETING_VERSION: "1.2.0"
-      CURRENT_PROJECT_VERSION: "6"
+      CURRENT_PROJECT_VERSION: "7"
       GENERATE_INFOPLIST_FILE: NO
       INFOPLIST_FILE: QuantRadar/Info.plist
       ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
@@ -53,7 +53,7 @@ targets:
       PRODUCT_BUNDLE_IDENTIFIER: one.quantradar.app.widget
       PRODUCT_NAME: QuantRadarWidget
       MARKETING_VERSION: "1.2.0"
-      CURRENT_PROJECT_VERSION: "6"
+      CURRENT_PROJECT_VERSION: "7"
       GENERATE_INFOPLIST_FILE: NO
       INFOPLIST_FILE: QuantRadarWidget/Info.plist
       DEVELOPMENT_TEAM: DZ9BFS26A5
@@ -74,16 +74,31 @@ targets:
       DEVELOPMENT_TEAM: DZ9BFS26A5
       GENERATE_INFOPLIST_FILE: YES
       CODE_SIGN_STYLE: Automatic
+  QuantRadarUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: QuantRadarUITests
+    dependencies:
+      - target: QuantRadar
+    settings:
+      PRODUCT_BUNDLE_IDENTIFIER: one.quantradar.app.uitests
+      DEVELOPMENT_TEAM: DZ9BFS26A5
+      GENERATE_INFOPLIST_FILE: YES
+      CODE_SIGN_STYLE: Automatic
 schemes:
   QuantRadar:
     build:
       targets:
         QuantRadar: all
         QuantRadarTests: [test]
+        QuantRadarUITests: [test]
     run:
       config: Debug
       storeKitConfiguration: QuantRadar/Resources/Products.storekit
     test:
       config: Debug
+      storeKitConfiguration: QuantRadar/Resources/Products.storekit
       targets:
         - QuantRadarTests
+        - QuantRadarUITests

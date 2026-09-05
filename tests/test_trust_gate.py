@@ -59,8 +59,8 @@ class TrustGateContractTests(unittest.TestCase):
         self.assertIn("independent products", pricing.lower())
         self.assertTrue((REPO / "docs" / "PRO_VALUE.md").is_file())
         body = (REPO / "docs" / "PRO_VALUE.md").read_text(encoding="utf-8")
-        self.assertIn("Verdict: B", body)
-        self.assertIn("supporter_until_mount", body)
+        self.assertIn("Verdict: A", body)
+        self.assertIn("supporter tier", body.lower())
 
     def test_legal_pages_exist(self) -> None:
         for name in (

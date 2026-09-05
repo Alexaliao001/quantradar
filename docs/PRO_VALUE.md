@@ -1,57 +1,45 @@
 # Pro value adjudication (QD1-0)
 
-> **Verdict: B — supporter price until charts are mounted.**  
-> Date: 2026-07-16 · Host: `quantradar.one` (Render Free `quantradar-shell`)
+> **Verdict: A — live is open to everyone; Pro is the supporter tier.**
+> Date: 2026-09-01 · Host: `quantradar.one` (Nube.sh VPS, stdlib-only shell + free engine)
 
 ## Decision
 
 | Question | Answer |
 |----------|--------|
-| Can this production host mount `~/charts` and run `mode=live` today? | **No** |
-| May we sell Pro as “live desk available now”? | **No** |
-| What is Pro today? | **Supporter plan**: session + higher limits + **automatic live unlock** when `/health.charts_status == "mounted"` |
-| When does verdict flip to A? | Paid/always-on host with real `CHARTS_DIR` + `fetch_all.py` + Massive/Polygon key (never in git) + smoke Pro live without artifact fallback |
+| Can this production host run `mode=live` today? | **Yes** — free multi-source engine (`free_engine/fetch_all.py`) mounted via `CHARTS_DIR` |
+| Who may run live? | **Everyone** — guests included; per-IP guest budget (`QUANTRADAR_LIVE_GUEST_RATE`, default 6/window) protects the shared data path |
+| What is Pro today? | **Supporter tier**: higher rate limits + keeps the free engine running. Not a gate on live. |
+| What flipped the verdict? | Polygon replaced by a free consensus engine (Yahoo q1/q2 + Nasdaq) ported 1:1 from the iOS `FreeMechanicalScorer`; `/health.charts_status == "mounted"`; guest live smoke-verified in production |
 
-## Production evidence (2026-07-16)
+## Production evidence (2026-09-01)
 
 `GET https://quantradar.one/health`:
 
 | Field | Value |
 |-------|-------|
-| `charts_status` | `artifact_only` |
-| `charts_reachable` | `false` |
-| `fetch_all_present` | `false` |
-| `data_path` | `artifact_fixtures` |
-| `mode_default` | `artifact` |
+| `charts_status` | `mounted` |
+| `charts_reachable` | `true` |
+| `fetch_all_present` | `true` |
+| `data_path` | `charts_engine` |
+| `mode_default` | `live` |
+| `live_requires_login` | `false` |
+| `live_requires_pro` | `false` |
 
-Matches `docs/SITES_LIVE.md` / `render.yaml` (`plan: free`, `QUANTRADAR_MODE=artifact`, no charts tree in Dockerfile).
+## Honesty constraints (unchanged)
 
-## Why Free cannot run live (honest constraints)
-
-1. **No charts tree** on the shell image — only `fixtures/charts_sample`.
-2. **Charts deps** (pandas/matplotlib/requests) are outside the stdlib-only shell design.
-3. **Cold start + 10–20s fetch** is a bad fit for Render Free sleep.
-4. **Massive/Polygon personal keys** must not power a public raw-feed product (conclusions-only policy).
-
-## Path to verdict A (later ops)
-
-Document only — not implemented on Free:
-
-1. Separate always-on host (or paid plan) with disk + charts checkout.
-2. Set `CHARTS_DIR` to a directory containing `fetch_all.py`.
-3. Inject `POLYGON_API_KEY` on that host only (never commit).
-4. Keep default `QUANTRADAR_MODE=artifact`; allow Pro `mode=live`.
-5. Accept only when `/health` shows `charts_status=mounted` **and** a Pro session live run returns non-artifact data without silent fake scores.
-
-Until then, UI + `/health.pro_value` stay on **`supporter_until_mount`**.
+1. **No fake scores** — live fails closed (`ok:false`) when sources disagree or the engine errors; artifact fallback is labeled `degraded` with an explicit warning.
+2. **Options never sold as actionable** without a live chain (`options_actionable` honesty gate).
+3. **No paid-API keys in the public path** — the free engine uses only public endpoints (Yahoo query1/query2, Nasdaq.com); no Polygon/Massive key required.
+4. **Guest budget** — a single IP cannot burn host + upstream capacity; signed-in users (any plan) get the normal authenticated budget, Pro the highest.
 
 ## Product copy (locked by this verdict)
 
-- Free = frozen demo artifacts. Not a live market feed.
-- Pro = supporter price ($29/mo · $249/yr). Live **auto-unlocks** when engine is mounted — not sold as available on this host today.
-- Server gates (login + `plan=pro` for live) remain so A can turn on without a billing rewrite.
+- Free = live multi-source scans for any ticker (guest limits) + frozen demo artifacts (INTC/AAPL).
+- Pro = supporter tier ($29/mo · $249/yr): higher limits, keeps the desk running. Never sold as "the only way to get live".
+- Server gates: none on live; rate limits only. `plan_required`/`login_required` remain for checkout and `/api/me` only.
 
 ## Related backlog
 
-- QD5-0 / QR2-1 — free OHLCV refresh path (Yahoo) so Pro has tangible refresh value without Massive.
+- QD5-0 / QR2-1 — free OHLCV refresh path (Yahoo) — shipped as the free engine.
 - QD1-1 — Stripe production prices/webhook (money path; value stance is this doc).

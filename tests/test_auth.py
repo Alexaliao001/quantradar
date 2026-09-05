@@ -53,7 +53,9 @@ class ManusVsOwnLoginTests(unittest.TestCase):
         h = health_payload()
         self.assertIs(h["manus_login"], False)
         self.assertTrue(h["guest_access"])
-        self.assertTrue(h["live_requires_login"])
+        # Live is open to everyone (free multi-source engine); Pro = higher limits.
+        self.assertFalse(h["live_requires_login"])
+        self.assertFalse(h["live_requires_pro"])
         self.assertEqual(h["login_path"], "/login")
         self.assertTrue(
             h["auth"] in {
@@ -85,6 +87,10 @@ class HttpAuthTests(unittest.TestCase):
         os.environ["QUANTRADAR_DEV_LOGIN"] = "1"
         os.environ["QUANTRADAR_BOOTSTRAP_DEMO"] = "0"
         os.environ["SESSION_SECRET"] = "test-session-secret-for-unit"
+        # Pin a missing charts dir so default/live analyze fails fast (no real
+        # engine subprocess or network in unit tests).
+        self._orig_charts = os.environ.get("CHARTS_DIR")
+        os.environ["CHARTS_DIR"] = str(Path(self._td.name) / "no_charts")
         # Force re-read of secret path uses env each call — ok
         self.server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
         self.port = self.server.server_address[1]
@@ -98,25 +104,43 @@ class HttpAuthTests(unittest.TestCase):
         import app.users as users
 
         users.USERS_PATH = self._orig_users
+        if self._orig_charts is None:
+            os.environ.pop("CHARTS_DIR", None)
+        else:
+            os.environ["CHARTS_DIR"] = self._orig_charts
         self._td.cleanup()
 
     def _url(self, path: str) -> str:
         return f"http://127.0.0.1:{self.port}{path}"
 
-    def test_guest_analyze_and_live_requires_login(self) -> None:
-        with urllib.request.urlopen(self._url("/api/analyze?ticker=INTC"), timeout=5) as r:
+    def test_guest_analyze_and_live_open_to_guests(self) -> None:
+        with urllib.request.urlopen(
+            self._url("/api/analyze?ticker=INTC&mode=artifact"), timeout=5
+        ) as r:
             body = json.loads(r.read().decode())
         self.assertTrue(body.get("ok"), body)
 
+        # Live is open to guests (free multi-source engine). With CHARTS_DIR
+        # pointing nowhere it must fail closed (never 401/403 gate).
+        prev_charts = os.environ.get("CHARTS_DIR")
+        os.environ["CHARTS_DIR"] = str(REPO / "fixtures" / "no_such_charts_dir")
         try:
-            urllib.request.urlopen(
-                self._url("/api/analyze?ticker=INTC&mode=live"), timeout=5
-            )
-            self.fail("live without session should 401")
-        except urllib.error.HTTPError as e:
-            self.assertEqual(e.code, 401)
-            body = json.loads(e.read().decode())
-            self.assertEqual(body.get("error"), "login_required")
+            try:
+                with urllib.request.urlopen(
+                    self._url("/api/analyze?ticker=INTC&mode=live"), timeout=30
+                ) as r:
+                    code = r.status
+                    body = json.loads(r.read().decode())
+            except urllib.error.HTTPError as e:
+                code = e.code
+                body = json.loads(e.read().decode())
+        finally:
+            if prev_charts is None:
+                os.environ.pop("CHARTS_DIR", None)
+            else:
+                os.environ["CHARTS_DIR"] = prev_charts
+        self.assertNotIn(code, (401, 403), body)
+        self.assertNotIn(body.get("error"), {"login_required", "plan_required"})
 
     def test_dev_login_then_me(self) -> None:
         # Follow redirect and capture cookie
@@ -144,19 +168,22 @@ class HttpAuthTests(unittest.TestCase):
         else:
             self.assertTrue(body["authenticated"])
 
-        # free session → live blocked with plan_required
+        # free session → live is open (no plan gate); with CHARTS_DIR missing it
+        # fails closed but never 401/403.
         token_free = authlib.mint_session(sub="dev", email="dev@test.local", plan="free")
         req = urllib.request.Request(
             self._url("/api/analyze?ticker=INTC&mode=live"),
             headers={"Cookie": f"{authlib.COOKIE_NAME}={token_free}"},
         )
         try:
-            urllib.request.urlopen(req, timeout=5)
-            self.fail("free plan live should 403")
+            with urllib.request.urlopen(req, timeout=30) as r:
+                code = r.status
+                body = json.loads(r.read().decode())
         except urllib.error.HTTPError as e:
-            self.assertEqual(e.code, 403)
+            code = e.code
             body = json.loads(e.read().decode())
-            self.assertEqual(body.get("error"), "plan_required")
+        self.assertNotIn(code, (401, 403), body)
+        self.assertNotEqual(body.get("error"), "plan_required")
 
         # pro requires a users-store row — cookie plan alone must not elevate
         prev_charts = os.environ.get("CHARTS_DIR")

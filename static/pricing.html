@@ -2,9 +2,13 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Syne:wght@600;700;800&display=swap" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Pricing — QuantRadar</title>
-  <meta name="description" content="Honest QuantRadar pricing: free demo artifacts; Pro is a supporter plan. Live unlocks automatically when the charts engine is mounted. No fake social proof. Educational only." />
+  <meta name="description" content="Honest QuantRadar pricing: live scans free for everyone via the multi-source free engine; Pro is a supporter tier with higher limits. No fake social proof. Educational only." />
   <meta property="og:image" content="/static/og-default.svg" />
   <link rel="stylesheet" href="/static/site.css" />
 </head>
@@ -26,8 +30,8 @@
       <p class="brand-mark">Quant<span>Radar</span></p>
       <h1>Pricing</h1>
       <p class="muted">
-        Clear Free vs Pro. No fabricated user counts. On today’s production host, demos are frozen artifacts —
-        Pro is a supporter price; live auto-unlocks when charts are mounted.
+        Clear Free vs Pro. No fabricated user counts. Live scans run free for everyone on this host via the
+        multi-source free engine; Pro is a supporter tier with higher limits.
         Checkout via Stripe when configured on the host.
       </p>
     </div>
@@ -47,7 +51,7 @@
           <li>Demo tickers (artifact) — <strong>never bill credits</strong></li>
           <li>Single mechanical score + primary action</li>
           <li>Data-quality &amp; freshness flags</li>
-          <li>No live fetch · options not sold as actionable</li>
+          <li>Live scans free (guest rate limits) · options not sold as actionable</li>
         </ul>
         <a class="btn secondary" href="/">Try demo radar</a>
       </section>
@@ -56,11 +60,11 @@
         <p class="price" id="proPrice">$29<span>/mo</span></p>
         <p class="muted" id="proSub">Billed monthly. Cancel anytime via Stripe.</p>
         <p class="muted" id="proValueNote" style="font-size:0.85rem">
-          Supporter plan on this host — paying does not enable live quotes until charts are mounted.
+          Supporter tier — live is already free for everyone; Pro raises your limits and keeps the desk running.
         </p>
         <ul>
           <li>Sign-in session (email / magic / Google when enabled)</li>
-          <li><strong>Supporter price</strong> — higher limits now; live unlocks automatically when charts are mounted</li>
+          <li><strong>Supporter price</strong> — higher limits; keeps the free engine running</li>
           <li>Higher rate limits</li>
           <li>Setup-alert waitlist for your tickers</li>
           <li>Options only when live chain is OK (honesty gate)</li>
@@ -97,7 +101,7 @@
       <thead><tr><th></th><th>Free</th><th>Pro</th></tr></thead>
       <tbody>
         <tr><td>Demo artifact</td><td>Yes</td><td>Yes</td></tr>
-        <tr><td>Live fetch</td><td>No</td><td>Not on this host yet · auto-unlock when mounted</td></tr>
+        <tr><td>Live fetch</td><td>Yes (guest limits)</td><td>Yes (higher limits)</td></tr>
         <tr><td>Options as actionable</td><td>No</td><td>Only when live chain OK</td></tr>
         <tr><td>Pattern labels</td><td>If present in artifact</td><td>Same rules (+ live when mounted)</td></tr>
       </tbody>
@@ -106,8 +110,8 @@
     <h2>FAQ</h2>
     <div class="faq">
       <details open>
-        <summary>Why isn’t live free?</summary>
-        <p>Live fetch burns host capacity and market-data paths. Free keeps honest frozen demos. Pro is a supporter plan — live auto-unlocks when charts are mounted on this host.</p>
+        <summary>Is live really free?</summary>
+        <p>Yes. The free multi-source engine (Yahoo/Nasdaq consensus) runs live scans for everyone. Guests get a tighter per-IP budget so the shared data path stays healthy; Pro is the supporter tier with higher limits.</p>
       </details>
       <details>
         <summary>Why no Elite tier?</summary>
@@ -122,8 +126,8 @@
         <p>One score, one primary action, fail-closed on bad data, no fake testimonials. Most days the radar tells you <em>not</em> to engage.</p>
       </details>
       <details>
-        <summary>Is $29/mo worth it before live exists?</summary>
-        <p>It’s a supporter price. Anchoring check: one avoided −8% move on a $3k position ≈ eight months of Pro. Live is a promised unlock, not sold as available on this host today.</p>
+        <summary>Is $29/mo worth it if live is free?</summary>
+        <p>It’s a supporter price with higher limits. Anchoring check: one avoided −8% move on a $3k position ≈ eight months of Pro.</p>
       </details>
       <details>
         <summary>Does website Pro unlock the iOS app?</summary>
@@ -243,11 +247,11 @@
         if (j.live_available) {
           note.textContent =
             j.pro_value_note ||
-            "Charts engine is mounted on this host — Pro includes live analyze.";
+            "Live is free for everyone on this host — Pro raises your limits.";
         } else {
           note.textContent =
             j.pro_value_note ||
-            "Supporter plan on this host — paying does not enable live quotes until charts are mounted.";
+            "Supporter tier on this host; live unlocks automatically when charts are mounted.";
         }
       })
       .catch(() => {});

@@ -4,11 +4,14 @@ struct SearchView: View {
     @EnvironmentObject private var radar: RadarService
     @EnvironmentObject private var watchlist: WatchlistStore
     @EnvironmentObject private var purchases: PurchaseStore
+    @EnvironmentObject private var journal: DecisionJournal
     @State private var ticker = ""
     @State private var showPaywall = false
     @State private var paywallTicker: String?
     @State private var gateMessage: String?
     @State private var lockedPreview = false
+    @State private var chaseCheck = ChaseCheck()
+    @State private var decisionSaved = false
     @FocusState private var focused: Bool
 
     var body: some View {
@@ -24,6 +27,7 @@ struct SearchView: View {
                             .textInputAutocapitalization(.characters)
                             .autocorrectionDisabled()
                             .focused($focused)
+                            .accessibilityIdentifier("tickerField")
                             .padding(14)
                             .background(QRTheme.panel)
                             .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
@@ -34,6 +38,7 @@ struct SearchView: View {
                             .tint(QRTheme.radar)
                             .foregroundStyle(.black)
                             .disabled(radar.isLoading || ticker.trimmingCharacters(in: .whitespaces).isEmpty)
+                            .accessibilityIdentifier("runScanButton")
                     }
 
                     HStack(spacing: 8) {
@@ -50,6 +55,11 @@ struct SearchView: View {
                             .clipShape(Capsule())
                         }
                     }
+
+                    ChaseCheckView(
+                        check: $chaseCheck,
+                        ticker: AppAccess.normalizeTicker(ticker)
+                    )
 
                     if !purchases.effectiveUnlocked {
                         Text(previewCaption)
@@ -83,6 +93,14 @@ struct SearchView: View {
                             }
                         } else {
                             VerdictCardView(verdict: v)
+                            DecisionCommitView(
+                                verdict: v,
+                                chaseCheck: chaseCheck,
+                                isSaved: decisionSaved
+                            ) {
+                                journal.record(verdict: v, chaseCheck: chaseCheck)
+                                decisionSaved = true
+                            }
                             Text("Educational only — not investment advice. Not a broker.")
                                 .font(.caption2)
                                 .foregroundStyle(QRTheme.muted)
@@ -96,18 +114,62 @@ struct SearchView: View {
                     }
                 }
                 .padding(20)
+                .frame(maxWidth: 760)
+                .frame(maxWidth: .infinity)
             }
             .background(QRTheme.bg.ignoresSafeArea())
             .navigationTitle("Scan")
+            .onChange(of: ticker) { _, _ in
+                #if DEBUG
+                if ScreenshotLaunch.isEnabled { return }
+                #endif
+                chaseCheck.reset()
+                decisionSaved = false
+            }
             .onChange(of: radar.latest?.ticker) { _, _ in
                 if let v = radar.latest, !lockedPreview { ReviewPrompt.recordVerdict(v) }
+            }
+            .onChange(of: purchases.effectiveUnlocked) { _, unlocked in
+                guard unlocked, lockedPreview else { return }
+                lockedPreview = false
+                gateMessage = "Unlocked. The \(paywallTicker ?? "requested") posture is now visible."
             }
             .sheet(isPresented: $showPaywall) {
                 PaywallView(focusTicker: paywallTicker)
                     .environmentObject(purchases)
             }
+            .task {
+                #if DEBUG
+                await prepareScreenshotScanIfNeeded()
+                #endif
+            }
         }
     }
+
+    #if DEBUG
+    private func prepareScreenshotScanIfNeeded() async {
+        guard ScreenshotLaunch.isEnabled else { return }
+        switch ScreenshotLaunch.screen {
+        case "scan", "decision":
+            AppAccess.storage.set("AAPL", forKey: AppAccess.previewTickerKey)
+            ticker = "AAPL"
+            chaseCheck.entryWasPlanned = true
+            chaseCheck.invalidationIsDefined = true
+            chaseCheck.independentOfHype = true
+            await runScan()
+            if ScreenshotLaunch.screen == "decision", let v = radar.latest, !lockedPreview {
+                journal.record(verdict: v, chaseCheck: chaseCheck)
+                decisionSaved = true
+            }
+        case "paywall":
+            AppAccess.storage.set("AAPL", forKey: AppAccess.previewTickerKey)
+            ticker = "NVDA"
+            await runScan()
+        default:
+            break
+        }
+    }
+    #endif
 
     private var previewCaption: String {
         if let claimed = AppAccess.claimedPreviewTicker {
@@ -119,6 +181,7 @@ struct SearchView: View {
     private func runScan() async {
         focused = false
         gateMessage = nil
+        decisionSaved = false
         let symbol = AppAccess.normalizeTicker(ticker)
         let locked = AppAccess.isPreviewLocked(ticker: symbol, unlocked: purchases.effectiveUnlocked)
         lockedPreview = locked

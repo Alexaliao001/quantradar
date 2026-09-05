@@ -21,7 +21,10 @@ struct PostureStripView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 3, style: .continuous))
             }
             .frame(height: 14)
+            .accessibilityHidden(true)
         }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(accessibilitySummary)
     }
 
     private func color(_ action: String) -> Color {
@@ -30,6 +33,13 @@ struct PostureStripView: View {
         case "NO", "AVOID": return QRTheme.danger
         default: return QRTheme.warn.opacity(0.85)
         }
+    }
+
+    private var accessibilitySummary: String {
+        let setup = history.filter { $0.uppercased() == "SETUP" }.count
+        let wait = history.filter { $0.uppercased() == "WAIT" }.count
+        let no = history.count - setup - wait
+        return "Posture history: \(setup) setup, \(wait) wait, \(max(0, no)) avoid sessions"
     }
 }
 

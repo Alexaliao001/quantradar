@@ -76,7 +76,7 @@ struct TodayView: View {
                             .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                     } else {
                         Button { showPaywall = true } label: {
-                            Label("Unlock any ticker · $9.99", systemImage: "lock.open")
+                            Label("Unlock any ticker · \(unlockPrice)", systemImage: "lock.open")
                                 .font(.subheadline.weight(.medium))
                                 .frame(maxWidth: .infinity, alignment: .leading)
                                 .padding(12)
@@ -94,6 +94,8 @@ struct TodayView: View {
                         .foregroundStyle(QRTheme.muted)
                 }
                 .padding(20)
+                .frame(maxWidth: 760)
+                .frame(maxWidth: .infinity)
             }
             .background(QRTheme.bg.ignoresSafeArea())
             .navigationTitle("Today")
@@ -101,7 +103,7 @@ struct TodayView: View {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         Task {
-                            _ = await radar.analyze(ticker: "SPY", bypassCache: true)
+                            await radar.refreshToday(bypassCache: true)
                             if purchases.effectiveUnlocked {
                                 await radar.refreshSectors()
                             }
@@ -123,6 +125,9 @@ struct TodayView: View {
                 }
                 if !briefingAsked {
                     briefingAsked = true
+                    #if DEBUG
+                    if ScreenshotLaunch.isEnabled { return }
+                    #endif
                     await DailyBriefing.requestAndSchedule()
                 }
             }
@@ -134,5 +139,9 @@ struct TodayView: View {
                     .environmentObject(purchases)
             }
         }
+    }
+
+    private var unlockPrice: String {
+        purchases.unlockProduct?.displayPrice ?? "$9.99"
     }
 }

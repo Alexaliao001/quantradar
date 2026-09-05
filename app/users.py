@@ -112,6 +112,11 @@ def public_user(u: dict[str, Any]) -> dict[str, Any]:
         "name": u.get("name") or None,
         "plan": u.get("plan") or "free",
         "created_at": u.get("created_at"),
+        "watchlist": [str(t).upper() for t in (u.get("watchlist") or [])],
+        "report_granted": bool(u.get("report_granted")),
+        "bump_csv_priority": bool(u.get("bump_csv_priority")),
+        "daily_digest": bool(u.get("daily_digest")),
+        "report_coupon": u.get("report_coupon") or None,
     }
 
 
@@ -303,6 +308,37 @@ def set_plan(
             store["users"][email_n] = u
         _save(store)
         return public_user(u)
+
+
+def grant_report(email: str, *, bump: bool = False) -> dict[str, Any]:
+    """Grant the one-time $9 deep report entitlement (and $5 bump if taken)."""
+    email_n = normalize_email(email)
+    with _LOCK:
+        store = _load()
+        u = store["users"].get(email_n)
+        if not isinstance(u, dict):
+            raise ValueError("no account")
+        u = dict(u)
+        u["report_granted"] = True
+        u["report_granted_at"] = time.time()
+        if bump:
+            u["bump_csv_priority"] = True
+        store["users"][email_n] = u
+        _save(store)
+        return public_user(u)
+
+
+def set_report_coupon(email: str, coupon_id: str | None) -> None:
+    """Remember the once-only $9→Pro credit coupon id for this account."""
+    email_n = normalize_email(email)
+    with _LOCK:
+        store = _load()
+        u = store["users"].get(email_n)
+        if isinstance(u, dict):
+            u = dict(u)
+            u["report_coupon"] = coupon_id
+            store["users"][email_n] = u
+            _save(store)
 
 
 def find_email_by_stripe_customer(customer_id: str | None) -> str | None:

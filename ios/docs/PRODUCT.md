@@ -20,7 +20,8 @@
 | Free preview | Today **SPY** + **one lifetime personal ticker** (live scan, not a canned demo) |
 | Locked 2nd ticker | Score is computed, card is blurred, paywall asks the anxiety question |
 | Live+ | Code exists; **not sold in 1.2** until posture-change alerts prove value |
-| Why people pay | One score / most days don’t act — not Massive parity |
+| Distinct workflow | **Chase Check → radar → private Decision Journal** |
+| Why people pay | One score / most days don’t act — plus a process record, not Massive parity |
 
 ## Depth (1.2)
 
@@ -31,6 +32,8 @@
 - Weekday 09:25 ET briefing notification (static copy — no fake scores)
 - Home Screen SPY widget
 - Reverse-flex share: “Today I didn’t force a trade”
+- Three-question Chase Check before interpreting a ticker
+- Private on-device PAUSE / WAIT / PASS / REVIEW journal in Plan
 
 ## Growth
 

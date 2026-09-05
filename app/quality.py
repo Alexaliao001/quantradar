@@ -140,7 +140,7 @@ def assess_charts_payload(payload: dict[str, Any] | None, ticker: str) -> dict[s
         return {
             "usable": False,
             "error": "invalid_ticker",
-            "error_detail": f"{t} is not a real security symbol",
+            "error_detail": f"{t} is not a recognized security symbol",
             "reasons": ["blocked_placeholder_ticker"],
             "warnings": [],
             "volume": {},
@@ -151,7 +151,7 @@ def assess_charts_payload(payload: dict[str, Any] | None, ticker: str) -> dict[s
         return {
             "usable": False,
             "error": "no_data",
-            "error_detail": f"no charts payload for {t}",
+            "error_detail": f"No market data found for {t}. Check the symbol, or try a major ticker.",
             "reasons": ["empty_payload"],
             "warnings": [],
             "volume": {},
@@ -171,7 +171,7 @@ def assess_charts_payload(payload: dict[str, Any] | None, ticker: str) -> dict[s
         return {
             "usable": False,
             "error": "no_data",
-            "error_detail": f"charts payload for {t} lacks mechanical_scores",
+            "error_detail": f"No usable score could be computed for {t} from the free data sources.",
             "reasons": ["missing_mechanical_scores"],
             "warnings": [],
             "volume": extract_volume_snapshot(payload),
@@ -230,7 +230,7 @@ def assess_charts_payload(payload: dict[str, Any] | None, ticker: str) -> dict[s
         return {
             "usable": False,
             "error": "no_data",
-            "error_detail": f"insufficient engine data for {t}: {', '.join(reasons)}",
+            "error_detail": f"Not enough reliable data for {t} right now: {', '.join(reasons)}. Try again later.",
             "reasons": reasons,
             "warnings": warnings,
             "volume": volume,

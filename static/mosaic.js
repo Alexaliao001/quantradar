@@ -13,9 +13,18 @@
 
   function paint() {
     const gap = 3;
-    const cell = window.matchMedia("(max-width: 720px)").matches ? 22 : 32;
-    const cols = Math.max(18, Math.ceil(window.innerWidth / (cell + gap)));
-    const rows = Math.max(14, Math.ceil(window.innerHeight / (cell + gap)));
+    const isSmall = window.matchMedia("(max-width: 720px)").matches;
+    let cell = isSmall ? 22 : 32;
+    let cols = Math.max(18, Math.ceil(window.innerWidth / (cell + gap)));
+    let rows = Math.max(14, Math.ceil(window.innerHeight / (cell + gap)));
+    /* Cap animated nodes: thousands of infinite CSS animations on huge
+       screens burn GPU/CPU for a wash of near-invisible cells. */
+    const MAX_CELLS = 1400;
+    while (cols * rows > MAX_CELLS) {
+      cell += 6;
+      cols = Math.max(18, Math.ceil(window.innerWidth / (cell + gap)));
+      rows = Math.max(14, Math.ceil(window.innerHeight / (cell + gap)));
+    }
     host.replaceChildren();
     host.style.setProperty("--cols", String(cols));
     host.style.setProperty("--rows", String(rows));

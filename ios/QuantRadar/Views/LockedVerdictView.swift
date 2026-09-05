@@ -2,6 +2,7 @@ import SwiftUI
 
 /// Blurred real verdict + anxiety copy. Score is computed; details stay locked.
 struct LockedVerdictView: View {
+    @EnvironmentObject private var purchases: PurchaseStore
     let verdict: RadarVerdict
     let onUnlock: () -> Void
 
@@ -21,7 +22,7 @@ struct LockedVerdictView: View {
                     .multilineTextAlignment(.center)
                     .foregroundStyle(QRTheme.muted)
                 Button(action: onUnlock) {
-                    Text("Unlock to see · $9.99")
+                    Text("Unlock to see · \(unlockPrice)")
                         .font(.subheadline.weight(.semibold))
                         .padding(.horizontal, 16)
                         .padding(.vertical, 10)
@@ -33,5 +34,9 @@ struct LockedVerdictView: View {
             .padding(20)
         }
         .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+    }
+
+    private var unlockPrice: String {
+        purchases.unlockProduct?.displayPrice ?? "$9.99"
     }
 }
