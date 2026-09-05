@@ -24,7 +24,7 @@
 | 页面 375 / 1440 | 无页面横向溢出 | Pricing、Reports、Watchlist；截图见本目录 |
 | 本地 CSV HTTP 下载 | 200，183 字节，1 行，Content-Length 一致 | 合成 TESTCO 预览账号；浏览器下载按钮触发正常，不代表真实付款 |
 | iOS 模拟器首页 | 可启动并显示日终日期 | 现有本地模拟器数据，不是收益验证 |
-| build 8 Release 归档 | ARCHIVE SUCCEEDED，签名检查通过 | App/Widget 1.2.0 (8)，日历字节与源码一致；尚未上传 |
+| build 8 Release 归档 | ARCHIVE SUCCEEDED，签名检查通过 | App/Widget 1.2.0 (8)，日历字节与源码一致；现已上传并处理为 VALID |
 
 Python 测试仍有三个既有测试 HTTP socket ResourceWarning，没有功能测试失败。
 
@@ -66,5 +66,18 @@ Python 测试仍有三个既有测试 HTTP socket ResourceWarning，没有功能
 
 1. Yahoo/Nasdaq 商用和下载再分发授权尚未提供；已核实候选方案和成本，见 [DATA_LICENSING](../../DATA_LICENSING.md)。授权范围决定付费文件交付能否发布。
 2. 恢复 Stripe 测试环境，执行实际结账→签名 webhook→交付→退款/取消/续费/切换，再更新正式配置和切换服务。
-3. Apple 仍是版本 1.0 / build 7 WAITING_FOR_REVIEW；新 build 8 仅本地归档。新构建 VALID 后再替换审核，保留 App + IAP 两个审核项目。
+3. Apple 仍是版本 1.0 / build 7 WAITING_FOR_REVIEW；新 build 8 已上传且 VALID，尚未替换审核；替换时须保留 App + IAP 两个审核项目。
 4. 没有“保证赚钱”的证据。待上述条件完成，用真实客户的购买、交付、28 日回访、续订、退款与净收入判断效果，不用模拟数据或安装量冒充盈利。
+
+## 同日上传后补充核验
+
+- Xcode export/upload 返回 0，并输出 EXPORT SUCCEEDED。
+- App Store Connect 新 build 8：`719a2f67-d5c3-49c3-ab98-7886189b0fe2`，1.2.0，processingState=VALID。
+- 再次读取现有商店版本：1.0 / build 7 / WAITING_FOR_REVIEW，AFTER_APPROVAL；本次未取消或替换它。
+- 现有版本、英文描述、审核资料、两个 review items、IAP version/本地化/审核图/定价计划/可用性元数据已私有备份。
+- 商店当前英文描述仍写 $9.99，和已核验的美国 $9.90 不一致；已准备替换为按地区显示价格的 PATCH 草稿，待可编辑时执行，不篡改排队中的审核。
+- 准备的替换请求包含新 build 8、现有 App version 和 IAP version `407ef5c5-194c-4240-832b-9213cfcdf561`；未提交。
+- 更低标价候选 Marketstack Basic 为 $9.99/月，但 CSV/JSON 分发权未确认。已准备书面授权询问，等待明确的对外发送授权；未购买。
+- Stripe 插件再次返回 UNAUTHORIZED / reauthentication required；真实测试环境仍未恢复。
+
+这次新增工作是上传与核验、发布资料和授权调查；运行代码仍是已通过本地/云端测试、发布包校验及 Nube 隔离启动的 `510707af7eafb31a8056efbefb42febce4efe1ec`。

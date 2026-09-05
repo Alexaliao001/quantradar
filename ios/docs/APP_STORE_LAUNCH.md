@@ -27,7 +27,7 @@ App Store Connect 的公开版本 1.0 当前为 **WAITING_FOR_REVIEW**，关联 
 7. 截图和说明使用真实界面；无虚构前 1,000 名、倒计时或收益。
 8. 隐私：`https://quantradar.one/privacy-ios`；条款：`https://quantradar.one/terms-ios`。
 
-此流程尚未执行本次上传/替换；实际发布时间由 Apple 审核与商店状态决定。
+2026-09-06：build 8 已上传并处理为 VALID（ID `719a2f67-d5c3-49c3-ab98-7886189b0fe2`）。尚未取消旧审核、替换选定构建或提交新审核。已准备私有 `ios/build/launch-build-8-final-20260906/review-replacement-plan.json`，包含 build 8、App + IAP 项及移除商店描述中固定 $9.99 的更新，未执行。实际发布时间由数据授权、购买验收、Apple 审核与商店状态决定。
 
 ## Local build
 

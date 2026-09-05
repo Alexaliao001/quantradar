@@ -42,7 +42,7 @@
 
 ## iOS 独立发布
 
-网页 Stripe 与 Apple Unlock 权限独立。build 8（App/Widget 1.2.0）已本地归档、签名及日历校验通过，尚未上传。App Store Connect 现有版本 1.0 / build 7 为 WAITING_FOR_REVIEW，不能描述为已上架。确认新 build 上传并 VALID 后，才替换原审核构建；新审核提交需同时保留现有 IAP 项，不能只提交 App。
+网页 Stripe 与 Apple Unlock 权限独立。build 8（App/Widget 1.2.0）已归档、签名及日历校验通过，并上传 App Store Connect，处理状态 VALID（build ID `719a2f67-d5c3-49c3-ab98-7886189b0fe2`）。App Store Connect 现有版本 1.0 / build 7 为 WAITING_FOR_REVIEW，不能描述为已上架。确认新 build 上传并 VALID 后，才替换原审核构建；新审核提交需同时保留现有 IAP 项，不能只提交 App。
 
 ## 证据
 
