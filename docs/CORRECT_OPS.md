@@ -22,9 +22,11 @@
 ## 当前发布前条件
 
 1. 数据许可须覆盖网页、iOS、计算结果及拟出售的 JSON/CSV 下载。公开 API 可访问不等于已有商用授权；见 `DATA_LICENSING.md`。
-2. Stripe 测试环境必须验证实际结账、签名 webhook、交付、退款、续费、取消、计划切换。模拟测试通过不代替此项。`scripts/audit_billing.py` 已改为拒绝 live key，且仅验证测试 Checkout 金额，不声称完整生命周期成功。
+2. Stripe 测试环境必须验证实际结账、签名 webhook、交付、退款、续费、取消、计划切换。本轮已通过真实 sandbox 验收，见 `docs/audit/2026-09-06/stripe-sandbox.json`。`scripts/audit_billing.py` 拒绝 live key，仅验证金额；生命周期另由浏览器、签名事件和 Test Clock 验证。
 3. 正式账户核对遗留 Payment Links、价格、Portal 和 webhook。Portfolio Pro 价格尚未接入，禁止仅靠页面展示宣称可购买。
 4. 完成 Python 隔离测试、iOS 测试、375/1440 页面验收、签名归档检查。
+
+已准备独立正式 Portal `bpc_1UCTPA7uBhbslGrGuE1dZAda`，不是默认配置，尚未写入生产环境。允许 Pro 月/年、Portfolio 月切换，差额即时开票，期末取消。正式环境应通过 `STRIPE_PORTAL_CONFIGURATION_ID` 明确选择它。当前 webhook `we_1U6uvl7uBhbslGrG01EauQuf` 仍只有四种旧事件；须随新版一同补全事件配置，不能将已创建 Portal 当作已完成生产接线。
 
 ## 发布步骤
 

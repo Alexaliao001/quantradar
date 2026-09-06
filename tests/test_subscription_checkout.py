@@ -110,6 +110,51 @@ class SubscriptionCheckoutTests(unittest.TestCase):
         self.assertEqual(self.sessions[first["id"]]["status"], "expired")
         self.assertEqual(sum(s["status"] == "open" for s in self.sessions.values()), 1)
 
+    def test_refunded_credit_expires_old_link_before_full_price_checkout(self):
+        with mock.patch.object(paid_delivery, "report_credit", return_value="report_credit") as credit:
+            first = subscription_checkout.start(self.owner, plan="pro", interval="monthly", coupon_id="report_credit")
+            credit.return_value = None
+            second = self.start()
+        self.assertNotEqual(first["id"], second["id"])
+        self.assertEqual(self.sessions[first["id"]]["status"], "expired")
+        self.assertIsNone(list(self.keys.values())[-1]["coupon_id"])
+
+    def test_refund_during_creation_never_returns_discounted_link(self):
+        with mock.patch.object(paid_delivery, "report_credit", return_value=None):
+            result = subscription_checkout.start(self.owner, plan="pro", interval="monthly", coupon_id="refunded_credit")
+        self.assertEqual(result["id"], "cs_2")
+        self.assertEqual(self.sessions["cs_1"]["status"], "expired")
+
+    def test_revoke_recovers_lost_response_without_creating_another_session(self):
+        self.lose_response = True
+        with self.assertRaises(TimeoutError):
+            subscription_checkout.start(self.owner, plan="pro", interval="monthly", coupon_id="report_credit")
+        subscription_checkout.revoke_coupon_checkouts("report_credit")
+        self.assertEqual(len(self.sessions), 1)
+        self.assertEqual(self.sessions["cs_1"]["status"], "expired")
+        with paid_delivery.database() as db:
+            self.assertEqual(db.execute("SELECT state FROM subscription_checkouts").fetchone()[0], "closed")
+
+    def test_revoke_unknown_creation_remains_recoverable(self):
+        customer = subscription_checkout._customer(self.owner)
+        attempt = subscription_checkout._current_attempt(self.owner, "pro", "monthly", "price_monthly", "report_credit", customer)
+        with self.assertRaises(ValueError):
+            subscription_checkout.revoke_coupon_checkouts("report_credit")
+        self.assertEqual(len(self.sessions), 0)
+        with paid_delivery.database() as db:
+            row = db.execute("SELECT id,state FROM subscription_checkouts").fetchone()
+            self.assertEqual(tuple(row), (attempt["id"], "creating"))
+
+    def test_revoke_unknown_expiration_preserves_attempt_for_retry(self):
+        with mock.patch.object(paid_delivery, "report_credit", return_value="report_credit"):
+            first = subscription_checkout.start(self.owner, plan="pro", interval="monthly", coupon_id="report_credit")
+        with mock.patch.object(stripe_billing, "stripe_post", side_effect=TimeoutError("expiration response lost")):
+            with self.assertRaises(TimeoutError):
+                subscription_checkout.revoke_coupon_checkouts("report_credit")
+        self.assertEqual(self.sessions[first["id"]]["status"], "open")
+        subscription_checkout.revoke_coupon_checkouts("report_credit")
+        self.assertEqual(self.sessions[first["id"]]["status"], "expired")
+
     def test_completed_payment_without_webhook_opens_portal(self):
         first = self.start()
         self.sessions[first["id"]].update(status="complete", subscription="sub_first")

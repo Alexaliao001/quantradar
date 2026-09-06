@@ -68,22 +68,44 @@ def _current_attempt(owner: str, plan: str, interval: str, price: str, coupon: s
         return dict(row)
 
 
+def _recover_session(attempt: dict) -> dict:
+    path = "checkout/sessions?customer=" + urllib.parse.quote(attempt["customer_id"], safe="") + "&limit=100"
+    for _ in range(20):
+        page = stripe.stripe_get(path)
+        for session in page["data"]:
+            if (session.get("metadata") or {}).get("checkout_attempt") == attempt["id"]:
+                return session
+        if not page.get("has_more"):
+            break
+        path = path.split("&starting_after=")[0] + "&starting_after=" + urllib.parse.quote(page["data"][-1]["id"], safe="")
+    raise ValueError("A previous checkout needs reconciliation. Please contact support; no new payment was started.")
+
+
+def revoke_coupon_checkouts(coupon_id: str) -> None:
+    """Finish revocation without creating a checkout or changing a paid subscription."""
+    with paid_delivery.database() as db:
+        attempts = [dict(row) for row in db.execute(
+            "SELECT * FROM subscription_checkouts WHERE coupon_id=? AND state!='closed'", (coupon_id,))]
+    for attempt in attempts:
+        session = (stripe.stripe_get("checkout/sessions/" + urllib.parse.quote(attempt["checkout_id"], safe=""))
+                   if attempt["checkout_id"] else _recover_session(attempt))
+        if session.get("status") == "open":
+            session = stripe.stripe_post("checkout/sessions/" + urllib.parse.quote(session["id"], safe="") + "/expire", {},
+                                         idempotency_key="expire-" + attempt["id"])
+        if session.get("status") not in {"expired", "complete"}:
+            raise ValueError("Discounted checkout revocation is pending")
+        with paid_delivery.database() as db:
+            db.execute("UPDATE subscription_checkouts SET checkout_id=?,checkout_url=?,state=? WHERE owner=? AND id=?",
+                       (session["id"], session.get("url"), "closed" if session["status"] == "expired" else "complete",
+                        attempt["owner"], attempt["id"]))
+
+
 def _session(attempt: dict) -> dict:
     if attempt["checkout_id"]:
         return stripe.stripe_get("checkout/sessions/" + urllib.parse.quote(attempt["checkout_id"], safe=""))
-    # Stripe may prune idempotency keys after 24h. Recover an old uncertain result
-    # by metadata; never blindly create a second payable session after that window.
+    # Stripe may prune idempotency keys after 24h. Never blindly recreate an old uncertain result.
     if time.time() - attempt["created_at"] >= 23 * 3600:
-        path = "checkout/sessions?customer=" + urllib.parse.quote(attempt["customer_id"], safe="") + "&limit=100"
-        for _ in range(20):
-            page = stripe.stripe_get(path)
-            for session in page["data"]:
-                if (session.get("metadata") or {}).get("checkout_attempt") == attempt["id"]:
-                    return session
-            if not page.get("has_more"):
-                break
-            path = path.split("&starting_after=")[0] + "&starting_after=" + urllib.parse.quote(page["data"][-1]["id"], safe="")
-        raise ValueError("A previous checkout needs reconciliation. Please contact support; no new payment was started.")
+        return _recover_session(attempt)
     try:
         session = stripe.create_checkout_session(customer_email=attempt["owner"], customer_id=attempt["customer_id"],
             price_id=attempt["price_id"], plan=attempt["plan"], interval=attempt["interval"],
@@ -139,7 +161,10 @@ def start(owner: str, *, plan: str, interval: str, coupon_id: str | None = None)
             if paid_delivery.has_open_subscription(owner):
                 return stripe.create_billing_portal(owner, plan=plan, interval=interval)
             status = "expired"  # A completed checkout is not payable again after cancellation.
-        if status == "open" and (attempt["plan"], attempt["interval"]) == (plan, interval):
+        if status == "open":
+            # A refund can revoke a credit while Stripe creates or recovers this session.
+            coupon_id = paid_delivery.report_credit(owner) if plan == "pro" else None
+        if status == "open" and (attempt["plan"], attempt["interval"], attempt["price_id"], attempt["coupon_id"]) == (plan, interval, price, coupon_id):
             if not session.get("url"):
                 raise RuntimeError("Checkout URL is unavailable")
             return {"id": session["id"], "url": session["url"], "plan": plan, "interval": interval}

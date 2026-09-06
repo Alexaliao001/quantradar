@@ -79,6 +79,20 @@ class PaidDeliveryTests(unittest.TestCase):
         self.assertEqual(report["delivery_state"], "ready")
         self.assertIn("bundle", report)
 
+    def test_refund_worker_waits_for_checkout_revocation(self):
+        order = self.order()
+        self.pay(order)
+        delivery.fulfill_next()
+        stripe_billing.apply_webhook_event({"id":"evt_refund_checkout", "type":"charge.refunded", "data":{"object":{
+            "payment_intent":"pi_" + order["id"], "refunded":True}}})
+        now = time.time() + 120
+        with mock.patch.object(stripe_billing, "revoke_credit_coupon", return_value=True), mock.patch(
+                "app.subscription_checkout.revoke_coupon_checkouts", side_effect=[TimeoutError("Stripe unavailable"), None]):
+            delivery.fulfill_next(now=now)
+            self.assertEqual(delivery.get_report(order["owner"], order["id"])["credit_state"], "revoking")
+            delivery.fulfill_next(now=now + 61)
+        self.assertEqual(delivery.get_report(order["owner"], order["id"])["credit_state"], "revoked")
+
     def test_request_and_event_idempotency_under_concurrency(self):
         first = self.order()
         self.assertEqual(first["id"], self.order()["id"])

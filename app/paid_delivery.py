@@ -327,6 +327,12 @@ def fulfill_next(*, now: float | None = None) -> bool:
     if row["credit_state"] == "revoking":
         from app.stripe_billing import revoke_credit_coupon
         revoked = revoke_credit_coupon(row["credit_code"])
+        if revoked and row["credit_code"]:
+            from app.subscription_checkout import revoke_coupon_checkouts
+            try:
+                revoke_coupon_checkouts(row["credit_code"])
+            except Exception:
+                revoked = False
         with database() as db:
             db.execute("UPDATE report_orders SET credit_state=?,lease_until=0,lease_token=NULL,retry_at=? WHERE id=? AND lease_token=?",
                        ("revoked" if revoked else "revoking", now + 60, row["id"], lease_token))

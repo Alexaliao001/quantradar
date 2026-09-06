@@ -1,3 +1,5 @@
+2026-09-06 | **STRIPE-SANDBOX** | JJ 账号真实 test mode 完成美元/英镑报告支付、签名回调、90 日交付/隔离、退款撤券、Pro→Portfolio、期末取消、时钟续费/失败/补缴；修复退款后旧优惠 Checkout 卡住，244 测试与独立复核通过；正式独立 Portal 已准备；Marketstack 询问已发送，工单 307916 | 待数据书面授权后配套切换 Nube/正式计费，Apple 仍 build 7 排队；无全量上线或盈利结论
+
 2026-09-06 | **BUILD8-UPLOAD** | App Store Connect build 8（1.2.0）上传成功且 VALID；原 build 7 审核仍 WAITING_FOR_REVIEW；已备份审核/IAP资料并准备双项目替换和地区价格文案；补充 Marketstack $9.99 商用候选及未发送询问 | 仍待数据授权、Stripe test 重认证/真实购买验收；未全量上线
 
 2026-09-06 | **LAUNCH-HARDENING** | 完成交易日/独立数据源、持久化单股付费交付/退款/防重复订阅、每日观察列表与真实下载；Python 238 通过，iOS 46（4 外部接口检查跳过）通过，375/1440 截图；build 8 本地归档；两条遗留 Stripe 付款链接已停用；生产热备份及异机校验完成 | 尚未全量上线：待数据授权、Stripe sandbox 生命周期、正式 Portal/配置和 Apple 审核；见 docs/audit/2026-09-06/README.md

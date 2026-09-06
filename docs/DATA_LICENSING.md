@@ -4,7 +4,7 @@
 
 Nasdaq 当前条款第 6/7 节对个人非商用、出售/分发及衍生用途有限制，不能从公开端点可访问推定可售卖数据报告：[Nasdaq Legal](https://www.nasdaq.com/legal)。Yahoo 也需确认适用授权，而非仅依赖项目代码的 MIT 许可。
 
-## 候选方案（未购买、未联系销售）
+## 候选方案（未购买，Marketstack 已询问）
 
 | 方案 | 官网月付起价 | 与当前产品相关的限制 |
 |---|---:|---|
@@ -27,6 +27,8 @@ Nasdaq 当前条款第 6/7 节对个人非商用、出售/分发及衍生用途�
 
 优先确认低成本日终商用授权及下载边界。现阶段不据此购买高额订阅，也不在授权未明时扩大收费数据分发。若只有展示许可，应先调整交付承诺和价格，再上线相应版本。
 
-补充排查：[EODHD 商用说明](https://eodhd.com/financial-apis/commercial-vs-personal-license-use)明确其一般定价页套餐仅供个人使用，商用需另行报价，不能把个人 API 套餐当作可售卖报告的授权。未发送供应商联系表，也未购买套餐。
+补充排查：[EODHD 商用说明](https://eodhd.com/financial-apis/commercial-vs-personal-license-use)明确其一般定价页套餐仅供个人使用，商用需另行报价，不能把个人 API 套餐当作可售卖报告的授权。未购买套餐。
 
-已准备 [Marketstack 授权询问草稿](MARKETSTACK_LICENSE_INQUIRY.md)，尚未发送。其官网页脚另链接 [APILayer 法律条款入口](https://www.ideracorp.com/legal/APILayer)；实际许可须与订单和数据使用范围一并确认。
+已于 2026-09-06 07:15（Asia/Shanghai）从公司 Outlook 邮箱向 APILayer 官方支持邮箱发送 [Marketstack 授权询问](MARKETSTACK_LICENSE_INQUIRY.md)，并核对发送记录，当前等待书面答复。最新 APILayer 套餐页将 $9.99/月方案称为 Starter，因此询问中使用 Basic/Starter，见 [官方套餐页](https://app.apilayer.com/signup/marketstack/starter)。其官网页脚另链接 [APILayer 法律条款入口](https://www.ideracorp.com/legal/APILayer)；实际许可须与订单和数据使用范围一并确认。
+
+APILayer 已自动确认工单 **307916**，说明周一办公时间处理；尚无实质授权或报价答复。

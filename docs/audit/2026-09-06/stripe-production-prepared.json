@@ -1,0 +1,46 @@
+{
+  "account_id": "acct_1SwTY37uBhbslGrG",
+  "portal_id": "bpc_1UCTPA7uBhbslGrGuE1dZAda",
+  "portal_is_default": false,
+  "portal_active": true,
+  "configuration_verified": true,
+  "environment_patch": {
+    "STRIPE_PRICE_ID_MONTHLY": "price_1TDM027uBhbslGrGK7mMVtEp",
+    "STRIPE_PRICE_ID_YEARLY": "price_1UAm7G7uBhbslGrGPM9kdw94",
+    "STRIPE_PRICE_ID_PORTFOLIO_PRO_MONTHLY": "price_1TDM067uBhbslGrGtxzYXEq1",
+    "STRIPE_PRICE_ID_REPORT": "price_1UAyR47uBhbslGrGiTe27Z6Q",
+    "STRIPE_PRICE_ID_BUMP": "price_1UAyR87uBhbslGrGZcDGuZJp",
+    "STRIPE_PORTAL_CONFIGURATION_ID": "bpc_1UCTPA7uBhbslGrGuE1dZAda"
+  },
+  "production_environment_modified": false,
+  "webhooks_modified": false,
+  "existing_webhooks": [
+    {
+      "id": "we_1U6uvl7uBhbslGrG01EauQuf",
+      "url": "https://quantradar.one/api/billing/webhook",
+      "status": "enabled",
+      "api_version": null,
+      "enabled_events": [
+        "checkout.session.completed",
+        "customer.subscription.updated",
+        "customer.subscription.deleted",
+        "invoice.payment_failed"
+      ]
+    }
+  ],
+  "required_webhook_events": [
+    "checkout.session.completed",
+    "checkout.session.async_payment_succeeded",
+    "checkout.session.async_payment_failed",
+    "checkout.session.expired",
+    "customer.subscription.created",
+    "customer.subscription.updated",
+    "customer.subscription.deleted",
+    "invoice.paid",
+    "invoice.payment_failed",
+    "invoice.payment_action_required",
+    "charge.refunded"
+  ],
+  "tested_api_version": "2026-01-28.clover",
+  "status": "Prepared only. Apply environment and webhook changes together with the new runtime after data licensing is resolved; verify API-version compatibility at cutover."
+}
