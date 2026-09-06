@@ -112,7 +112,7 @@ def main() -> int:
         ("WatchlistView", watch, "Unlock Watch"),
         ("PaywallView", paywall, "Unlock any ticker"),
         ("PaywallView", paywall, "founderPriceLine"),
-        ("OnboardingView", onboarding, "Open radar"),
+        ("OnboardingView", onboarding, "Start my plan"),
         ("PurchaseStore", purchase, "purchaseUnlock"),
         ("TodayView", today, "Unlock any ticker"),
         ("TodayView", today, "todayVerdict"),

@@ -12,19 +12,19 @@ enum QRTheme {
 }
 
 struct RootTabView: View {
-    @State private var selection = 0
+    @State private var selection = 2
 
     var body: some View {
         TabView(selection: $selection) {
+            WatchlistView()
+                .tabItem { Label("Plan", systemImage: "checklist") }
+                .tag(2)
             TodayView()
                 .tabItem { Label("Today", systemImage: "dot.radiowaves.left.and.right") }
                 .tag(0)
             SearchView()
                 .tabItem { Label("Scan", systemImage: "magnifyingglass") }
                 .tag(1)
-            WatchlistView()
-                .tabItem { Label("Plan", systemImage: "checklist") }
-                .tag(2)
             SettingsView()
                 .tabItem { Label("Settings", systemImage: "gearshape") }
                 .tag(3)

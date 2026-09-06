@@ -111,7 +111,7 @@ struct DecisionCommitView: View {
     }
 
     private var buttonTitle: String {
-        if !chaseCheck.isClear { return "Log: pause" }
+        if verdict.isWithheld || !chaseCheck.isClear { return "Log: pause" }
         switch verdict.actionCode {
         case "NO", "AVOID": return "Log: pass"
         case "WAIT": return "Log: wait"
@@ -120,6 +120,9 @@ struct DecisionCommitView: View {
     }
 
     private var decisionExplanation: String {
+        if verdict.isWithheld {
+            return "Market data is unavailable. Record a pause with an UNKNOWN radar snapshot."
+        }
         if !chaseCheck.isClear {
             return "The mechanical score stays unchanged. Your personal process gate says pause."
         }

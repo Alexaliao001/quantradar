@@ -20,7 +20,7 @@ final class BABAFlowUITests: XCTestCase {
     }
 
     private func dismissOnboardingIfNeeded() {
-        let open = app.buttons["Open radar"]
+        let open = app.buttons["Start my plan"]
         if open.waitForExistence(timeout: 5) {
             open.tap()
         }

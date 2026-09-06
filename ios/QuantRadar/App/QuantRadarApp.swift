@@ -26,6 +26,13 @@ struct QuantRadarApp: App {
             .onAppear {
                 ReviewPrompt.recordLaunch()
                 #if DEBUG
+                if ProcessInfo.processInfo.arguments.contains("-qr-ui-test-reset") {
+                    journal.clear()
+                    AppAccess.resetPreviewTicker()
+                    purchases.debugForceUnlocked = false
+                    purchases.debugForceLivePlus = false
+                    hasSeenOnboarding = true
+                }
                 if ScreenshotLaunch.showOnboarding {
                     hasSeenOnboarding = false
                 } else if ScreenshotLaunch.isEnabled {

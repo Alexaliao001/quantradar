@@ -9,10 +9,15 @@ struct SearchView: View {
     @State private var showPaywall = false
     @State private var paywallTicker: String?
     @State private var gateMessage: String?
-    @State private var lockedPreview = false
     @State private var chaseCheck = ChaseCheck()
     @State private var decisionSaved = false
+    @State private var planVerdict: RadarVerdict?
     @FocusState private var focused: Bool
+
+    private var lockedPreview: Bool {
+        guard let verdict = radar.latest else { return false }
+        return AppAccess.isPreviewLocked(ticker: verdict.ticker, unlocked: purchases.effectiveUnlocked)
+    }
 
     var body: some View {
         NavigationStack {
@@ -101,6 +106,10 @@ struct SearchView: View {
                                 journal.record(verdict: v, chaseCheck: chaseCheck)
                                 decisionSaved = true
                             }
+                            Button { planVerdict = v } label: {
+                                Label("Write conditions & set a review date", systemImage: "square.and.pencil")
+                            }
+                            .buttonStyle(.bordered)
                             Text("Educational only — not investment advice. Not a broker.")
                                 .font(.caption2)
                                 .foregroundStyle(QRTheme.muted)
@@ -130,13 +139,15 @@ struct SearchView: View {
                 if let v = radar.latest, !lockedPreview { ReviewPrompt.recordVerdict(v) }
             }
             .onChange(of: purchases.effectiveUnlocked) { _, unlocked in
-                guard unlocked, lockedPreview else { return }
-                lockedPreview = false
+                guard unlocked else { gateMessage = nil; return }
                 gateMessage = "Unlocked. The \(paywallTicker ?? "requested") posture is now visible."
             }
             .sheet(isPresented: $showPaywall) {
                 PaywallView(focusTicker: paywallTicker)
                     .environmentObject(purchases)
+            }
+            .sheet(item: $planVerdict) { verdict in
+                NavigationStack { DecisionPlanComposer(verdict: verdict) }.tint(QRTheme.radar)
             }
             .task {
                 #if DEBUG
@@ -183,11 +194,9 @@ struct SearchView: View {
         gateMessage = nil
         decisionSaved = false
         let symbol = AppAccess.normalizeTicker(ticker)
-        let locked = AppAccess.isPreviewLocked(ticker: symbol, unlocked: purchases.effectiveUnlocked)
-        lockedPreview = locked
         let ok = await radar.analyze(ticker: symbol)
         guard ok, let latest = radar.latest else { return }
-        if locked {
+        if AppAccess.isPreviewLocked(ticker: latest.ticker, unlocked: purchases.effectiveUnlocked) {
             paywallTicker = symbol
             showPaywall = true
             return

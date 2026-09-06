@@ -1,98 +1,48 @@
 {
-  "identifier" : "Products",
-  "nonRenewingSubscriptions" : [
-
-  ],
-  "products" : [
-    {
-      "displayPrice" : "9.99",
-      "familyShareable" : false,
-      "internalID" : "6500000010",
-      "localizations" : [
-        {
-          "description" : "One-time unlock for full ticker scan and watchlist. Not a subscription. Educational radar only.",
-          "displayName" : "QuantRadar Unlock",
-          "locale" : "en_US"
-        }
-      ],
-      "productID" : "one.quantradar.app.unlock",
-      "referenceName" : "QuantRadar Unlock",
-      "type" : "NonConsumable"
-    }
-  ],
-  "settings" : {
-    "_failTransactionsEnabled" : false,
-    "_locale" : "en_US",
-    "_storefront" : "USA",
-    "_storeKitErrors" : [
-
+  "appPolicies": {
+    "eula": "",
+    "policies": [
+      {
+        "locale": "en_US",
+        "policyText": "",
+        "policyURL": ""
+      }
     ]
   },
-  "subscriptionGroups" : [
+  "identifier": "9C9918AE",
+  "nonRenewingSubscriptions": [],
+  "products": [
     {
-      "id" : "214E0A8E",
-      "localizations" : [
+      "displayPrice": "9.99",
+      "familyShareable": false,
+      "internalID": "302D6C92",
+      "localizations": [
         {
-          "description" : "Optional Live+ — more watch slots and denser on-device reminders. Core unlock is separate. No Massive / no web Stripe.",
-          "displayName" : "Radar Live+",
-          "locale" : "en_US"
+          "description": "One-time unlock for full ticker scan and watchlist. Not a subscription. Educational radar only.",
+          "displayName": "QuantRadar Unlock",
+          "locale": "en_US"
         }
       ],
-      "name" : "Radar Live+",
-      "subscriptions" : [
-        {
-          "adHocOffers" : [
-
-          ],
-          "codeOffers" : [
-
-          ],
-          "displayPrice" : "4.99",
-          "familyShareable" : false,
-          "groupNumber" : 1,
-          "internalID" : "6500000011",
-          "introductoryOffer" : null,
-          "localizations" : [
-            {
-              "description" : "50 watch slots and 6-hour local reminders. On-device only — not server push, not Massive.",
-              "displayName" : "Live+ Monthly",
-              "locale" : "en_US"
-            }
-          ],
-          "productID" : "one.quantradar.app.live.monthly",
-          "recurringSubscriptionPeriod" : "P1M",
-          "referenceName" : "Live+ Monthly",
-          "type" : "RecurringSubscription"
-        },
-        {
-          "adHocOffers" : [
-
-          ],
-          "codeOffers" : [
-
-          ],
-          "displayPrice" : "49.99",
-          "familyShareable" : false,
-          "groupNumber" : 1,
-          "internalID" : "6500000012",
-          "introductoryOffer" : null,
-          "localizations" : [
-            {
-              "description" : "Best Live+ value. Core unlock remains a separate $9.99 purchase.",
-              "displayName" : "Live+ Yearly",
-              "locale" : "en_US"
-            }
-          ],
-          "productID" : "one.quantradar.app.live.yearly",
-          "recurringSubscriptionPeriod" : "P1Y",
-          "referenceName" : "Live+ Yearly",
-          "type" : "RecurringSubscription"
-        }
-      ]
+      "productID": "one.quantradar.app.unlock",
+      "referenceName": "QuantRadar Unlock",
+      "type": "NonConsumable"
     }
   ],
-  "version" : {
-    "major" : 3,
-    "minor" : 0
+  "settings": {
+    "_askToBuyEnabled": false,
+    "_billingGracePeriodEnabled": false,
+    "_billingIssuesEnabled": false,
+    "_disableDialogs": false,
+    "_failTransactionsEnabled": false,
+    "_locale": "en_US",
+    "_renewalBillingIssuesEnabled": false,
+    "_storefront": "USA",
+    "_storeKitErrors": [],
+    "_timeRate": 0
+  },
+  "subscriptionGroups": [],
+  "version": {
+    "major": 5,
+    "minor": 0
   }
 }

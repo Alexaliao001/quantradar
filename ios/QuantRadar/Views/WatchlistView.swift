@@ -6,23 +6,50 @@ struct WatchlistView: View {
     @EnvironmentObject private var purchases: PurchaseStore
     @EnvironmentObject private var journal: DecisionJournal
     @State private var showPaywall = false
+    @State private var showComposer = false
+    @State private var journalFilter = "Open"
+
+    private var visibleEntries: [DecisionEntry] {
+        journal.entries.filter { journalFilter == "All" || (journalFilter == "Reviewed" ? $0.review != nil : $0.review == nil) }
+    }
 
     var body: some View {
         NavigationStack {
             List {
                 Section {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Before the trade.").font(.title.bold())
+                        Text("Write your conditions now. Review your process later.")
+                            .font(.subheadline).foregroundStyle(QRTheme.muted)
+                        Button { showComposer = true } label: {
+                            Label("Write a decision", systemImage: "square.and.pencil")
+                                .font(.headline).frame(maxWidth: .infinity).padding(.vertical, 5)
+                        }
+                        .buttonStyle(.borderedProminent).tint(QRTheme.radar).foregroundStyle(.black)
+                        .accessibilityIdentifier("newDecisionPlan")
+                        Text("\(journal.dueCount()) due for review · Private on this device · No purchase needed")
+                            .font(.caption).foregroundStyle(QRTheme.muted)
+                    }
+                    .padding(.vertical, 8)
+                }
+                Section {
+                    Picker("Journal filter", selection: $journalFilter) {
+                        ForEach(["Open", "Reviewed", "All"], id: \.self) { Text($0).tag($0) }
+                    }
+                    .pickerStyle(.segmented)
                     if journal.entries.isEmpty {
                         VStack(alignment: .leading, spacing: 6) {
                             Text("No decisions logged yet")
                                 .font(.headline)
-                            Text("Run a Chase Check, read the radar, then save the decision before you know the outcome.")
+                            Text("Name your reason, the condition you will wait for, and what would change your mind. The original stays beside your later review.")
                                 .font(.caption)
                                 .foregroundStyle(QRTheme.muted)
                         }
                         .padding(.vertical, 6)
                     } else {
-                        ForEach(journal.entries.prefix(12)) { entry in
-                            decisionRow(entry)
+                        if visibleEntries.isEmpty { Text("No \(journalFilter.lowercased()) decisions yet.").foregroundStyle(QRTheme.muted) }
+                        ForEach(visibleEntries) { entry in
+                            NavigationLink { DecisionDetailView(entryID: entry.id) } label: { decisionRow(entry) }
                         }
                     }
                 } header: {
@@ -125,6 +152,9 @@ struct WatchlistView: View {
                 PaywallView()
                     .environmentObject(purchases)
             }
+            .sheet(isPresented: $showComposer) {
+                NavigationStack { DecisionPlanComposer() }.tint(QRTheme.radar)
+            }
         }
     }
 
@@ -149,12 +179,16 @@ struct WatchlistView: View {
                 }
             }
             HStack {
-                Text("Radar \(entry.radarAction)")
+                Text(entry.review == nil ? (entry.plan == nil ? "Quick log" : "Written plan") : "Reviewed")
                 Text("·")
                 Text(entry.createdAt.formatted(date: .abbreviated, time: .omitted))
             }
             .font(.caption)
             .foregroundStyle(QRTheme.muted)
+            if let plan = entry.plan, entry.review == nil {
+                Text("Review \(plan.reviewOn.formatted(date: .abbreviated, time: .omitted))")
+                    .font(.caption).foregroundStyle(QRTheme.radar)
+            }
         }
         .padding(.vertical, 4)
         .accessibilityElement(children: .combine)
