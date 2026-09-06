@@ -11,6 +11,8 @@ The scan permission check now follows current StoreKit entitlement state, includ
 - Unpurchased plan → save → review → relaunch flow passed on iPhone 17 Pro, iPhone 13 Pro Max and iPad Pro 12.9-inch simulators.
 - The six PNGs in `iphone/` and `ipad/` are unedited native screenshots from the tested build 9 code. EXAMPLE and its practice text were entered through the UI. No market or return claim is implied.
 - Release archive: app and widget 1.2.0 (9), valid signatures, no debug launch hooks or StoreKit test configuration in the shipped app.
+- Maximum accessibility text size: onboarding copy scrolls without truncation and Start my plan remains usable. Native record sharing opens the expected text preview; no recipient was selected.
+- [GitHub CI 34025153542](https://github.com/Alexaliao001/quantradar/actions/runs/34025153542): Python and iOS unit jobs SUCCESS at source commit `73b6e311c7ac3261cd9d11159f5b0c06998fa84a`.
 
 ## Purchase validation — BLOCKED, not passed
 
@@ -31,4 +33,15 @@ A TestFlight sandbox purchase, purchase-sheet cancellation and restart/restore c
 
 ## App Store materials
 
-`listing.json` contains the new subtitle, description, promotional text and factual review steps. The release operation must retain both the app and the existing one-time Unlock IAP. Upload/submission receipts are retained privately under `ios/build/ios43-release-20260906/`; append the verified final state below after the API/UI recheck.
+`listing.json` contains the subtitle, description, promotional text and factual review steps now saved in App Store Connect. All six screenshots were uploaded and verified COMPLETE against their local file checksums before the old screenshots were removed.
+
+## Verified submission — 2026-09-06 17:45 Asia/Shanghai
+
+- App Store version **1.2.0**, selected **build 9**, processing state **VALID**.
+- New submission **07500692-0e8e-4347-b06f-395810c8d5b0**, submitted at **2026-09-06T09:45:12.963Z**.
+- Both **iOS App 1.2.0 (9)** and **QuantRadar Unlock** are **WAITING_FOR_REVIEW**, verified independently through the API and Safari page. The prior build 7 submission was canceled before replacement.
+- Release type is **MANUAL**. This is a resubmission following the August 28 Guideline 4.3(a) feedback, not approval or public availability. Purchase acceptance and commercial data permission remain open as described above.
+
+[App Store Connect submission](https://appstoreconnect.apple.com/apps/6800090745/distribution/reviewsubmissions/details/07500692-0e8e-4347-b06f-395810c8d5b0) · [Sanitized receipt](submission-receipt.json)
+
+Full private API, archive and upload receipts remain under `ios/build/ios43-release-20260906/` and are not committed.

@@ -1,0 +1,37 @@
+{
+  "app_id": "6800090745",
+  "bundle_id": "one.quantradar.app",
+  "marketing_version": "1.2.0",
+  "build": "9",
+  "source_commit": "73b6e311c7ac3261cd9d11159f5b0c06998fa84a",
+  "build_id": "015dc746-ebd3-4477-b646-724b134b1037",
+  "upload_status": "VALID",
+  "submission_id": "07500692-0e8e-4347-b06f-395810c8d5b0",
+  "submitted_at": "2026-09-06T09:45:12.963Z",
+  "review_status": "WAITING_FOR_REVIEW",
+  "release_type": "MANUAL",
+  "iap_state": "WAITING_FOR_REVIEW",
+  "screenshots_verified": 6,
+  "metadata_matches_listing_json": true,
+  "ci": {
+    "run_id": 34025153542,
+    "source_commit": "73b6e311c7ac3261cd9d11159f5b0c06998fa84a",
+    "python": "SUCCESS",
+    "ios_unit": "SUCCESS"
+  },
+  "test_summary": {
+    "python_passed": 244,
+    "core_ios_executed": 52,
+    "core_ios_skipped": 4,
+    "core_ios_failed": 0,
+    "ui_flow_devices": [
+      "iPhone 17 Pro",
+      "iPhone 13 Pro Max",
+      "iPad Pro 12.9-inch"
+    ],
+    "storekit_integration": "BLOCKED: SKInternalErrorDomain Code 3, including untouched Xcode-generated control configuration",
+    "native_share": "preview opened and dismissed; no recipient chosen or message sent"
+  },
+  "public_release": "NOT LIVE; commercial data permission and purchase acceptance pending",
+  "ui_verification": "Safari showed iOS App 1.2.0 (9) and QuantRadar Unlock both waiting for review, matching the API."
+}

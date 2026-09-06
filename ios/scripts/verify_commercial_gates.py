@@ -183,7 +183,7 @@ def main() -> int:
     else:
         ok("PRODUCT.md free-download + one personal ticker")
 
-    if "Stop chasing stock setups" not in launch:
+    if "Plan first. Review honestly." not in launch:
         bad("APP_STORE_LAUNCH missing ASO subtitle")
     else:
         ok("APP_STORE_LAUNCH ASO subtitle")

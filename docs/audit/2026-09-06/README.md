@@ -1,6 +1,6 @@
 # QuantRadar 本次验收记录
 
-日期：2026-09-06。状态：修复、本地验收及真实 Stripe 测试环境验收完成，商业全量发布尚未完成。此记录将源码、测试、正式账户和商店状态分开。
+日期：2026-09-06。状态：Web 修复及真实 Stripe 测试环境验收完成；iOS 1.2.0（9）于 17:45 重新送审，App 与 Unlock 内购均为 WAITING_FOR_REVIEW。StoreKit 购买验收和数据授权尚待完成，商业全量发布尚未完成。
 
 ## 改动与用途
 
@@ -17,7 +17,7 @@
 | 检查 | 结果 | 范围 |
 |---|---|---|
 | `python3 scripts/test_isolated.py` | 244 项通过，19.413 秒 | 临时目录；不载入真实账户或支付密钥；含 6 项退款结账回归 |
-| iOS XCTest | 46 项，4 跳过，0 失败 | 4 项真实外部服务检查为显式 opt-in，未运行 |
+| iOS XCTest | 52 项，4 跳过，0 失败 | build 9；4 项真实外部服务检查为显式 opt-in，未运行；StoreKit 集成验收另列，仍 BLOCKED |
 | iOS offline commercial gates | 通过 | 源码及配置静态检查，不能代替真实购买 |
 | `p0_smoke --base http://127.0.0.1:8769` | 通过 | 本地 fixture / HTTP，包括无效股票、契约、OAuth 410 |
 | contract sample validator | 通过 | INTC fixture，验证生成物未纳入本次修改 |
@@ -25,7 +25,8 @@
 | 页面 375 / 1440 | 无页面横向溢出 | Pricing、Reports、Watchlist；截图见本目录 |
 | 本地 CSV HTTP 下载 | 200，183 字节，1 行，Content-Length 一致 | 合成 TESTCO 预览账号；浏览器下载按钮触发正常，不代表真实付款 |
 | iOS 模拟器首页 | 可启动并显示日终日期 | 现有本地模拟器数据，不是收益验证 |
-| build 8 Release 归档 | ARCHIVE SUCCEEDED，签名检查通过 | App/Widget 1.2.0 (8)，日历字节与源码一致；现已上传并处理为 VALID |
+| build 9 Release 归档 | ARCHIVE SUCCEEDED，签名检查通过 | App/Widget 1.2.0 (9)，上传后 VALID，已选入新审核；Release 不含调试启动开关或 StoreKit 测试配置 |
+| build 9 原生流程 | 三台模拟器通过 | iPhone 17 Pro、iPhone 13 Pro Max、iPad Pro 12.9：未购买时写计划 → 保存 → 复盘 → 重启保留 |
 
 Python 测试仍有三个既有测试 HTTP socket ResourceWarning，没有功能测试失败。
 
@@ -35,7 +36,7 @@ Python 测试仍有三个既有测试 HTTP socket ResourceWarning，没有功能
 - [Watchlist 桌面](watchlist-1440.png)、[手机结果](watchlist-results-375.png)
 - [iOS 模拟器](ios-simulator-home.png)
 
-本机最终归档：`ios/build/launch-build-8-final-20260906/QuantRadar.xcarchive`（gitignored）。
+本机最终归档：`ios/build/ios43-release-20260906/QuantRadar.xcarchive`（gitignored）。build 8 归档为早前阶段记录，已由 build 9 替代。
 
 ## 正式 Stripe 核查与已执行修复
 
@@ -90,10 +91,10 @@ Python 测试仍有三个既有测试 HTTP socket ResourceWarning，没有功能
 
 1. Yahoo/Nasdaq 商用和下载再分发授权尚未提供；已核实候选方案和成本，见 [DATA_LICENSING](../../DATA_LICENSING.md)。授权范围决定付费文件交付能否发布。
 2. Stripe 测试生命周期已通过，独立正式 Portal 已准备。取得数据授权后，再配套更新生产 Portal/价格/Webhook 并切换服务，完成公网验收。
-3. Apple 仍是版本 1.0 / build 7 WAITING_FOR_REVIEW；新 build 8 已上传且 VALID，尚未替换审核；替换时须保留 App + IAP 两个审核项目。
+3. Apple 当前为 1.2.0 / build 9，App 与 Unlock IAP 均 WAITING_FOR_REVIEW，发布方式 MANUAL。尚需 Apple 审核通过、StoreKit / TestFlight 购买恢复验收和数据授权；送审不等于上线。
 4. 没有“保证赚钱”的证据。待上述条件完成，用真实客户的购买、交付、28 日回访、续订、退款与净收入判断效果，不用模拟数据或安装量冒充盈利。
 
-## 同日上传后补充核验
+## 早前 build 8 上传阶段记录（审核状态已被下方 build 9 记录替代）
 
 - Xcode export/upload 返回 0，并输出 EXPORT SUCCEEDED。
 - App Store Connect 新 build 8：`719a2f67-d5c3-49c3-ab98-7886189b0fe2`，1.2.0，processingState=VALID。
@@ -106,10 +107,22 @@ Python 测试仍有三个既有测试 HTTP socket ResourceWarning，没有功能
 
 上传时的运行代码为 `510707af7eafb31a8056efbefb42febce4efe1ec`；此后新增退款结账修复，必须使用包含该修复的新发布包，不能将旧包当作最终代码。
 
-## 同日继续处理：授权询问已发送
+## 早前继续处理：授权询问已发送
 
 - 07:15:28（Asia/Shanghai）通过 `fortuneinsight@outlook.com` 向 `support@apilayer.com` 发送 [授权询问](../../MARKETSTACK_LICENSE_INQUIRY.md)，Outlook 查询已核对主题、收件人、正文与时间。邮件不构成订单、合同接受或授权已获批。
 - 07:15:41 收到 APILayer 自动回执，工单 **307916**；其说明周一办公时间处理。回执不等于商用及下载再分发授权。
 - 用户在 Chrome JJ 工作账号登录后，测试认证已恢复。临时使用官方 Stripe CLI 1.50.10，下载校验通过；密钥、Cookie 和完整敏感回执不入库。
 - App Store Connect 再次确认 build 8 为 VALID；当前版本仍选 build 7，WAITING_FOR_REVIEW / AFTER_APPROVAL。生产 health 仍为 v0.7.0 / git_sha=null；未切换新版。
 - PR #5 新增退款结账修复及六项回归，244 项隔离测试通过；未把发送邮件、sandbox 付款或已准备 Portal 计作数据授权、生产切换或盈利。
+
+## 最新 iOS 4.3(a) 整改与重新送审
+
+Apple 历史反馈为 8 月 28 日 Guideline 4.3(a)。本次 build 9 新增免费原生计划与复盘流程：Plan 为默认页，记录理由、触发条件、失效条件和复盘日期，保存原计划并追加一次有日期的复盘。同股票同日记录不再覆盖，旧日志不会因条数上限被静默删除。修正进行中扫描与当前购买权益同步、缺数据 UNKNOWN / PAUSE 一致性，以及大字号引导页截断。
+
+- 源码 `73b6e311c7ac3261cd9d11159f5b0c06998fa84a` 的 [CI 34025153542](https://github.com/Alexaliao001/quantradar/actions/runs/34025153542) Python / iOS 两个任务均 SUCCESS。
+- 取消旧 build 7 审核后，设置 1.2.0 / build 9、MANUAL 发布，替换英文文案和 6 张真实原生截图；文案移除与地区售价不符的固定价格。
+- 17:45 提交 `07500692-0e8e-4347-b06f-395810c8d5b0`，API 与 Safari 均显示 App 1.2.0 (9) 和 QuantRadar Unlock 等待审核。并非审核通过或正式上架。
+- StoreKit 框架测试在当前 Xcode 26.6 / iOS 26.5 运行时因配置保存 Code 3 失败；Xcode 原样生成的对照配置也失败，因此明确标记 BLOCKED，未计入通过。TestFlight sandbox 购买、取消和重启恢复仍待验收。
+- Web 发布包仍为先前已验收的 `ba871745...`，本次 iOS 送审没有切换 Web 生产服务。数据授权仍未确认。
+
+详细结果与脱敏回执：[build 9 验收记录](../../../ios/docs/review-build9/README.md)。
