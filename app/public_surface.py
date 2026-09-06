@@ -59,6 +59,21 @@ def harden_public_analyze(
     """Return a copy safe to send on public HTTP (does not mutate input)."""
     out = deepcopy(result)
     pro_live = is_pro_live_audience(user, out)
+    prior_replay = out.pop("engagement_replay", {})
+    replay = out.pop("_replay", []) or prior_replay.get("rows", [])
+    if replay:
+        replay = replay[-90:]
+        shown = replay if pro_live else replay[-5:]
+        out["engagement_replay"] = {
+            "rows": shown,
+            "recent_closes": [row["close"] for row in shown if row.get("close") is not None],
+            "days_shown": len(shown),
+            "full_days": len(replay),
+            "usable_days": sum(row.get("score") is not None for row in shown),
+            "unlocked": pro_live,
+            "teaser_note": "Reconstructed mechanical replay; historical earnings and sector gates unavailable."
+            if pro_live else "Free shows 5 completed sessions. Pro includes up to 90 sessions of reconstructed posture.",
+        }
 
     arts = out.get("artifacts") if isinstance(out.get("artifacts"), dict) else {}
     charts_in = arts.get("charts") if isinstance(arts.get("charts"), dict) else {}

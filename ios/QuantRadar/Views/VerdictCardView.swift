@@ -3,6 +3,8 @@ import SwiftUI
 struct VerdictCardView: View {
     let verdict: RadarVerdict
     var showsShare: Bool = true
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var revealStep = 3
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -43,6 +45,11 @@ struct VerdictCardView: View {
 
             gatesRow
             marketRow
+            if let day = verdict.meta?.marketAsOf {
+                Text("Daily close · \(day)\(verdict.meta?.fromCache == true ? " · cached" : "")")
+                    .font(.caption)
+                    .foregroundStyle(QRTheme.muted)
+            }
 
             if let history = verdict.depth?.history, !history.isEmpty {
                 PostureStripView(history: history)
@@ -68,6 +75,19 @@ struct VerdictCardView: View {
                         .stroke(QRTheme.radar.opacity(0.25), lineWidth: 1)
                 )
         )
+        .task(id: "\(verdict.ticker)-\(verdict.scoreText)-\(verdict.actionCode)") {
+            guard !reduceMotion else {
+                revealStep = 3
+                return
+            }
+            revealStep = 0
+            for step in 1...3 {
+                try? await Task.sleep(nanoseconds: 140_000_000)
+                withAnimation(.easeOut(duration: 0.2)) {
+                    revealStep = step
+                }
+            }
+        }
     }
 
     private var scoreBadge: some View {
@@ -82,6 +102,8 @@ struct VerdictCardView: View {
         .frame(width: 72, height: 72)
         .background(QRTheme.radarDim)
         .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Mechanical posture score \(verdict.scoreText) out of 100")
     }
 
     private var actionPill: some View {
@@ -93,6 +115,7 @@ struct VerdictCardView: View {
             .background(actionColor.opacity(0.2))
             .foregroundStyle(actionColor)
             .clipShape(Capsule())
+            .accessibilityLabel("Radar action \(verdict.primary?.label ?? verdict.actionCode)")
     }
 
     private var actionColor: Color {
@@ -107,14 +130,18 @@ struct VerdictCardView: View {
     private var gatesRow: some View {
         if let g = verdict.gate {
             HStack(spacing: 8) {
-                gateChip("Market", g.market)
-                gateChip("Sector", g.sector)
-                gateChip("Stock", g.stock)
+                gateChip("Market", g.market, step: 1)
+                gateChip("Sector", g.sector, step: 2)
+                gateChip("Stock", g.stock, step: 3)
             }
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel(
+                "Radar lock. Market \(g.market ?? "unknown"), sector \(g.sector ?? "unknown"), stock \(g.stock ?? "unknown")"
+            )
         }
     }
 
-    private func gateChip(_ title: String, _ value: String?) -> some View {
+    private func gateChip(_ title: String, _ value: String?, step: Int) -> some View {
         VStack(spacing: 2) {
             Text(title)
                 .font(.caption2)
@@ -127,6 +154,14 @@ struct VerdictCardView: View {
         .padding(.vertical, 8)
         .background(QRTheme.bg.opacity(0.6))
         .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .overlay(alignment: .top) {
+            Capsule()
+                .fill(revealStep >= step ? QRTheme.radar : QRTheme.muted.opacity(0.25))
+                .frame(width: revealStep >= step ? 28 : 8, height: 2)
+                .padding(.top, 3)
+        }
+        .opacity(revealStep >= step ? 1 : 0.42)
+        .scaleEffect(revealStep >= step ? 1 : 0.97)
     }
 
     @ViewBuilder

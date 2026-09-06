@@ -40,15 +40,22 @@ final class RadarService: ObservableObject {
         // Do not assign `latest` here — Today must not flash the INTC sample.
     }
 
-    /// Prefetch SPY into cache, then refresh Today with live SPY posture.
+    /// Prefetch SPY into cache, then refresh Today without touching Scan's `latest`.
     func warmUpToday() async {
         guard !warmUpStarted else { return }
         warmUpStarted = true
+        await refreshToday(bypassCache: false)
+    }
+
+    /// Live SPY for the Today tab. Does not assign `latest` (Scan keeps its own result).
+    func refreshToday(bypassCache: Bool = false) async {
         isWarmingUp = true
         defer { isWarmingUp = false }
-        _ = try? await FreeMarketDataClient.dailyBars(symbol: "SPY", rangeHintDays: 90)
-        if await analyze(ticker: "SPY") {
-            todayVerdict = latest
+        if let scored = await scoreQuietly(ticker: "SPY", bypassCache: bypassCache) {
+            applyScored(scored, target: .today, sourceLabel: scored.meta?.dataPath)
+            if todayVerdict != nil { errorMessage = nil }
+        } else if todayVerdict == nil {
+            errorMessage = "Market posture unavailable."
         }
     }
 
@@ -61,10 +68,9 @@ final class RadarService: ObservableObject {
 
         if forceDemo && symbol == "INTC" {
             if demo == nil { loadDemo() }
-            latest = demo
-            lastSource = "bundled_sample"
+            applyScored(demo, target: .scan, sourceLabel: "bundled_sample")
             errorMessage = nil
-            return true
+            return demo != nil
         }
 
         isLoading = true
@@ -73,8 +79,8 @@ final class RadarService: ObservableObject {
 
         if let base = debugAnalyzeOverride {
             do {
-                latest = try await fetchWebAnalyze(base: base, ticker: symbol)
-                lastSource = "debug_web"
+                let remote = try await fetchWebAnalyze(base: base, ticker: symbol)
+                applyScored(remote, target: .scan, sourceLabel: "debug_web")
                 errorMessage = "Debug web analyze override active."
                 return true
             } catch {
@@ -83,90 +89,91 @@ final class RadarService: ObservableObject {
         }
 
         do {
-            async let primary = FreeMarketDataClient.dailyBars(
-                symbol: symbol,
-                bypassCache: bypassCache
-            )
-            async let spy = FreeMarketDataClient.dailyBars(
-                symbol: "SPY",
-                rangeHintDays: 90,
-                bypassCache: bypassCache && symbol == "SPY"
-            )
-            async let fund = FreeMarketDataClient.fundamentals(symbol: symbol)
-            let result = try await primary
-            let spyBars = try? await spy
-            let fundamentals = await fund
-            var sectorAction: String?
-            if let etf = PostureDepth.etf(forSector: fundamentals.sector), etf != symbol {
-                if let sectorBars = try? await FreeMarketDataClient.dailyBars(symbol: etf, rangeHintDays: 90) {
-                    sectorAction = FreeMechanicalScorer.core(bars: sectorBars.bars, spyBars: spyBars?.bars).action
-                }
-            }
-            let scored = FreeMechanicalScorer.score(
-                symbol: symbol,
-                company: nil,
-                bars: result.bars,
-                spyBars: spyBars?.bars,
-                source: result.source,
-                earningsDate: fundamentals.earningsDate,
-                sectorName: fundamentals.sector,
-                sectorAction: sectorAction
-            )
-            latest = scored
-            if symbol == "SPY" { todayVerdict = scored }
-            lastSource = result.fromCache ? "\(result.source.rawValue) · cache" : result.source.rawValue
+            let scored = try await scoreLive(symbol: symbol, bypassCache: bypassCache)
+            applyScored(scored, target: .scan, sourceLabel: scored.meta?.dataPath)
             return true
         } catch {
             if symbol == "INTC" {
                 if demo == nil { loadDemo() }
-                latest = demo
-                lastSource = "bundled_sample"
+                applyScored(demo, target: .scan, sourceLabel: "bundled_sample")
                 errorMessage = "All free sources failed — showing bundled INTC sample."
                 return latest != nil
             }
-            latest = Self.synthetic(for: symbol, reason: error.localizedDescription)
-            lastSource = nil
+            applyScored(Self.synthetic(for: symbol, reason: error.localizedDescription), target: .scan, sourceLabel: nil)
             errorMessage = "Free-data radar unavailable — fail closed."
             return true
         }
     }
 
-    /// Score a ticker without mutating `latest` (watchlist batch refresh).
-    func scoreQuietly(ticker: String) async -> RadarVerdict? {
+    /// Score a ticker without mutating `latest` (watchlist batch refresh / Today).
+    func scoreQuietly(ticker: String, bypassCache: Bool = false) async -> RadarVerdict? {
         let symbol = FreeMarketDataClient.normalize(ticker)
         guard !symbol.isEmpty else { return nil }
-        do {
-            async let primary = FreeMarketDataClient.dailyBars(symbol: symbol)
-            async let spy = FreeMarketDataClient.dailyBars(symbol: "SPY", rangeHintDays: 90)
-            async let fund = FreeMarketDataClient.fundamentals(symbol: symbol)
-            let result = try await primary
-            let spyBars = try? await spy
-            let fundamentals = await fund
-            var sectorAction: String?
-            if let etf = PostureDepth.etf(forSector: fundamentals.sector), etf != symbol {
-                if let sectorBars = try? await FreeMarketDataClient.dailyBars(symbol: etf, rangeHintDays: 90) {
-                    sectorAction = FreeMechanicalScorer.core(bars: sectorBars.bars, spyBars: spyBars?.bars).action
-                }
+        return try? await scoreLive(symbol: symbol, bypassCache: bypassCache)
+    }
+
+    enum PublishTarget {
+        case scan
+        case today
+    }
+
+    /// Scan writes `latest`. Today writes `todayVerdict` only. Scanning SPY also updates Today.
+    func applyScored(_ scored: RadarVerdict?, target: PublishTarget, sourceLabel: String?) {
+        guard let scored else { return }
+        switch target {
+        case .scan:
+            latest = scored
+            if scored.ticker == AppAccess.freeMarketTicker {
+                todayVerdict = scored
             }
-            return FreeMechanicalScorer.score(
-                symbol: symbol,
-                company: nil,
-                bars: result.bars,
-                spyBars: spyBars?.bars,
-                source: result.source,
-                earningsDate: fundamentals.earningsDate,
-                sectorName: fundamentals.sector,
-                sectorAction: sectorAction
-            )
-        } catch {
-            return nil
+        case .today:
+            todayVerdict = scored
         }
+        lastSource = sourceLabel
+    }
+
+    private func scoreLive(symbol: String, bypassCache: Bool) async throws -> RadarVerdict {
+        async let primary = FreeMarketDataClient.dailyBars(
+            symbol: symbol,
+            bypassCache: bypassCache
+        )
+        async let spy: FreeBarsResult? = symbol == "SPY" ? nil : try? await FreeMarketDataClient.dailyBars(
+            symbol: "SPY",
+            rangeHintDays: 365,
+            bypassCache: bypassCache && symbol == "SPY"
+        )
+        async let fund = FreeMarketDataClient.fundamentals(symbol: symbol)
+        let result = try await primary
+        let spyBars = symbol == "SPY" ? result : await spy
+        let fundamentals = await fund
+        var sectorAction: String?
+        if let etf = PostureDepth.etf(forSector: fundamentals.sector), etf != symbol {
+            if let sectorBars = try? await FreeMarketDataClient.dailyBars(symbol: etf),
+               let completed = MarketCalendar.completedBars(sectorBars.bars) {
+                let marketBars = spyBars.flatMap { MarketCalendar.completedBars($0.bars, minimum: 5) }
+                sectorAction = FreeMechanicalScorer.core(bars: completed, spyBars: marketBars).action
+            }
+        }
+        return FreeMechanicalScorer.score(
+            symbol: symbol,
+            company: fundamentals.company,
+            bars: result.bars,
+            spyBars: spyBars?.bars,
+            source: result.source,
+            earningsDate: fundamentals.earningsDate,
+            sectorName: fundamentals.sector,
+            sectorAction: sectorAction,
+            fetchedAt: result.fetchedAt,
+            fromCache: result.fromCache
+        )
     }
 
     /// Unlocked Today: sector ETF posture chips. Cached bars, limited concurrency.
     func refreshSectors() async {
         var rows: [SectorChip] = []
+        let batchNow = Date()
         let spy = try? await FreeMarketDataClient.dailyBars(symbol: "SPY", rangeHintDays: 90)
+        let spyBars = spy.flatMap { MarketCalendar.completedBars($0.bars, now: batchNow, minimum: 5, fetchedAt: $0.fetchedAt) }
         let etfs = Array(PostureDepth.sectorETF.keys).sorted()
         await withTaskGroup(of: SectorChip?.self) { group in
             var i = 0
@@ -178,7 +185,8 @@ final class RadarService: ObservableObject {
                     guard let bars = try? await FreeMarketDataClient.dailyBars(symbol: etf, rangeHintDays: 90) else {
                         return nil
                     }
-                    let action = FreeMechanicalScorer.core(bars: bars.bars, spyBars: spy?.bars).action
+                    guard let completed = MarketCalendar.completedBars(bars.bars, now: batchNow, fetchedAt: bars.fetchedAt) else { return nil }
+                    let action = FreeMechanicalScorer.core(bars: completed, spyBars: spyBars).action
                     let label = PostureDepth.sectorETF[etf] ?? etf
                     return SectorChip(etf: etf, label: label, action: action)
                 }

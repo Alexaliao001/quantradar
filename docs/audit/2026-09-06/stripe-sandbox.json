@@ -1,0 +1,229 @@
+{
+  "date": "2026-09-06",
+  "account_id": "acct_1SwTY37uBhbslGrG",
+  "mode": "test",
+  "real_money_charged": false,
+  "environment": {
+    "runtime": "isolated Nube Python 3.12 application, localhost 8771 via SSH tunnel",
+    "market_data": "synthetic TESTCO fixture, not licensed market data or trading results",
+    "webhook": "Stripe CLI forwards actual signed sandbox events; no signature bypass",
+    "api_version": "2026-01-28.clover",
+    "production_modified_by_qa": false
+  },
+  "amount_checks_usd": {
+    "report": 9,
+    "report_with_csv": 14,
+    "pro_monthly": 29,
+    "pro_yearly": 249,
+    "pro_monthly_report_credit": 20,
+    "portfolio_monthly": 99
+  },
+  "usd_report": {
+    "checkout": {
+      "id": "cs_test_b19BEM5ZYo6HtdqjvCr0GTLIK7gw0rWIXdTD8B44M59syUk735fFPeKIbn",
+      "livemode": false,
+      "status": "complete",
+      "payment_status": "paid",
+      "currency": "usd",
+      "amount_total": 1400,
+      "presentment_details": null,
+      "payment_intent": "pi_3UCT1n7uBhbslGrG0R48KTLc",
+      "subscription": null
+    },
+    "downloads": {
+      "report.json": {
+        "sessions": 90
+      },
+      "replay.csv": {
+        "bytes": 12217
+      },
+      "report.zip": {
+        "bytes": 10421
+      }
+    },
+    "other_account_download_status": 404,
+    "refund": {
+      "id": "re_3UCT1n7uBhbslGrG0R1Uu6Oh",
+      "status": "succeeded",
+      "currency": "usd",
+      "amount": 1400,
+      "payment_intent": "pi_3UCT1n7uBhbslGrG0R48KTLc"
+    }
+  },
+  "gbp_report": {
+    "checkout": {
+      "id": "cs_test_b1YQHsb2MFkfbrorP9BEFOSd9VbSBvyPMdgSYZtZXfxZTrqt3k2apxXk86",
+      "livemode": false,
+      "status": "complete",
+      "payment_status": "paid",
+      "currency": "usd",
+      "amount_total": 1400,
+      "presentment_details": {
+        "presentment_amount": 1077,
+        "presentment_currency": "gbp"
+      },
+      "payment_intent": "pi_3UCTLu7uBhbslGrG0XGr8sjl",
+      "subscription": null
+    },
+    "signed_event": {
+      "id": "evt_1UCTLw7uBhbslGrGiVz4KcUZ",
+      "api_version": "2026-01-28.clover",
+      "presentment_details": {
+        "presentment_amount": 1077,
+        "presentment_currency": "gbp"
+      }
+    },
+    "delivery": {
+      "id": "af470d535bc5446d9dbe9d5459e1b63d",
+      "ticker": "TESTCO",
+      "as_of": "2026-09-04",
+      "bump": 1,
+      "amount": 1400,
+      "currency": "usd",
+      "created_at": 1788651872.1526346,
+      "payment_state": "paid",
+      "delivery_state": "ready",
+      "error": null,
+      "legacy": 0,
+      "credit_state": "ready",
+      "paid_at": 1788652231.0,
+      "assets": [
+        "report.json",
+        "price.svg",
+        "rsi.svg",
+        "volume.svg",
+        "posture.svg",
+        "replay.csv",
+        "report.zip"
+      ]
+    },
+    "refund": {
+      "id": "re_3UCTLu7uBhbslGrG0OFNwTyj",
+      "status": "succeeded",
+      "currency": "usd",
+      "amount": 1400,
+      "payment_intent": "pi_3UCTLu7uBhbslGrG0XGr8sjl"
+    },
+    "revocation": {
+      "order": "af470d535bc5446d9dbe9d5459e1b63d",
+      "old_credit_checkout": "cs_test_a1xITMdYE19X3XdWg58trwuuBaqNLdvBKq5xwqM1Fd1PSvpWgHUu7iBvt3",
+      "checkout_status": "expired",
+      "payment_state": "refunded",
+      "credit_state": "revoked",
+      "assets": [],
+      "download_statuses": {
+        "report.json": 404,
+        "replay.csv": 404,
+        "report.zip": 404
+      }
+    },
+    "replacement_amount_usd_cents": 2900
+  },
+  "subscription": {
+    "checkout": {
+      "id": "cs_test_b1mi5tPSLAQs8SvDVpUSuPAvuf0F12CfshdZsYcUyhblpMSPbnwJQNDiPs",
+      "livemode": false,
+      "status": "complete",
+      "payment_status": "paid",
+      "currency": "usd",
+      "amount_total": 2900,
+      "presentment_details": null,
+      "payment_intent": null,
+      "subscription": "sub_1UCT4Y7uBhbslGrGHCwOmMxP"
+    },
+    "portal_upgrade": {
+      "from": "pro",
+      "to": "portfolio_pro",
+      "proration_paid_usd_cents": 7000,
+      "next_cycle_usd_cents": 9900,
+      "source": "Stripe Portal UI and signed webhook verified app plan"
+    },
+    "portal_cancel": {
+      "id": "sub_1UCT4Y7uBhbslGrGHCwOmMxP",
+      "status": "active",
+      "cancel_at_period_end": false,
+      "cancel_at": 1791243151,
+      "item_period_ends": [
+        1791243151
+      ],
+      "plan": "portfolio_pro"
+    }
+  },
+  "test_clock": {
+    "id": "clock_1UCT6t7uBhbslGrGVh4ZCIvL",
+    "renewal_invoices": [
+      {
+        "id": "in_1UCT7f7uBhbslGrGyx4PCkXf",
+        "status": "paid",
+        "amount_paid": 2900,
+        "currency": "usd",
+        "billing_reason": "subscription_cycle"
+      },
+      {
+        "id": "in_1UCT6w7uBhbslGrG9qYvllQD",
+        "status": "paid",
+        "amount_paid": 2900,
+        "currency": "usd",
+        "billing_reason": "subscription_create"
+      }
+    ],
+    "period_end_cancel": {
+      "subscription": {
+        "id": "sub_1UCT6w7uBhbslGrGGT3I2ZVe",
+        "status": "canceled",
+        "livemode": false
+      },
+      "app_plan": "free"
+    },
+    "failed_renewal": {
+      "subscription": {
+        "id": "sub_1UCT9s7uBhbslGrGAFzN3MnL",
+        "status": "past_due",
+        "livemode": false
+      },
+      "app_plan": "free"
+    },
+    "payment_recovery": {
+      "subscription": {
+        "id": "sub_1UCT9s7uBhbslGrGAFzN3MnL",
+        "status": "active",
+        "livemode": false
+      },
+      "app_plan": "pro"
+    }
+  },
+  "fix": {
+    "problem": "After report refund the old discounted Checkout remained open but errored in the browser; same-plan re-checkout returned that unusable session. No successful post-refund discounted charge was observed.",
+    "resolution": "Recheck price and current credit before returning a session; refund worker expires unfinished credited Checkouts before marking credit revoked.",
+    "old_session": "cs_test_a1zTsbLzh6WfuwMdbsRh9RrQnP4SP0Ek6J6a7N3DPaQfLrxjpaVml3PRy3",
+    "old_session_status": "expired",
+    "new_session_amount_usd_cents": 2900,
+    "local_tests": 244,
+    "independent_review": "PASS; 10 directed checks; no remaining reproducible P1/P2 in diff"
+  },
+  "limitations": [
+    "Sandbox payments are not revenue or a live production checkout test.",
+    "Test-clock renewals are accelerated sandbox simulations, not elapsed real customer renewals.",
+    "Data redistribution license remains pending; production code and webhook configuration have not been activated."
+  ],
+  "webhook_forwarding": {
+    "http_200_count": 39,
+    "http_non_2xx_count": 0
+  },
+  "cleanup": {
+    "canceled_subscriptions": [
+      "sub_1UCT4Y7uBhbslGrGHCwOmMxP",
+      "sub_1UCT9s7uBhbslGrGAFzN3MnL"
+    ],
+    "expired_sessions": [
+      "cs_test_b1tAfRhR6qRzadFLepw37lqdBgX5xKA0RfY0RpbZnJNIxDZAuwo5KVEds9"
+    ],
+    "test_clock_deleted": "clock_1UCT6t7uBhbslGrGVh4ZCIvL",
+    "reusable_test_products_and_portal_retained": true,
+    "final_app_plans": {
+      "sub": "free",
+      "clock": "free"
+    },
+    "isolated_runtime": "Stopped; isolated remote runtime, temporary local tools and test credentials removed after evidence capture."
+  }
+}

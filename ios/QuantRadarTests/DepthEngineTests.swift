@@ -121,7 +121,8 @@ final class DepthEngineTests: XCTestCase {
 
     func testAnxietyAndFounderCopy() {
         XCTAssertTrue(AppAccess.anxietyCopy(ticker: "nvda").contains("NVDA"))
-        XCTAssertTrue(AppAccess.founderPriceLine.contains("1,000"))
+        XCTAssertTrue(AppAccess.founderPriceLine.contains("One-time"))
+        XCTAssertTrue(AppAccess.founderPriceLine.contains("Restore"))
         XCTAssertFalse(AppAccess.founderPriceLine.lowercased().contains("countdown"))
     }
 
@@ -135,6 +136,32 @@ final class DepthEngineTests: XCTestCase {
         XCTAssertTrue(DailyBriefing.idPrefix.hasPrefix("qr.briefing"))
         XCTAssertEqual(DailyBriefing.hour, 9)
         XCTAssertEqual(DailyBriefing.minute, 25)
+    }
+
+    func testTodayPublishDoesNotClobberScan() {
+        let radar = RadarService()
+        radar.applyScored(RadarService.synthetic(for: "AAPL", reason: "scan"), target: .scan, sourceLabel: "scan")
+        radar.applyScored(RadarService.synthetic(for: "SPY", reason: "today"), target: .today, sourceLabel: "today")
+        XCTAssertEqual(radar.latest?.ticker, "AAPL")
+        XCTAssertEqual(radar.todayVerdict?.ticker, "SPY")
+        XCTAssertEqual(radar.lastSource, "today")
+    }
+
+    func testScanSPYAlsoUpdatesToday() {
+        let radar = RadarService()
+        radar.applyScored(RadarService.synthetic(for: "AAPL", reason: "a"), target: .scan, sourceLabel: "aapl")
+        radar.applyScored(RadarService.synthetic(for: "SPY", reason: "s"), target: .scan, sourceLabel: "spy")
+        XCTAssertEqual(radar.latest?.ticker, "SPY")
+        XCTAssertEqual(radar.todayVerdict?.ticker, "SPY")
+    }
+
+    func testParseNasdaqSummarySector() {
+        let json = """
+        {"data":{"symbol":"AAPL","summaryData":{"Sector":{"label":"Sector","value":"Technology"}}}}
+        """.data(using: .utf8)!
+        let f = FreeMarketDataClient.parseNasdaqSummary(json)
+        XCTAssertEqual(f.sector, "Technology")
+        XCTAssertTrue(f.isUseful)
     }
 
     private static func grind(start: Double, end: Double, count: Int, lastVolume: Double) -> [FreeBar] {

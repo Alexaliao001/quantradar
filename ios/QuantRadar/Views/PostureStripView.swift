@@ -21,7 +21,10 @@ struct PostureStripView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 3, style: .continuous))
             }
             .frame(height: 14)
+            .accessibilityHidden(true)
         }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(accessibilitySummary)
     }
 
     private func color(_ action: String) -> Color {
@@ -30,6 +33,13 @@ struct PostureStripView: View {
         case "NO", "AVOID": return QRTheme.danger
         default: return QRTheme.warn.opacity(0.85)
         }
+    }
+
+    private var accessibilitySummary: String {
+        let setup = history.filter { $0.uppercased() == "SETUP" }.count
+        let wait = history.filter { $0.uppercased() == "WAIT" }.count
+        let no = history.count - setup - wait
+        return "Posture history: \(setup) setup, \(wait) wait, \(max(0, no)) avoid sessions"
     }
 }
 
@@ -44,14 +54,14 @@ struct DepthFactsView: View {
                     .foregroundStyle(QRTheme.warn)
             }
             if let ago = depth.lastSetupAgoDays, let fwd = depth.lastSetupForwardPct, ago > 0 {
-                Text(String(format: "Last SETUP %d sessions ago · %+.1f%% since. Educational — not a promise.", ago, fwd))
+                Text(String(format: "Reconstructed SETUP %d sessions ago · close change %+.1f%%. Not a trading return.", ago, fwd))
                     .font(.footnote)
                     .foregroundStyle(QRTheme.muted)
             }
             if let n = depth.setupCount, n > 0, let m5 = depth.medianForward5dPct {
                 let m20 = depth.medianForward20dPct
                 let extra = m20.map { String(format: " · 20-day median %+.1f%%", $0) } ?? ""
-                Text(String(format: "When SETUP printed here: 5-day median %+.1f%% (n=%d)%@.", m5, n, extra))
+                Text(String(format: "Reconstructed SETUP days: 5-day median price change %+.1f%% (n=%d)%@. Historical earnings and sector gates unavailable.", m5, n, extra))
                     .font(.caption)
                     .foregroundStyle(QRTheme.muted)
             }

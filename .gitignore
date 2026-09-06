@@ -19,3 +19,5 @@ ios/DerivedData/
 ios/build/
 .tools/
 **/xcuserdata/
+.webhook_secret_pending
+free_engine/.cache/

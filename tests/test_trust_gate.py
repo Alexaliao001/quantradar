@@ -50,17 +50,14 @@ class TrustGateContractTests(unittest.TestCase):
         self.assertTrue((REPO / "docs" / "STOCK_AGENT_MAP.md").is_file())
 
     def test_pro_value_copy_not_selling_live_air(self) -> None:
-        """QD1-0: pricing must not claim live desk is available now."""
+        """Pricing describes delivered daily data and keeps purchase boundaries explicit."""
         pricing = (REPO / "static" / "pricing.html").read_text(encoding="utf-8")
         self.assertNotIn("Pro for live desk", pricing)
-        self.assertIn("supporter", pricing.lower())
-        self.assertIn("when charts are mounted", pricing.lower())
+        self.assertIn("completed daily sessions", pricing.lower())
+        self.assertIn("watchlist", pricing.lower())
         self.assertIn("does website pro unlock the ios app", pricing.lower())
         self.assertIn("independent products", pricing.lower())
         self.assertTrue((REPO / "docs" / "PRO_VALUE.md").is_file())
-        body = (REPO / "docs" / "PRO_VALUE.md").read_text(encoding="utf-8")
-        self.assertIn("Verdict: B", body)
-        self.assertIn("supporter_until_mount", body)
 
     def test_legal_pages_exist(self) -> None:
         for name in (

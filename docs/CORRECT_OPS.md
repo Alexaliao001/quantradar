@@ -1,119 +1,51 @@
-# 最正确操作方法（锁定）
+# QuantRadar 发布与运行事实
 
-> 2026-07-12 定版。之后部署/改版只认本文件，避免 Manus / 仓库 / 线上三套混谈。
+核验日期：2026-09-06。此文件取代此前的 Render / Manus 部署说明。
 
-## 1. 唯一权威源（SSOT）
+## 当前生产
 
-| 项 | 值 |
-|----|-----|
-| 代码 | `https://github.com/Alexaliao001/quantradar` **main** |
-| 当前基线 | `d8132cc` · **v0.6.0**（path-C 壳 + 邮箱密码登录 + Trust Gate） |
-| 引擎 | `~/charts`（stock-charts），壳**不算**分、不抄 generate_charts |
-| **不是**权威 | Manus 任务里的旧 SPA、Manus 独有 diff、trycloudflare 临时隧道 |
+| 项目 | 已核验值 |
+|---|---|
+| 代码仓库 | https://github.com/Alexaliao001/quantradar |
+| 网站 | https://quantradar.one ，www 同源 |
+| 主机 | Nube VPS，SSH alias `nube-sin` |
+| Web 进程 | systemd `quantradar`，`www-data`，Python 3.12 `python3 -m app` |
+| 工作目录 | `/opt/nube-sites/apps/quantradar` |
+| 线上独立引擎目录 | `/opt/nube-sites/apps/charts-engine`，由 `CHARTS_DIR` 指定 |
+| 环境 | `/opt/nube-sites/secrets/quantradar.env`；不进入 Git、日志或报告 |
+| 代理 | Caddy → `127.0.0.1:8765` |
+| 数据 | 工作目录的 `data/`；新版本增加 `billing.sqlite3`（WAL） |
+| 目前线上 health | v0.7.0，git_sha=null，live；尚未发布本次修复 |
 
-```text
-写代码 → 只改本机仓库 → 本机打磨（docs/LOCAL_POLISH.md）
-       → commit + push GitHub main
-跑线上 → Render Blueprint / Docker 自部署（docs/SELF_DEPLOY.md）
-域名   → DNS 指向 Render（GlobalDomain / Cloudflare）
-禁止   → Manus 当运行时 / Manus pull 发布 / Manus agent 修产品
-```
+`git_sha=null` 无法证明线上等于某个提交。待发布包加入 `SOURCE_HEAD` 后，必须核对本机提交、包清单和线上 health 三者一致。无需变更 DNS。
 
-## 2. 明确：线上 ≠ 仓库
+## 当前发布前条件
 
-| 表面 | 是什么 | 是否最新仓库 |
-|------|--------|--------------|
-| GitHub main | Grok 建设的 path-C 壳 | ✅ 是 |
-| `127.0.0.1:8765` | 本地 `python -m app` | ✅ 应与仓库一致 |
-| `quantradar.one` | Manus 旧 SPA（tRPC / app-auth / 假统计） | ❌ **不是** |
+1. 数据许可须覆盖网页、iOS、计算结果及拟出售的 JSON/CSV 下载。公开 API 可访问不等于已有商用授权；见 `DATA_LICENSING.md`。
+2. Stripe 测试环境必须验证实际结账、签名 webhook、交付、退款、续费、取消、计划切换。本轮已通过真实 sandbox 验收，见 `docs/audit/2026-09-06/stripe-sandbox.json`。`scripts/audit_billing.py` 拒绝 live key，仅验证金额；生命周期另由浏览器、签名事件和 Test Clock 验证。
+3. 正式账户核对遗留 Payment Links、价格、Portal 和 webhook。Portfolio Pro 价格尚未接入，禁止仅靠页面展示宣称可购买。
+4. 完成 Python 隔离测试、iOS 测试、375/1440 页面验收、签名归档检查。
 
-验收是否 cutover 成功，只看：
+已准备独立正式 Portal `bpc_1UCTPA7uBhbslGrGuE1dZAda`，不是默认配置，尚未写入生产环境。允许 Pro 月/年、Portfolio 月切换，差额即时开票，期末取消。正式环境应通过 `STRIPE_PORTAL_CONFIGURATION_ID` 明确选择它。当前 webhook `we_1U6uvl7uBhbslGrG01EauQuf` 仍只有四种旧事件；须随新版一同补全事件配置，不能将已创建 Portal 当作已完成生产接线。
 
-```bash
-curl -sS https://quantradar.one/health
-# 必须： "service":"quantradar-shell" 且 "manus_login":false
-# 且 version/git_sha 对齐 GitHub main
-```
+## 发布步骤
 
-## 3. 最正确部署路径（默认走这条）
+1. `python3 scripts/test_isolated.py`；生产或真实账户目录不要直接运行 unittest。
+2. 提交并推送经复核的源码。`python3 scripts/package_release.py /absolute/private/output-directory` 只打包已提交的运行文件，拒绝脏工作区；包里不含 `.env`、`data`、缓存或 iOS 签名材料。
+3. 上传至 `/opt/nube-sites/releases/quantradar-<commit>/`，先核对 SHA-256 和展开后的 `SHA256SUMS`，不可直接覆盖线上目录。
+4. 短暂停止 `quantradar` 后，将当前 Web、独立引擎和环境完整备份到专属私有目录，下载一份到独立主机。确认 JSON 可读；如有 SQLite，使用 backup API 或同时保留一致的主库/WAL。热拷贝只作准备性备份，不能替代停机一致备份。
+5. 仅替换 `app/`、`static/`、`free_engine/`、`schemas/`、`fixtures/`、`requirements.txt`、`SOURCE_HEAD` 和清单。同步独立引擎全部 Python 与交易日历 JSON，保持同一提交；保留 `.cache`、`data/` 与 `.env`。
+6. 保持 `www-data` 可写数据和引擎缓存，秘密权限不放宽。启动服务，检查本地与公网 `/health` 均为 JSON、提交一致；检查页面、401/404 账号隔离、真实数据日期及完整下载。
+7. 实际支付验收在测试环境先完成，再确认正式价格、Portal、签名 webhook 配置。真实客户付款不作为自动化测试手段。
 
-**不要用 Manus 当应用运行时。** Manus 不适合长期跑 path-C Python 壳；且烧 Lite/Max 额度、易分叉。
+## 回滚
 
-### Manus（用户锁定 · 2026-07-26）
+回滚仅恢复前一版本的代码和引擎。不得以旧 `data/` 覆盖新订单、账号、退款或订阅状态。若需要数据迁移回滚，先备份现有数据库并单独设计迁移；不要自动恢复旧付款快照。
 
-- **产品发布与运行时：完全不用 Manus**
-- 开发 / 打磨 / 修 bug：只在本机 + GitHub
-- 线上：Render（或 Fly/Docker）自部署 — 见 `docs/SELF_DEPLOY.md`
-- Manus 若仍绑着 `quantradar.one`：**只解绑域名**（控制台点一下，零 agent）
+## iOS 独立发布
 
-### 推荐顺序
+网页 Stripe 与 Apple Unlock 权限独立。build 8（App/Widget 1.2.0）已归档、签名及日历校验通过，并上传 App Store Connect，处理状态 VALID（build ID `719a2f67-d5c3-49c3-ab98-7886189b0fe2`）。App Store Connect 现有版本 1.0 / build 7 为 WAITING_FOR_REVIEW，不能描述为已上架。确认新 build 上传并 VALID 后，才替换原审核构建；新审核提交需同时保留现有 IAP 项，不能只提交 App。
 
-```text
-① 本机 PORT=8765 打磨到 docs/LOCAL_POLISH.md 全绿
-② commit + push GitHub main
-③ Render Blueprint 部署（python -m app）
-④ DNS → Render；解绑 Manus 旧 SPA（若有）
-⑤ curl /health + p0_smoke --live + TRUST_GATE
-```
+## 证据
 
-### 环境变量（生产）
-
-```bash
-HOST=0.0.0.0
-# PORT 由平台注入
-QUANTRADAR_MODE=artifact
-PUBLIC_BASE_URL=https://quantradar.one
-SESSION_SECRET=<随机长串>
-QUANTRADAR_BOOTSTRAP_DEMO=0   # 生产关掉 demo 管理员
-QUANTRADAR_DEV_LOGIN=0
-# 可选：ALLOW_REGISTER=1
-# 以后再加：GOOGLE_*、STRIPE、SMTP
-```
-
-### 本机对照（开发）
-
-```bash
-cd ~/quantradar
-git pull
-python3 -m app
-# http://127.0.0.1:8765/login  — 邮箱密码
-```
-
-### 临时公网预览（可选，非生产）
-
-```bash
-cloudflared tunnel --url http://127.0.0.1:8765
-```
-
-仅用于验收，**不要**写死进 DNS。
-
-## 4. Manus 的正确角色（尽量少用）
-
-| 做 | 不做 |
-|----|------|
-| 若域名仍挂在 Manus：在设置里**解绑/停发**旧 SPA | 不在 Manus 里当 SSOT 改业务代码 |
-| 需要时 **Lite 一句**：停旧站 / 查域名绑定 | 不用 Max 长任务重构部署 |
-| | 不搞 wrangler / Worker 硬扛 Python |
-| | 不接 Manus app-auth |
-
-## 5. 认证策略（产品）
-
-1. **现在**：自建邮箱+密码（`/login`，`data/users.json`）  
-2. **以后**：再加 Google OAuth（env 配齐即显示）  
-3. **永远不要**：`manus.im/app-auth`
-
-## 6. 禁止事项
-
-- 把 Manus 任务输出当成仓库真相  
-- 在 Manus 大改却不 push 回 GitHub  
-- 未改 DNS 就宣称「已发布到 quantradar.one」  
-- 同时维护 tRPC SPA 与 path-C 两套公式  
-
-## 7. Cutover 完成检查单
-
-- [ ] `git -C ~/quantradar log -1` 与 origin/main 一致  
-- [ ] 托管进程 `python -m app`，health = `quantradar-shell`  
-- [ ] `quantradar.one/health` 同上 + `git_sha` 对齐  
-- [ ] `/login` 邮箱密码可用；`/api/oauth/*` = 410  
-- [ ] 无假 1247/896；单 `primary_score`；demo 不计费  
-- [ ] `docs/TRUST_GATE.md` 项通过  
+本次本地验收：`docs/audit/2026-09-06/README.md`。生产切换后追加新的发布回执，不把本地测试结论改写成生产验证。

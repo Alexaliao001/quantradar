@@ -2,6 +2,10 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Syne:wght@600;700;800&display=swap" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>QuantRadar — Should you engage this setup?</title>
   <meta name="description" content="Auditable US equity radar: one mechanical score, market→sector→stock gates, honest data quality. Free demo artifacts. Educational only — not investment advice." />
@@ -19,6 +23,7 @@
   <header class="top">
     <a class="brand" href="/">Quant<span>Radar</span></a>
     <nav>
+      <a href="/today">Today</a>
       <a href="/methodology">Methodology</a>
       <a href="/track">Track</a>
       <a href="/pricing">Pricing</a>
@@ -83,8 +88,7 @@
     <div class="hero-samples">
       <div class="chips" id="demoChips">
         <button type="button" class="chip" data-demo="INTC">INTC <small>demo free</small></button>
-        <button type="button" class="chip" data-demo="NVDA">NVDA <small>if cached</small></button>
-        <button type="button" class="chip" data-demo="AAPL">AAPL <small>if cached</small></button>
+        <button type="button" class="chip" data-demo="AAPL">AAPL <small>demo free</small></button>
       </div>
       <p class="status" id="dataModeLine" style="margin:0.5rem 0 0;max-width:40rem"></p>
     </div>
@@ -107,14 +111,14 @@
         <div class="field">
           <label for="mode">Mode</label>
           <select id="mode">
-            <option value="artifact" selected>artifact (guest OK)</option>
-            <option value="live">live (Pro)</option>
+            <option value="live" selected>live (free multi-source)</option>
+            <option value="artifact">artifact (frozen demo)</option>
           </select>
         </div>
         <button class="btn btn-mag" id="run" type="button">Analyze</button>
         <button class="btn secondary" id="sample" type="button">Demo INTC</button>
       </div>
-      <p class="status" id="status">Ready — try a free demo chip. Live needs Pro + a mounted charts engine.</p>
+      <p class="status" id="status">Ready — live scans any ticker free. Demos: INTC / AAPL.</p>
 
       <div class="verdict-block" id="verdictBlock" hidden>
         <div>
@@ -179,6 +183,18 @@
         <ul class="warns" id="warnList" hidden></ul>
       </div>
 
+      <!-- Engagement layer: real-data only. No fake counts, no fake timers. -->
+      <div class="radar-panel" id="engagePanel" hidden>
+        <div class="radar-head">
+          <h3>Your desk</h3>
+          <span class="freeze-pill" id="engagePill" hidden></span>
+        </div>
+        <div id="engageAvoid" hidden></div>
+        <div id="engageReplay" hidden></div>
+        <p class="radar-note" id="engageFlip" hidden></p>
+        <div class="next-actions" id="engageActions"></div>
+      </div>
+
       <div class="next-block" id="nextBlock" hidden>
         <h3 id="nextTitle">Next</h3>
         <p id="nextCopy"></p>
@@ -208,8 +224,8 @@
         <p class="eyebrow">Website</p>
         <h2>quantradar.one</h2>
         <p>
-          Mechanical radar in the browser. Guest demos are frozen artifacts.
-          Pro is a Stripe supporter plan — live quotes unlock when the charts engine is mounted.
+          Mechanical radar in the browser. Live multi-source scans are free for everyone;
+          frozen demo artifacts are available for INTC and AAPL. Pro adds saved watchlist reports, longer replay and higher request limits.
         </p>
         <a class="btn secondary" href="/pricing">Web pricing</a>
       </article>
@@ -218,7 +234,7 @@
         <h2>App Store app</h2>
         <p>
           Free to install. Today’s SPY plus one ticker of yours.
-          One-time $9.99 unlock through Apple. Scores on device. Website Pro does not unlock it.
+          One-time unlock through Apple; regional price shown before purchase. Scores on device. Website Pro does not unlock it.
         </p>
         <p class="muted">In App Review — no public listing yet. We will not link a store page until Apple lists it.</p>
         <a class="btn secondary" href="/privacy-ios">iOS privacy</a>
@@ -327,6 +343,28 @@
           dial.dataset.lit = "1";
         });
       });
+    }
+
+    /* Count-up for the mechanical score — makes the number feel earned. */
+    function countUpScore(value, scale) {
+      const scoreEl = document.getElementById("kScore");
+      if (!scoreEl) return;
+      const target = Number(value);
+      if (!isFinite(target) || prefersReducedMotion()) {
+        scoreEl.textContent = `${value}/${scale || 100}`;
+        return;
+      }
+      const dur = 900;
+      const t0 = performance.now();
+      function frame(now) {
+        const p = Math.min(1, (now - t0) / dur);
+        const eased = 1 - Math.pow(1 - p, 3);
+        const cur = Math.round(target * eased);
+        scoreEl.textContent = `${cur}/${scale || 100}`;
+        if (p < 1) requestAnimationFrame(frame);
+        else scoreEl.textContent = `${target}/${scale || 100}`;
+      }
+      requestAnimationFrame(frame);
     }
 
     function setGateTone(el, status, labelEl) {
@@ -525,6 +563,216 @@
       });
     }
 
+    function agoLabel(iso) {
+      if (!iso) return null;
+      const t = Date.parse(iso);
+      if (!isFinite(t)) return null;
+      const s = Math.max(0, (Date.now() - t) / 1000);
+      if (s < 60) return "just now";
+      if (s < 3600) return Math.floor(s / 60) + "m ago";
+      if (s < 86400) return Math.floor(s / 3600) + "h ago";
+      return Math.floor(s / 86400) + "d ago";
+    }
+
+    function sparkline(closes) {
+      const w = 200, h = 44, pad = 4;
+      const min = Math.min.apply(null, closes), max = Math.max.apply(null, closes);
+      const span = (max - min) || 1;
+      const pts = closes.map((c, i) => {
+        const x = pad + (i * (w - 2 * pad)) / (closes.length - 1);
+        const y = h - pad - ((c - min) * (h - 2 * pad)) / span;
+        return x.toFixed(1) + "," + y.toFixed(1);
+      }).join(" ");
+      const NS = "http://www.w3.org/2000/svg";
+      const svg = document.createElementNS(NS, "svg");
+      svg.setAttribute("viewBox", "0 0 " + w + " " + h);
+      svg.setAttribute("width", w); svg.setAttribute("height", h);
+      svg.setAttribute("class", "spark");
+      const pl = document.createElementNS(NS, "polyline");
+      pl.setAttribute("points", pts);
+      pl.setAttribute("fill", "none");
+      pl.setAttribute("stroke", "currentColor");
+      pl.setAttribute("stroke-width", "2");
+      pl.setAttribute("stroke-linecap", "round");
+      svg.appendChild(pl);
+      return svg;
+    }
+
+    let lastJson = null;
+
+    async function watchToggle(t, on) {
+      try {
+        const r = await fetch(on ? "/api/watchlist/add" : "/api/watchlist/remove", {
+          method: "POST", credentials: "same-origin",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ ticker: t }),
+        });
+        const j = await r.json();
+        if (j.error === "watchlist_limit") {
+          showFlash("warn", j.error_detail || "Free accounts watch 1 ticker.");
+          return;
+        }
+        await refreshAuth();
+        if (lastJson) renderEngage(lastJson);
+      } catch (e) { showFlash("bad", String(e)); }
+    }
+
+    async function digestToggle() {
+      try {
+        const on = !(authState.user && authState.user.daily_digest);
+        const r = await fetch("/api/digest/opt", {
+          method: "POST", credentials: "same-origin",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ on }),
+        });
+        const j = await r.json();
+        showFlash(on ? "ok" : "warn", j.note || (on ? "Digest enabled." : "Digest off."));
+        await refreshAuth();
+        if (lastJson) renderEngage(lastJson);
+      } catch (e) { showFlash("bad", String(e)); }
+    }
+
+    /* Engagement layer — real events only, no invented numbers or timers. */
+    function renderEngage(j) {
+      const panel = document.getElementById("engagePanel");
+      const avoid = document.getElementById("engageAvoid");
+      const replay = document.getElementById("engageReplay");
+      const flip = document.getElementById("engageFlip");
+      const actions = document.getElementById("engageActions");
+      avoid.innerHTML = ""; replay.innerHTML = ""; actions.innerHTML = "";
+      flip.hidden = true;
+
+      if (!j.ok || j.demo || j.sample) { panel.hidden = true; return; }
+      panel.hidden = false;
+
+      const moments = ((j.engagement_moments || {}).avoided) || [];
+      if (moments.length) {
+        avoid.hidden = false;
+        const ev = moments[0];
+        const d = document.createElement("p");
+        d.className = "engage-line good";
+        d.textContent = ev.ticker + " closed " + ev.drop_pct + "% lower between " +
+          ev.then_as_of + " and " + ev.now_as_of + ". Comparison of daily closes; not a trading return.";
+        avoid.appendChild(d);
+        const a = document.createElement("a");
+        a.className = "btn secondary small";
+        a.href = "/track";
+        a.textContent = "See track record";
+        avoid.appendChild(a);
+      } else { avoid.hidden = true; }
+
+      const rp = j.engagement_replay || {};
+      const closes = rp.recent_closes || [];
+      if (closes.length >= 2) {
+        replay.hidden = false;
+        replay.appendChild(sparkline(closes));
+        const t = document.createElement("p");
+        t.className = "engage-note";
+        t.textContent = rp.teaser_note || "Dated mechanical replay.";
+        replay.appendChild(t);
+        if (Array.isArray(rp.rows) && rp.rows.length) {
+          const details = document.createElement("details");
+          const summary = document.createElement("summary");
+          summary.textContent = rp.days_shown + " dated sessions · " + rp.usable_days + " with usable stock history";
+          details.appendChild(summary);
+          const scroll = document.createElement("div");
+          scroll.style.cssText = "overflow:auto;max-height:360px";
+          const table = document.createElement("table");
+          const header = document.createElement("tr");
+          for (const text of ["Date","Close","Score","Posture","Market gate"]) {
+            const cell = document.createElement("th"); cell.textContent = text; header.appendChild(cell);
+          }
+          table.appendChild(header);
+          for (const row of [...rp.rows].reverse()) {
+            const tr = document.createElement("tr");
+            for (const value of [row.date,row.close == null ? "—" : Number(row.close).toFixed(2),row.score == null ? "—" : row.score,row.action,row.market_gate]) {
+              const td = document.createElement("td"); td.textContent = String(value); tr.appendChild(td);
+            }
+            table.appendChild(tr);
+          }
+          scroll.appendChild(table); details.appendChild(scroll); replay.appendChild(details);
+        }
+        if (!rp.unlocked) {
+          const b = document.createElement("button");
+          b.type = "button";
+          b.className = "btn small";
+          b.textContent = "Unlock full replay";
+          b.onclick = () => {
+            if (authState.authenticated) startCheckout("monthly");
+            else location.href = "/pricing";
+          };
+          replay.appendChild(b);
+        }
+      } else { replay.hidden = true; }
+
+      const mode = (j.meta || {}).mode;
+      if (!isPro() && mode === "live") {
+        flip.hidden = false;
+        flip.textContent = "This posture updates at the next close — flips are not notified on the free plan.";
+      }
+
+      const wl = (authState.user && authState.user.watchlist) || [];
+      const t = String(j.ticker || "").toUpperCase();
+      const watching = wl.indexOf(t) >= 0;
+      const wb = document.createElement("button");
+      wb.type = "button";
+      wb.className = "btn";
+      if (watching) {
+        wb.textContent = "Watching " + t + " — remove";
+        wb.onclick = () => watchToggle(t, false);
+      } else if (authState.authenticated) {
+        wb.textContent = "Watch " + t;
+        wb.onclick = () => watchToggle(t, true);
+      } else {
+        wb.textContent = "Sign in to watch " + t;
+        wb.onclick = () => { location.href = "/login?next=live"; };
+      }
+      actions.appendChild(wb);
+
+      /* Commitment ladder: micro-commitment -> $9 deep report -> Pro. */
+      {
+        const rb = document.createElement("button");
+        rb.type = "button";
+        rb.className = "btn";
+        rb.textContent = "Deep report for " + t + " — $9";
+        rb.title = "Full JSON, four daily charts and 90 trading sessions of reconstructed posture. Optional CSV add-on.";
+        rb.onclick = () => offerReportBump(t);
+        actions.appendChild(rb);
+      }
+
+      if (!isPro()) {
+        const pb = document.createElement("button");
+        pb.type = "button";
+        pb.className = "btn secondary";
+        pb.textContent = "Pro — higher limits";
+        pb.onclick = () => {
+          if (authState.authenticated) startCheckout("monthly");
+          else location.href = "/pricing";
+        };
+        actions.appendChild(pb);
+      }
+
+      if (authState.authenticated) {
+        const saved = document.createElement("a");
+        saved.href = "/reports";
+        saved.className = "btn secondary";
+        saved.textContent = "Your reports";
+        actions.appendChild(saved);
+        const watchlist = document.createElement("a");
+        watchlist.href = "/watchlist";
+        watchlist.className = "btn secondary";
+        watchlist.textContent = "Watchlist & daily reports";
+        actions.appendChild(watchlist);
+        const db = document.createElement("button");
+        db.type = "button";
+        db.className = "btn secondary";
+        db.textContent = (authState.user && authState.user.daily_digest)
+          ? "Daily reports: on" : "Daily reports: off";
+        db.onclick = digestToggle;
+        actions.appendChild(db);
+      }
+    }
+
     function showFlash(kind, text) {
       const wrap = document.getElementById("flash");
       const el = document.getElementById("flashBanner");
@@ -532,7 +780,35 @@
       wrap.hidden = false;
       el.className = "banner " + (kind || "ok");
       el.textContent = text;
+      clearTimeout(showFlash._t);
+      showFlash._t = setTimeout(() => { wrap.hidden = true; }, 9000);
     }
+
+    /* Scan elapsed timer — honest feedback while the free engine works. */
+    const SCAN_STEPS = [
+      [0, "Fetching OHLCV from multiple free sources…"],
+      [2.5, "Cross-checking closes · median voting…"],
+      [5, "Scoring posture · market/sector gates…"],
+      [9, "Almost there — one slow source…"],
+    ];
+    function startScanTimer() {
+      const status = document.getElementById("status");
+      stopScanTimer();
+      scanTimer.t0 = Date.now();
+      status.className = "status";
+      const tick = () => {
+        const s = (Date.now() - scanTimer.t0) / 1000;
+        let msg = SCAN_STEPS[0][1];
+        for (const [at, m] of SCAN_STEPS) if (s >= at) msg = m;
+        status.textContent = msg + " (" + s.toFixed(1) + "s)";
+      };
+      tick();
+      scanTimer.h = setInterval(tick, 200);
+    }
+    function stopScanTimer() {
+      if (scanTimer.h) { clearInterval(scanTimer.h); scanTimer.h = null; }
+    }
+    const scanTimer = { h: null, t0: 0 };
 
     async function startCheckout(interval) {
       if (!authState.authenticated) {
@@ -552,6 +828,10 @@
       } catch (ex) {
         showFlash("bad", String(ex));
       }
+    }
+
+    function offerReportBump(tickerLabel) {
+      location.href = "/reports?ticker=" + encodeURIComponent(tickerLabel);
     }
 
     function renderNext(j, { demo }) {
@@ -591,22 +871,24 @@
       }
 
       if (!j.ok) {
-        if (j.error === "plan_required") {
-          title.textContent = "Supporter plan for live";
-          copy.textContent =
-            "Pro is the supporter plan ($29/mo or $249/yr). Live unlocks automatically when charts are mounted on this host.";
-          addBtn("Upgrade to Pro", "btn", () => startCheckout("monthly"));
+        if (j.error === "rate_limited") {
+          title.textContent = "Slow down a little";
+          copy.textContent = j.error_detail || "Too many scans in a short window — try again shortly.";
           addLink("See pricing", "/pricing");
           return;
         }
         title.textContent = "Blocked";
-        copy.textContent = "No tradeable conclusion. Fix data path or try a demo artifact.";
+        copy.textContent = "No tradeable conclusion — the radar stays honest when data is missing. Try another ticker or a demo.";
         addBtn("Try INTC demo", "btn secondary", () => runDemo("INTC"));
         return;
       }
 
       const shareTicker = String(lastTicker || "INTC").toUpperCase();
-      const shareHref = "/r/" + encodeURIComponent(shareTicker);
+      // Frozen demo reads have a static share card (/r/T). Live reads are
+      // re-runnable by anyone for free, so share a live deep-link instead.
+      const shareHref = demo
+        ? "/r/" + encodeURIComponent(shareTicker)
+        : "/?live=" + encodeURIComponent(shareTicker);
 
       if (waitLike) {
         title.textContent = "Next — stay in the loop";
@@ -630,11 +912,11 @@
       }
 
       if (!isPro()) {
-        title.textContent = demo ? "Liked the read?" : "Support the desk";
+        title.textContent = demo ? "Keep your research together" : "Build a daily review routine";
         const freeze = eng.freeze_label || "This was a frozen demo snapshot.";
         copy.textContent = demo
-          ? freeze + " Pro is a supporter plan — higher limits now; live auto-unlocks when charts are mounted ($29/mo · $249/yr ≈ one avoided −8% on a $3k trade)."
-          : "Artifact path is free. Pro is the supporter plan: higher limits now; live when charts are mounted.";
+          ? freeze + " Daily-close scans are free. Pro adds a 10-stock watchlist, saved daily reports and up to 90 sessions of replay."
+          : "Save your research with Pro: a 10-stock watchlist, daily reports and up to 90 sessions of replay.";
         addBtn(authState.authenticated ? "Upgrade to Pro" : "Sign in & upgrade", "btn", () => {
           if (authState.authenticated) startCheckout("monthly");
           else location.href = "/login?next=checkout&interval=monthly";
@@ -644,16 +926,17 @@
         addBtn("Try another demo", "btn secondary", () => runDemo("INTC"));
       } else if (liveReady()) {
         title.textContent = "Pro active";
-        copy.textContent = "Live analyze is available on this host. Switch Mode → live to run.";
-        addBtn("Run live", "btn", () => {
-          document.getElementById("mode").value = "live";
-          runAnalyze();
+        copy.textContent = "Supporter tier active — higher limits on this host. Live is the default mode.";
+        addLink("Share this read", shareHref, "btn secondary");
+        addBtn("Analyze another", "btn secondary", () => {
+          document.getElementById("ticker").focus();
+          focusDesk();
         });
       } else {
         title.textContent = "Pro active — live pending";
         copy.textContent =
           "Supporter benefits on. Live analyze unlocks when /health shows charts mounted — not available on this host yet. Demos stay free.";
-        addLink("Pricing details", "/pricing");
+        addLink("Share this read", shareHref, "btn secondary");
         addBtn("Re-check demo", "btn secondary", () => runDemo(lastTicker || "INTC"));
       }
     }
@@ -691,13 +974,13 @@
         scoreEl.textContent = "withheld";
         setDial(null, 100, true);
       } else if (ps && ps.value != null) {
-        scoreEl.textContent = `${ps.value}/${ps.scale || 100}`;
+        countUpScore(ps.value, ps.scale || 100);
         setDial(ps.value, ps.scale || 100, false);
       } else if (j.score && j.score.withheld) {
         scoreEl.textContent = "withheld";
         setDial(null, 100, true);
       } else if (j.score && j.score.final != null) {
-        scoreEl.textContent = `${j.score.final}/${j.score.scale || 100}`;
+        countUpScore(j.score.final, j.score.scale || 100);
         setDial(j.score.final, j.score.scale || 100, false);
       } else {
         scoreEl.textContent = "—";
@@ -773,10 +1056,12 @@
         ? "options actionable"
         : (dq.options && dq.options.options_simulated) ? "options simulated / n/a"
           : "options n/a";
+      const fetchedAgo = agoLabel((j.meta && j.meta.fetch_time) || null);
+      const asOf = fetchedAgo ? " as of " + fetchedAgo + "." : "";
       const freezeHint = (j.engagement && j.engagement.freeze_label)
         || (demo || mode === "artifact"
           ? `Frozen at ${(j.meta && j.meta.fetch_time) || "sample"} — not a live feed.`
-          : (liveReady() ? "Live path." : "Live locked until charts mount."));
+          : (liveReady() ? "Live path." + asOf : "Live locked until charts mount."));
       if (!j.ok) {
         fresh.className = "freshness bad";
         freshText.textContent = `No conclusion: ${j.error_detail || j.error || "failed"}. Score withheld.`;
@@ -802,6 +1087,8 @@
       });
       setWarns(j.warnings || []);
       renderNext(j, { demo });
+      lastJson = j;
+      renderEngage(j);
       /* D-P0-2: reveal answer in viewport (loading used focusDesk). */
       requestAnimationFrame(() => focusVerdict());
     }
@@ -840,7 +1127,7 @@
         } else {
           planPill.hidden = true;
           upgradeNav.hidden = false;
-          /* keep live selectable so CTA can redirect, but analyze will gate */
+          /* Daily-close scans are free; paid plans add saved research and higher limits. */
         }
       } catch (e) { /* guest */ }
     }
@@ -918,43 +1205,13 @@
       const ticker = document.getElementById("ticker").value.trim();
       const sector = document.getElementById("sector").value.trim();
       const mode = document.getElementById("mode").value;
-      if (mode === "live" && !authState.authenticated) {
-        showFlash("warn", "Live needs sign-in. Redirecting…");
-        setTimeout(() => { location.href = "/login?next=live"; }, 350);
-        return;
-      }
-      if (mode === "live" && !isPro()) {
-        showFlash("warn", "Live analyze requires the Pro supporter plan.");
-        setDeskState("blocked");
-        document.getElementById("nextBlock").hidden = false;
-        document.getElementById("nextTitle").textContent = "Supporter plan for live";
-        document.getElementById("nextCopy").textContent =
-          "You're signed in on Free. Pro is a supporter plan — live auto-unlocks when charts are mounted ($29/mo or $249/yr).";
-        const actions = document.getElementById("nextActions");
-        actions.innerHTML = "";
-        const btn = document.createElement("button");
-        btn.type = "button";
-        btn.className = "btn";
-        btn.textContent = "Upgrade to Pro";
-        btn.onclick = () => startCheckout("monthly");
-        actions.appendChild(btn);
-        const price = document.createElement("a");
-        price.className = "btn secondary";
-        price.href = "/pricing";
-        price.textContent = "See pricing";
-        actions.appendChild(price);
-        const status = document.getElementById("status");
-        status.className = "status warn";
-        status.textContent = "Pro plan required for live";
-        return;
-      }
-      if (mode === "live" && isPro() && !liveReady()) {
+      if (mode === "live" && !liveReady()) {
         showFlash("warn", "Charts engine is not mounted on this host.");
         setDeskState("blocked");
         document.getElementById("nextBlock").hidden = false;
-        document.getElementById("nextTitle").textContent = "Pro active — live pending";
+        document.getElementById("nextTitle").textContent = "Live pending";
         document.getElementById("nextCopy").textContent =
-          "You have Pro. Live analyze unlocks automatically when this host mounts the charts engine. Demo artifacts remain available.";
+          "Live analyze unlocks automatically when this host mounts the charts engine. Demo artifacts remain available.";
         document.getElementById("nextActions").innerHTML = "";
         const status = document.getElementById("status");
         status.className = "status warn";
@@ -964,38 +1221,35 @@
       const btn = document.getElementById("run");
       const status = document.getElementById("status");
       btn.disabled = true;
-      status.className = "status";
-      status.textContent = "Analyzing…";
       setDeskState("loading");
+      startScanTimer();
       try {
         const q = new URLSearchParams({ ticker, mode });
         if (sector) q.set("sector", sector);
         const r = await fetch("/api/analyze?" + q.toString(), { credentials: "same-origin" });
         const j = await r.json();
         renderResult(j, { demo: false });
-        if (r.status === 401 || j.error === "login_required") {
+        const secs = ((Date.now() - scanTimer.t0) / 1000).toFixed(1);
+        if (r.status === 429) {
           status.className = "status warn";
-          status.textContent = "Login required for live mode";
-          setDeskState("blocked");
-        } else if (j.error === "plan_required") {
-          status.className = "status warn";
-          status.textContent = "Pro plan required for live";
+          status.textContent = j.error_detail || "Rate limited — slow down a little.";
           setDeskState("blocked");
         } else if (!j.ok) {
           status.className = "status bad";
-          status.textContent = `Failed (${r.status}): ${j.error || "see body"}`;
+          status.textContent = j.error_detail || `Failed (${r.status}): ${j.error || "see body"}`;
         } else if (j.degraded) {
           status.className = "status warn";
-          status.textContent = "OK (degraded)";
+          status.textContent = "OK (degraded) · " + secs + "s";
         } else {
           status.className = "status ok";
-          status.textContent = "OK — single primary_score";
+          status.textContent = "OK — single primary_score · " + secs + "s";
         }
       } catch (e) {
         status.className = "status bad";
         status.textContent = String(e);
         setDeskState("blocked");
       } finally {
+        stopScanTimer();
         btn.disabled = false;
       }
     }
@@ -1040,14 +1294,17 @@
     });
 
     const params = new URLSearchParams(location.search);
-    if (params.get("checkout") === "success") {
+    const checkoutKind = params.get("checkout");
+    if (checkoutKind === "success") {
       showFlash("ok", "Checkout complete. If webhook is configured, Pro unlocks within seconds — refresh if the pill does not appear.");
+    } else if (checkoutKind === "report_success") {
+      location.href = "/reports";
     } else if (params.get("signed_in") === "1") {
       showFlash(
         "ok",
         params.get("want") === "live"
-          ? "Signed in. Live needs Pro + mounted charts — try a free demo meantime."
-          : "Signed in. Try a demo, or upgrade as a supporter."
+          ? "Signed in — higher limits unlocked. Live scans are free for everyone."
+          : "Signed in. Run a scan or open your saved watchlist."
       );
     }
 
@@ -1083,8 +1340,8 @@
     })();
 
     refreshHealth();
-    refreshAuth().then(() => {
-      if (params.get("checkout") === "success") {
+    refreshAuth().then(async () => {
+      if (checkoutKind === "success" || checkoutKind === "report_success") {
         /* re-poll plan after webhook latency */
         setTimeout(refreshAuth, 1500);
         setTimeout(refreshAuth, 4000);
@@ -1092,8 +1349,16 @@
       if (params.get("want") === "live") {
         document.getElementById("mode").value = "live";
         if (authState.authenticated) runAnalyze();
+      } else if (params.get("want") === "report") {
+        showFlash("ok", "Signed in. Scan a ticker, then use the Deep report button on the result to complete your $9 purchase.");
+        document.getElementById("mode").value = "live";
       } else if (params.get("demo")) {
         runDemo(params.get("demo"));
+      } else if (params.get("live")) {
+        await refreshHealth();
+        document.getElementById("ticker").value = String(params.get("live")).toUpperCase();
+        document.getElementById("mode").value = "live";
+        runAnalyze();
       }
     });
   </script>

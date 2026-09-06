@@ -5,7 +5,7 @@ Independent App Store product — **free download → $9.99 one-time unlock**. N
 - Strategy: [docs/PRODUCT.md](docs/PRODUCT.md)
 - Launch: [docs/APP_STORE_LAUNCH.md](docs/APP_STORE_LAUNCH.md)
 
-Public listing is **1.2.0 / build 6** (free + Unlock). Do not ship the paid-download 1.0 binary as the money version.
+Replacement release is **1.2.0 / build 7** (free + Unlock), with the original Chase Check → radar → private Decision Journal workflow added after Apple's 4.3(a) rejection. Do not resubmit build 6 unchanged.
 
 ```bash
 xcodegen generate

@@ -1,0 +1,38 @@
+[
+  {
+    "file": "ipad/01-plan-home.png",
+    "width": 2048,
+    "height": 2732,
+    "sha256": "a2bd85fd487e4537d1e832048644e9e37066ff8cb4d29a952019328eb6302da7"
+  },
+  {
+    "file": "ipad/02-original-plan.png",
+    "width": 2048,
+    "height": 2732,
+    "sha256": "fe53a0ee5ffdfe77a71e733aad0df04cfef96d74b3836ff5e6729539a65e74bc"
+  },
+  {
+    "file": "ipad/03-process-review.png",
+    "width": 2048,
+    "height": 2732,
+    "sha256": "b35d6766eb77b7317b3f411d83b9a50a0cf0d538c75f5eeb8f618be918b48e92"
+  },
+  {
+    "file": "iphone/01-plan-home.png",
+    "width": 1284,
+    "height": 2778,
+    "sha256": "389bb851ec3a91e34e89a202da3334e5b571c03da73ab9a239dd054b7ffec7f1"
+  },
+  {
+    "file": "iphone/02-original-plan.png",
+    "width": 1284,
+    "height": 2778,
+    "sha256": "9119ff8fbacd2890a3170bbfd98f77c416f75b3037865a21f286799b2ba9ace1"
+  },
+  {
+    "file": "iphone/03-process-review.png",
+    "width": 1284,
+    "height": 2778,
+    "sha256": "52b67b0bfcd43318cad931b47ad31a60cde1f013859966d362c661a7c12870b6"
+  }
+]

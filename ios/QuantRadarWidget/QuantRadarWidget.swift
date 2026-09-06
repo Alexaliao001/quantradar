@@ -20,13 +20,15 @@ struct SPYProvider: TimelineProvider {
     func getTimeline(in context: Context, completion: @escaping (Timeline<SPYEntry>) -> Void) {
         Task {
             let entry: SPYEntry
-            if let bars = try? await FreeMarketDataClient.dailyBars(symbol: "SPY", rangeHintDays: 90) {
+            if let bars = try? await FreeMarketDataClient.dailyBars(symbol: "SPY") {
                 let v = FreeMechanicalScorer.score(
                     symbol: "SPY",
                     company: "SPDR S&P 500",
                     bars: bars.bars,
                     spyBars: bars.bars,
-                    source: bars.source
+                    source: bars.source,
+                    fetchedAt: bars.fetchedAt,
+                    fromCache: bars.fromCache
                 )
                 entry = SPYEntry(
                     date: Date(),

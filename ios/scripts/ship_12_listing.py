@@ -21,22 +21,32 @@ UNLOCK_ID = "one.quantradar.app.unlock"
 VERSION = "1.2"
 SCREEN = ROOT / "docs" / "asc_screens" / "screen_1_1284x2778.png"
 
-DESC = """QuantRadar is an educational radar for US tickers. Free to install: see today’s SPY posture and scan one ticker of yours. Unlock once ($9.99) for every ticker, a watchlist, and a 90-day posture history.
+DESC = """QuantRadar is a pre-trade discipline tool for US-stock swing traders.
 
-One mechanical posture score and a clear action — setup zone, wait, or avoid. Earnings windows stay on wait. This is not a broker, not investment advice, and not a tipster feed. Most days the honest answer is don’t trade.
+Start with Chase Check: confirm that your entry existed before the move, define what invalidates the setup, and separate your decision from social hype. Then read one mechanical posture score through market, sector, and stock gates.
+
+Save the decision before you know the outcome. The private on-device journal records whether you chose to pause, wait, pass, or review — so discipline becomes a process, not a victory-lap screenshot.
+
+Free to install: see today’s SPY posture and scan one ticker of yours. Unlock once ($9.99) for every supported ticker, Watch, and 90-day posture history.
+
+This is not a broker, does not place trades, and is not investment advice or a tipster feed. Most days the honest answer is wait.
 
 Independent App Store product. Website subscriptions do not unlock this app."""
 
-KEYWORDS = "stock scanner,stock tracker,watchlist,swing trade,stock analysis,market,ticker,stocks,trading,setup"
-SUBTITLE = "Stock scanner: wait or act"
-PROMO = "One score for a US ticker. Most days the honest answer is wait — not a tipster feed."
+KEYWORDS = "trading journal,fomo,swing trade,stock analysis,watchlist,market,ticker,discipline,setup"
+SUBTITLE = "Stop chasing stock setups"
+PROMO = "Before you chase, check your process. Three questions, one mechanical posture, and a private decision journal."
 REVIEW_NOTES = (
-    "Free download. Today shows live SPY. User may scan one personal ticker for life. "
-    "A second ticker is scored on-device but the card stays locked until the $9.99 non-consumable Unlock "
+    "This build addresses the prior 4.3(a) concern with distinct, original functionality: Chase Check is a "
+    "three-part pre-trade process audit (planned entry, invalidation, independence from social hype), followed "
+    "by one mechanical market/sector/stock posture. Users save a PAUSE/WAIT/PASS/REVIEW decision in a private "
+    "on-device journal before knowing the outcome. This is not a repackaged signal template. "
+    "Free download. Today shows SPY. User may scan one personal ticker for life. "
+    "A second ticker is scored on-device but stays locked until the $9.99 non-consumable Unlock "
     "(one.quantradar.app.unlock). No account. No broker. Action label is SETUP, not BUY. "
     "Weekday 09:25 ET briefing is a local reminder with static copy, not a trade signal. "
     "Educational only. ITSAppUsesNonExemptEncryption=false. "
-    "Privacy: https://quantradar.one/privacy  Terms: https://quantradar.one/terms"
+    "Privacy: https://quantradar.one/privacy-ios  Terms: https://quantradar.one/terms-ios"
 )
 
 
@@ -126,7 +136,7 @@ def upsert_listing(token: str, version_id: str) -> None:
         "marketingUrl": "https://quantradar.one",
         "supportUrl": "https://quantradar.one",
         "promotionalText": PROMO,
-        "whatsNew": "Free download. Live SPY plus one personal ticker. Unlock once for full radar, 90-day posture history, and watchlist. Educational only.",
+        "whatsNew": "New Chase Check and private Decision Journal turn the radar into a pre-trade discipline workflow. Free SPY plus one personal ticker; unlock once for the full radar.",
     }
     if loc_id:
         s, b = api(
@@ -172,7 +182,7 @@ def upsert_listing(token: str, version_id: str) -> None:
                             "id": loc["id"],
                             "attributes": {
                                 "subtitle": SUBTITLE,
-                                "privacyPolicyUrl": "https://quantradar.one/privacy",
+                                "privacyPolicyUrl": "https://quantradar.one/privacy-ios",
                                 "privacyChoicesUrl": None,
                             },
                         }
@@ -233,7 +243,7 @@ def ensure_unlock_iap(token: str) -> None:
                 "name": "QuantRadar Unlock",
                 "productId": UNLOCK_ID,
                 "inAppPurchaseType": "NON_CONSUMABLE",
-                "reviewNote": "One-time unlock for any US ticker scan and watchlist. Founder price $9.99. Not a subscription. Educational radar only.",
+                "reviewNote": "One-time unlock for all supported ticker scans, Watch, and 90-day posture history. Chase Check and the private Decision Journal remain visible for review. Not a subscription; educational only.",
             },
             "relationships": {"app": {"data": {"type": "apps", "id": APP_ID}}},
         }

@@ -136,7 +136,7 @@ final class PurchaseStore: ObservableObject {
         do {
             try await AppStore.sync()
             await refreshEntitlements()
-            lastError = nil
+            lastError = effectiveUnlocked ? nil : "No previous Unlock purchase was found."
         } catch {
             lastError = error.localizedDescription
         }

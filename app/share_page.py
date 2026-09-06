@@ -39,8 +39,9 @@ def render_share_html(ticker: str, result: dict[str, Any]) -> bytes:
         avoided = str(eng.get("avoided_line") or "")
     else:
         primary = "UNAVAILABLE"
-        label = "No demo artifact for this ticker"
+        label = "No frozen demo for this ticker — live scans are free"
         why = str(result.get("error_detail") or result.get("error") or "Artifact not found.")
+        freeze = "Live multi-source scans are free for everyone"
 
     title = f"{t} · {primary} · score {score_txt} — QuantRadar"
     desc = (
@@ -48,7 +49,10 @@ def render_share_html(ticker: str, result: dict[str, Any]) -> bytes:
         + (f" ({label})" if label else "")
         + f". Score {score_txt}/100. Educational demo — not investment advice."
     )
-    desk_href = f"/?demo={_esc(t)}"
+    desk_href = f"/?demo={_esc(t)}" if ok else f"/?live={_esc(t)}"
+    desk_label = "Open full desk" if ok else f"Run free live scan of {_esc(t)}"
+    secondary_href = "/pricing" if ok else "/methodology"
+    secondary_label = "Pricing" if ok else "How the score works"
     put_note = ""
     if primary.startswith("PUT"):
         put_note = "<p class=\"muted\">PUT is hedge bias — not a sell order.</p>"
@@ -59,6 +63,7 @@ def render_share_html(ticker: str, result: dict[str, Any]) -> bytes:
 <html lang="en">
 <head>
   <meta charset="utf-8" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>{_esc(title)}</title>
   <meta name="description" content="{_esc(desc)}" />
@@ -67,6 +72,7 @@ def render_share_html(ticker: str, result: dict[str, Any]) -> bytes:
   <meta property="og:image" content="/static/og-default.svg" />
   <meta property="og:type" content="website" />
   <link rel="canonical" href="/r/{_esc(t)}" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Syne:wght@600;700;800&display=swap" />
   <link rel="stylesheet" href="/static/site.css" />
 </head>
 <body>
@@ -93,8 +99,8 @@ def render_share_html(ticker: str, result: dict[str, Any]) -> bytes:
     <p class="freeze-pill" style="display:inline-block">{_esc(freeze)}</p>
     <p class="muted" style="margin-top:1rem">{_esc(posture)}</p>
     <div class="hero-cta" style="margin-top:1.5rem">
-      <a class="btn" href="{desk_href}">Open full desk</a>
-      <a class="btn secondary" href="/pricing">Pricing</a>
+      <a class="btn" href="{desk_href}">{desk_label}</a>
+      <a class="btn secondary" href="{secondary_href}">{secondary_label}</a>
     </div>
     <p class="muted" style="margin-top:1.25rem">Educational only — not investment advice. Fortune Insight, LLC.</p>
   </main>

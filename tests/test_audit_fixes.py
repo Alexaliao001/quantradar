@@ -299,13 +299,17 @@ class StripeCustomerLookup(unittest.TestCase):
         self._td.cleanup()
 
     def test_downgrade_via_customer_id(self) -> None:
+        from stripe_fixtures import mock_subscription
+        sub = mock_subscription(self, "", status="canceled", customer="cus_abc")
+        sub["metadata"].pop("email")
         from app import stripe_billing
 
         self.users.set_plan("cust@test.local", "pro", stripe_customer_id="cus_abc")
         out = stripe_billing.apply_webhook_event(
             {
+                "id": "evt_customer_downgrade",
                 "type": "customer.subscription.deleted",
-                "data": {"object": {"customer": "cus_abc", "metadata": {}}},
+                "data": {"object": {"id": "sub_test"}},
             }
         )
         self.assertTrue(out.get("ok"), out)

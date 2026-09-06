@@ -1,57 +1,25 @@
-# Pro value adjudication (QD1-0)
+# 付费价值与验收边界
 
-> **Verdict: B — supporter price until charts are mounted.**  
-> Date: 2026-07-16 · Host: `quantradar.one` (Render Free `quantradar-shell`)
+2026-09-06：以下是已实现、待发布的产品定义。生产仍为先前版本，发布状态见 `CORRECT_OPS.md`。
 
-## Decision
+| 权益 | Free | Pro | Portfolio Pro |
+|---|---|---|---|
+| 完成交易日扫描 | 有，来宾较严限流 | 有，较高限额 | 有，较高限额 |
+| 保存股票 | 1 | 10 | 50 |
+| 历史机械重建 | 5 个交易日 | 至多 90 个 | 至多 90 个 |
+| 每日观察列表快照 | 无 | 站内 JSON | 站内 JSON + CSV |
+| 订阅标价 | 免费 | $29/月或 $249/年 | $99/月 |
 
-| Question | Answer |
-|----------|--------|
-| Can this production host mount `~/charts` and run `mode=live` today? | **No** |
-| May we sell Pro as “live desk available now”? | **No** |
-| What is Pro today? | **Supporter plan**: session + higher limits + **automatic live unlock** when `/health.charts_status == "mounted"` |
-| When does verdict flip to A? | Paid/always-on host with real `CHARTS_DIR` + `fetch_all.py` + Massive/Polygon key (never in git) + smoke Pro live without artifact fallback |
+单股报告 $9 一次性付款，绑定股票、日期、不可变输入。付款后生成 JSON、4 张图和 90 个交易日机械重建；可选 $5 CSV/队列优先，加购默认不勾选。覆盖不足时先拒绝结账。实际付款后 7 天内可用一次 $9 Pro 抵扣；退款、过期、已用券不应重新发放。
 
-## Production evidence (2026-07-16)
+每日快照需订阅有效且主动启用。中断后继续处理，最多三次取数；缺失明确标记。恢复历史日期时不拿今天的行业/财报条件冒充历史条件。已保存的已购内容在降级后保留，账号间不能访问。
 
-`GET https://quantradar.one/health`:
+这些价值是研究整理和复盘，不能当作盈利、已发信号回测、仓位建议或实时行情。JSON/CSV 再分发和商业展示须取得明确数据权限，见 `DATA_LICENSING.md`。Email 尚未配置，不销售自动邮件交付。
 
-| Field | Value |
-|-------|-------|
-| `charts_status` | `artifact_only` |
-| `charts_reachable` | `false` |
-| `fetch_all_present` | `false` |
-| `data_path` | `artifact_fixtures` |
-| `mode_default` | `artifact` |
+## 商业验收
 
-Matches `docs/SITES_LIVE.md` / `render.yaml` (`plan: free`, `QUANTRADAR_MODE=artifact`, no charts tree in Dockerfile).
+目前无证据证明订阅能持续盈利。Stripe 历史域名关联核查有一笔 $0.99 已付 Checkout，对应订阅已取消；当前产品标记范围未发现活跃订阅或已付 Checkout。此结果不是整个 Stripe 账户的收入报表。
 
-## Why Free cannot run live (honest constraints)
+先确认数据许可和完整支付交付，再用真实客户验证：首批 10 位付费用户，逐个记录购买来源、首次成功报告、7/28 日回访、续订与退款原因。此人数是实验目标，不是现有用户或统计保证。
 
-1. **No charts tree** on the shell image — only `fixtures/charts_sample`.
-2. **Charts deps** (pandas/matplotlib/requests) are outside the stdlib-only shell design.
-3. **Cold start + 10–20s fetch** is a bad fit for Render Free sleep.
-4. **Massive/Polygon personal keys** must not power a public raw-feed product (conclusions-only policy).
-
-## Path to verdict A (later ops)
-
-Document only — not implemented on Free:
-
-1. Separate always-on host (or paid plan) with disk + charts checkout.
-2. Set `CHARTS_DIR` to a directory containing `fetch_all.py`.
-3. Inject `POLYGON_API_KEY` on that host only (never commit).
-4. Keep default `QUANTRADAR_MODE=artifact`; allow Pro `mode=live`.
-5. Accept only when `/health` shows `charts_status=mounted` **and** a Pro session live run returns non-artifact data without silent fake scores.
-
-Until then, UI + `/health.pro_value` stay on **`supporter_until_mount`**.
-
-## Product copy (locked by this verdict)
-
-- Free = frozen demo artifacts. Not a live market feed.
-- Pro = supporter price ($29/mo · $249/yr). Live **auto-unlocks** when engine is mounted — not sold as available on this host today.
-- Server gates (login + `plan=pro` for live) remain so A can turn on without a billing rewrite.
-
-## Related backlog
-
-- QD5-0 / QR2-1 — free OHLCV refresh path (Yahoo) so Pro has tangible refresh value without Massive.
-- QD1-1 — Stripe production prices/webhook (money path; value stance is this doc).
+不靠回测收益、避免亏损金额、虚假人数或人工倒计时催单。获客文案围绕“每天查看持有关注股票的变化”；外部发送仍需明确授权。停止增加功能，直到观察到首批真实使用与流失原因。

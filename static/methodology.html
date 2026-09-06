@@ -2,6 +2,10 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Syne:wght@600;700;800&display=swap" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Methodology — QuantRadar</title>
   <meta name="description" content="How QuantRadar scores work: single mechanical posture score, gates, data quality. Educational only." />
@@ -64,11 +68,18 @@
       Unknown tickers fail closed — no fabricated buy score.
     </p>
 
-    <h2>Demo vs Pro (supporter until mount)</h2>
+    <h2>Daily-close scans and paid research</h2>
     <p>
-      Demo chips (e.g. INTC) load <strong>frozen artifacts</strong> — zero credits, no live market API.
-      On today’s production host, Pro is a <strong>supporter plan</strong> ($29/mo · $249/yr): higher limits now;
-      live analyze auto-unlocks when <code>/health.charts_status == mounted</code> — not sold as available before that.
+      Demo chips load frozen, labeled artifacts. Daily-close scans use completed US trading sessions;
+      unfinished, stale or insufficient data cannot produce a passing setup. Yahoo's two hosts count
+      as one provider, and market checks use the same completed date as the stock.
+    </p>
+    <p>
+      Free accounts save one ticker. Pro saves ten and adds daily watchlist reports, JSON downloads
+      and up to 90 sessions of mechanical replay. Portfolio Pro saves fifty and adds watchlist CSV export.
+      Replay is reconstructed from dated prices; historical earnings and sector gates are unknown.
+      It is not a record of past issued signals or executable trading returns.
+      See <a href="/pricing">pricing</a> for the current purchase terms.
     </p>
 
     <h2>Pattern “success rates”</h2>

@@ -10,11 +10,17 @@ enum ReviewPrompt {
     static var storage: UserDefaults = .standard
 
     static func recordLaunch() {
+        #if DEBUG
+        if ScreenshotLaunch.isEnabled { return }
+        #endif
         let n = storage.integer(forKey: launchKey) + 1
         storage.set(n, forKey: launchKey)
     }
 
     static func recordVerdict(_ verdict: RadarVerdict) {
+        #if DEBUG
+        if ScreenshotLaunch.isEnabled { return }
+        #endif
         switch verdict.actionCode {
         case "WAIT", "NO", "AVOID":
             storage.set(true, forKey: waitKey)

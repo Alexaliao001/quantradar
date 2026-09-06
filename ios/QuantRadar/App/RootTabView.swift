@@ -12,21 +12,30 @@ enum QRTheme {
 }
 
 struct RootTabView: View {
-    @EnvironmentObject private var purchases: PurchaseStore
+    @State private var selection = 2
 
     var body: some View {
-        TabView {
+        TabView(selection: $selection) {
+            WatchlistView()
+                .tabItem { Label("Plan", systemImage: "checklist") }
+                .tag(2)
             TodayView()
                 .tabItem { Label("Today", systemImage: "dot.radiowaves.left.and.right") }
+                .tag(0)
             SearchView()
                 .tabItem { Label("Scan", systemImage: "magnifyingglass") }
-            if purchases.effectiveUnlocked {
-                WatchlistView()
-                    .tabItem { Label("Watch", systemImage: "eye") }
-            }
+                .tag(1)
             SettingsView()
                 .tabItem { Label("Settings", systemImage: "gearshape") }
+                .tag(3)
         }
         .tint(QRTheme.radar)
+        .onAppear {
+            #if DEBUG
+            if let tab = ScreenshotLaunch.tabIndex {
+                selection = tab
+            }
+            #endif
+        }
     }
 }

@@ -16,6 +16,7 @@ struct FreeBarsResult: Sendable {
     let bars: [FreeBar]
     let source: FreeDataSourceID
     var fromCache: Bool = false
+    var fetchedAt: Date = Date()
 }
 
 enum FreeMarketDataError: LocalizedError {
@@ -50,25 +51,29 @@ enum FreeMarketDataClient {
 
     static func dailyBars(
         symbol: String,
-        rangeHintDays: Int = 180,
+        rangeHintDays: Int = 365,
         bypassCache: Bool = false
     ) async throws -> FreeBarsResult {
         let sym = normalize(symbol)
         guard !sym.isEmpty else { throw FreeMarketDataError.badSymbol }
 
         if !bypassCache, let cached = await BarsCache.shared.get(sym) {
-            return FreeBarsResult(bars: cached.bars, source: cached.source, fromCache: true)
+            if cached.bars.count >= min(139, rangeHintDays / 2),
+               let completed = MarketCalendar.completedBars(cached.bars, fetchedAt: cached.fetchedAt) {
+                return FreeBarsResult(bars: completed, source: cached.source, fromCache: true, fetchedAt: cached.fetchedAt)
+            }
         }
 
         var errors: [String] = []
         for source in sourceOrder {
             do {
+                let requestedAt = Date()
                 let bars = try await fetch(source: source, symbol: sym, rangeHintDays: rangeHintDays)
-                guard bars.count >= 30 else {
-                    errors.append("\(source.rawValue): too few bars (\(bars.count))")
+                guard let completed = MarketCalendar.completedBars(bars, fetchedAt: requestedAt) else {
+                    errors.append("\(source.rawValue): stale or insufficient completed daily bars")
                     continue
                 }
-                let result = FreeBarsResult(bars: bars, source: source, fromCache: false)
+                let result = FreeBarsResult(bars: completed, source: source, fromCache: false, fetchedAt: requestedAt)
                 await BarsCache.shared.set(sym, result: result)
                 return result
             } catch {
@@ -149,7 +154,7 @@ enum FreeMarketDataClient {
 
     private static func nasdaq(symbol: String, rangeHintDays: Int) async throws -> [FreeBar] {
         // Nasdaq API uses BRK.B style; reject obvious non-equities early.
-        if symbol.contains("-") || symbol.contains("=") {
+        if symbol.contains("=") || (symbol.contains("-") && !["BRK-B", "BF-B"].contains(symbol)) {
             throw URLError(.unsupportedURL)
         }
         let nasdaqSymbol = symbol.replacingOccurrences(of: "-", with: ".")
@@ -246,41 +251,84 @@ enum FreeMarketDataClient {
 
 enum QuoteFundamentals: Sendable {
     case missing
-    case loaded(sector: String?, earningsDate: Date?)
+    case loaded(sector: String?, earningsDate: Date?, company: String?)
 
     var sector: String? {
-        if case .loaded(let s, _) = self { return s }
+        if case .loaded(let s, _, _) = self { return s }
         return nil
     }
 
     var earningsDate: Date? {
-        if case .loaded(_, let d) = self { return d }
+        if case .loaded(_, let d, _) = self { return d }
         return nil
+    }
+
+    var company: String? {
+        if case .loaded(_, _, let c) = self { return c }
+        return nil
+    }
+
+    var isUseful: Bool {
+        sector != nil || earningsDate != nil || company != nil
     }
 }
 
 extension FreeMarketDataClient {
-    /// Yahoo quoteSummary — fail-open. Never blocks a scan.
+    /// Sector / earnings / name. Yahoo first, Nasdaq summary fallback. Fail-open.
     static func fundamentals(symbol: String) async -> QuoteFundamentals {
         let sym = normalize(symbol)
         guard !sym.isEmpty else { return .missing }
-        let encoded = sym.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? sym
+        if let yahoo = await yahooFundamentals(symbol: sym), yahoo.isUseful {
+            return yahoo
+        }
+        if let nasdaq = await nasdaqSummary(symbol: sym), nasdaq.isUseful {
+            return nasdaq
+        }
+        return .missing
+    }
+
+    private static func yahooFundamentals(symbol: String) async -> QuoteFundamentals? {
+        let encoded = symbol.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? symbol
         guard var components = URLComponents(string: "https://query1.finance.yahoo.com/v10/finance/quoteSummary/\(encoded)") else {
-            return .missing
+            return nil
         }
         components.queryItems = [
             URLQueryItem(name: "modules", value: "assetProfile,calendarEvents"),
         ]
-        guard let url = components.url else { return .missing }
+        guard let url = components.url else { return nil }
         do {
             let data = try await get(url, headers: [
                 "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) QuantRadar/1.2",
                 "Accept": "application/json",
             ])
-            return parseFundamentals(data)
+            let parsed = parseFundamentals(data)
+            return parsed.isUseful ? parsed : nil
         } catch {
-            return .missing
+            return nil
         }
+    }
+
+    private static func nasdaqSummary(symbol: String) async -> QuoteFundamentals? {
+        let encoded = symbol.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? symbol
+        let classes = ["stocks", "etf"]
+        for asset in classes {
+            guard let url = URL(string: "https://api.nasdaq.com/api/quote/\(encoded)/summary?assetclass=\(asset)") else {
+                continue
+            }
+            do {
+                let data = try await get(url, headers: [
+                    "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15",
+                    "Accept": "application/json, text/plain, */*",
+                    "Origin": "https://www.nasdaq.com",
+                    "Referer": "https://www.nasdaq.com/",
+                ])
+                let parsed = parseNasdaqSummary(data)
+                if parsed.isUseful { return parsed }
+            } catch {
+                continue
+            }
+        }
+        return nil
     }
 
     static func parseFundamentals(_ data: Data) -> QuoteFundamentals {
@@ -309,7 +357,19 @@ extension FreeMarketDataClient {
             }
         }
         if sector == nil && earnings == nil { return .missing }
-        return .loaded(sector: sector, earningsDate: earnings)
+        return .loaded(sector: sector, earningsDate: earnings, company: nil)
+    }
+
+    static func parseNasdaqSummary(_ data: Data) -> QuoteFundamentals {
+        guard
+            let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+            let dataObj = root["data"] as? [String: Any],
+            let summary = dataObj["summaryData"] as? [String: Any]
+        else { return .missing }
+        let sector = ((summary["Sector"] as? [String: Any])?["value"] as? String)
+            .flatMap { $0.isEmpty ? nil : $0 }
+        if sector == nil { return .missing }
+        return .loaded(sector: sector, earningsDate: nil, company: nil)
     }
 }
 
@@ -355,9 +415,11 @@ enum FreeMechanicalScorer {
         if volRatio >= 1.2 { score += 8 }
         else if volRatio < 0.7 { score -= 4 }
 
-        var marketGate = "PASS"
+        var marketGate = "UNKNOWN"
         var spyPct: Double?
-        if let spy = spyBars, spy.count >= 5 {
+        if let spy = spyBars, spy.count >= 5,
+           spy.suffix(5).allSatisfy({ $0.close.isFinite && $0.close > 0 }) {
+            marketGate = "PASS"
             let a = spy[spy.count - 5].close
             let b = spy.last!.close
             spyPct = (b - a) / a * 100
@@ -374,6 +436,10 @@ enum FreeMechanicalScorer {
             action = "NO"
             label = "Avoid"
             reason = "Posture is weak or the market gate is blocked — do not force a trade."
+        } else if marketGate == "UNKNOWN" {
+            action = "WAIT"
+            label = "Wait & Watch"
+            reason = "SPY market data is unavailable — wait until the market gate can be checked."
         } else if score >= 68 && pullback >= -2 && pullback <= 8 && (rsi ?? 50) < 68 {
             action = "SETUP"
             label = "Setup zone"
@@ -417,9 +483,22 @@ enum FreeMechanicalScorer {
         earningsDate: Date? = nil,
         sectorName: String? = nil,
         sectorAction: String? = nil,
+        fetchedAt: Date? = nil,
+        fromCache: Bool = false,
         now: Date = Date()
     ) -> RadarVerdict {
-        var c = core(bars: bars, spyBars: spyBars)
+        let completeBars = MarketCalendar.completedBars(bars, now: now, fetchedAt: fetchedAt)
+        let completeSPY = spyBars.flatMap { MarketCalendar.completedBars($0, now: now, minimum: 5) }
+        let usable = completeBars != nil
+        let currentBars = completeBars ?? []
+        var c = core(bars: currentBars, spyBars: completeSPY)
+        if !usable {
+            c.action = "WAIT"
+            c.label = "Data unavailable"
+            c.reason = "Daily data is stale or incomplete. Wait for the latest completed market session."
+            c.summary = c.reason
+            c.stockGate = "UNKNOWN"
+        }
         var earningsForced = false
         if let earningsDate, PostureDepth.isNearEarnings(earningsDate, now: now), c.action == "SETUP" {
             c.action = "WAIT"
@@ -442,8 +521,8 @@ enum FreeMechanicalScorer {
         }
         let etf = PostureDepth.etf(forSector: sectorName)
         let depth = PostureDepth.build(
-            bars: bars,
-            spyBars: spyBars,
+            bars: currentBars,
+            spyBars: completeSPY,
             earningsDate: earningsDate,
             now: now,
             earningsForcedWait: earningsForced,
@@ -455,11 +534,11 @@ enum FreeMechanicalScorer {
             companyName: company ?? symbol,
             sector: sectorName ?? etf,
             primaryScore: .init(
-                value: c.score,
+                value: usable ? c.score : nil,
                 scale: 100,
                 label: "Mechanical posture score",
-                withheld: false,
-                note: nil
+                withheld: !usable,
+                note: usable ? nil : c.reason
             ),
             primary: .init(action: c.action, label: c.label, reason: c.reason),
             summary: c.summary,
@@ -468,9 +547,9 @@ enum FreeMechanicalScorer {
                 freezeLabel: "on-device",
                 postureNote: "Mechanical posture ≠ trade direction."
             ),
-            dataQuality: .init(usable: true, reliability: "medium", optionsActionable: false),
+            dataQuality: .init(usable: usable, reliability: usable ? "medium" : "low", optionsActionable: false),
             market: .init(
-                marketState: c.marketGate == "PASS" ? "risk_on_cautious" : "risk_off",
+                marketState: c.marketGate == "UNKNOWN" ? "unknown" : (c.marketGate == "PASS" ? "risk_on_cautious" : "risk_off"),
                 spyChangePct: c.spyPct,
                 sectorEtf: etf,
                 sectorChangePct: nil,
@@ -479,13 +558,16 @@ enum FreeMechanicalScorer {
             ),
             meta: .init(
                 mode: "free_multi_source",
-                fetchTime: ISO8601DateFormatter().string(from: Date()),
+                fetchTime: fetchedAt.map { ISO8601DateFormatter().string(from: $0) },
                 disclaimer: "Educational radar only — not investment advice.",
-                dataPath: source.rawValue
+                dataPath: source.rawValue,
+                marketAsOf: currentBars.last.map { MarketCalendar.barDay($0.date) },
+                computedAt: ISO8601DateFormatter().string(from: now),
+                fromCache: fromCache
             ),
             gate: .init(market: c.marketGate, sector: sectorGate, stock: c.stockGate),
-            warnings: ["Options data is not part of this radar."],
-            depth: depth
+            warnings: ["Options data is not part of this radar."] + (completeSPY == nil ? ["SPY gate is unknown."] : []) + (usable ? [] : [c.reason]),
+            depth: usable ? depth : nil
         )
     }
 

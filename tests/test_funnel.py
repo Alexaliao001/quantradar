@@ -157,7 +157,8 @@ class FunnelHttpTests(unittest.TestCase):
         except urllib.error.HTTPError as e:
             self.assertEqual(e.code, 404)
             body = e.read().decode("utf-8")
-            self.assertIn("not a published demo", body)
+            self.assertIn("no frozen demo", body)
+            self.assertIn("/?live=NOTADEMO", body)
 
 
 if __name__ == "__main__":

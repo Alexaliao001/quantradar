@@ -6,10 +6,15 @@ Never re-implements generate_charts / mechanical scoring.
 from __future__ import annotations
 
 import json
+import copy
 import os
 import re
 import subprocess
 import sys
+import threading
+import time
+from concurrent.futures import Future
+from collections import OrderedDict
 from pathlib import Path
 from typing import Any
 
@@ -22,20 +27,24 @@ _CHART_NAME_RE = re.compile(
     r"^[A-Za-z0-9][A-Za-z0-9._-]{0,180}\.(png|jpg|jpeg|webp|svg)$",
     re.I,
 )
+_SCAN_LOCK = threading.Lock()
+_SCAN_SLOTS = threading.BoundedSemaphore(2)
+_SCAN_FLIGHTS: dict[tuple, Future] = {}
+_SCAN_CACHE: OrderedDict = OrderedDict()
 
 
 def charts_dir() -> Path:
     env = os.environ.get("CHARTS_DIR", "").strip()
     if env:
         return Path(env).expanduser().resolve()
-    return (Path.home() / "charts").resolve()
+    return (REPO_ROOT / "free_engine").resolve()
 
 
 def resolve_mode(explicit: str | None = None) -> str:
     if explicit in {"live", "artifact"}:
         return explicit
-    env = os.environ.get("QUANTRADAR_MODE", "artifact").strip().lower()
-    return env if env in {"live", "artifact"} else "artifact"
+    env = os.environ.get("QUANTRADAR_MODE", "live").strip().lower()
+    return env if env in {"live", "artifact"} else "live"
 
 
 def resolve_chart_asset(basename: str) -> Path | None:
@@ -101,7 +110,42 @@ def load_charts_json(path: Path) -> dict[str, Any]:
     return data
 
 
-def run_fetch_all(ticker: str, sector: str | None = None, timeout: int = 300) -> dict[str, Any]:
+def run_fetch_all(ticker: str, sector: str | None = None, timeout: int = 75) -> dict[str, Any]:
+    """Share identical scans, bound engine processes, and cache one completed-session result."""
+    from free_engine.market_calendar import completed_session
+    key = (str(charts_dir()), ticker, sector, completed_session())
+    with _SCAN_LOCK:
+        cached = _SCAN_CACHE.get(key)
+        if cached and time.monotonic() - cached[0] < 60:
+            return copy.deepcopy(cached[1])
+        flight = _SCAN_FLIGHTS.get(key)
+        owner = flight is None
+        if owner:
+            if not _SCAN_SLOTS.acquire(blocking=False):
+                raise RuntimeError("Scan capacity is busy. Please retry shortly.")
+            flight = Future()
+            _SCAN_FLIGHTS[key] = flight
+    if not owner:
+        return copy.deepcopy(flight.result(timeout=timeout + 5))
+    try:
+        payload = _run_fetch_all(ticker, sector, timeout)
+        with _SCAN_LOCK:
+            _SCAN_CACHE[key] = (time.monotonic(), payload)
+            _SCAN_CACHE.move_to_end(key)
+            while len(_SCAN_CACHE) > 64:
+                _SCAN_CACHE.popitem(last=False)
+        flight.set_result(payload)
+        return copy.deepcopy(payload)
+    except Exception as exc:
+        flight.set_exception(exc)
+        raise
+    finally:
+        with _SCAN_LOCK:
+            _SCAN_FLIGHTS.pop(key, None)
+        _SCAN_SLOTS.release()
+
+
+def _run_fetch_all(ticker: str, sector: str | None = None, timeout: int = 75) -> dict[str, Any]:
     """Subprocess charts fetch_all.py; parse stdout JSON."""
     cdir = charts_dir()
     script = cdir / "fetch_all.py"
@@ -160,6 +204,12 @@ def _map_or_fail(
         sources=sources,
         quality=quality,
     )
+    if mode == "live" and payload.get("daily_bars"):
+        from free_engine.replay import build_replay
+        try:
+            mapped["_replay"] = build_replay(payload)
+        except ValueError:
+            mapped["warnings"].append("Historical replay is unavailable for this coverage window.")
     return mapped
 
 
@@ -235,11 +285,11 @@ def analyze(
         return fail_response(
             ticker=t,
             contract_version=req["contract_version"],
-            error="artifact_not_found",
-            error_detail=(
-                f"no charts artifact for {t}; place fixtures/charts_sample/{t}_analysis.json "
-                "or set CHARTS_DIR with reports/**/assets"
-            ),
+                error="artifact_not_found",
+                error_detail=(
+                    f"No frozen sample for {t} — frozen demos cover INTC and AAPL only. "
+                    "Switch Mode → live for a free multi-source scan of any ticker."
+                ),
             mode="artifact",
             sources=[{"name": "charts.artifact", "role": "engine", "status": "missing"}],
             warnings=[f"no charts artifact for {t}"],

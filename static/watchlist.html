@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex"><title>Your watchlist · QuantRadar</title>
+  <link rel="stylesheet" href="/static/site.css?v=4b5323a613"><link rel="icon" href="/favicon.svg">
+</head>
+<body>
+  <header class="top"><a class="brand" href="/">Quant<span>Radar</span></a><nav aria-label="Main navigation"><a href="/">Scan</a><a href="/reports">Reports</a><a href="/pricing">Pricing</a></nav></header>
+  <main class="prose report-page">
+    <h1>Your watchlist</h1>
+    <p>Review your stocks together after each completed trading session. Saved snapshots show which postures changed and which stocks need better data.</p>
+    <div id="message" class="banner" role="status" aria-live="polite" hidden></div>
+    <section class="card">
+      <h2>Stocks you follow</h2>
+      <p id="limit" class="muted"></p>
+      <form id="addForm"><label for="ticker">Add a US stock or ETF</label><input id="ticker" required maxlength="12" pattern="[A-Za-z0-9.\-]+" placeholder="AAPL" autocomplete="off"><button type="submit" class="btn" id="add">Add to watchlist</button></form>
+      <div id="tickers" class="watch-tickers"></div>
+      <p><label><input type="checkbox" id="automatic"> Create daily reports automatically</label></p>
+      <button type="button" class="btn" id="create">Create latest daily report</button>
+      <p class="muted">Pro: up to 10 stocks. Portfolio Pro: up to 50 stocks plus CSV export. One saved report per completed session. Changes to your watchlist apply to the next report. Reports appear here; email delivery is not included.</p>
+    </section>
+    <h2>Daily reports</h2>
+    <div id="reports" aria-live="polite"><p>Loading…</p></div>
+    <p class="muted">These are watchlist snapshots, not portfolio returns, buy recommendations or a record of trading performance.</p>
+  </main>
+  <script>
+    const message = document.getElementById("message");
+    let signedIn = false;
+    let timer;
+    function say(text) { message.textContent = text; message.hidden = false; }
+    function node(parent, tag, text) { const item = document.createElement(tag); item.textContent = text; parent.appendChild(item); return item; }
+    async function post(path, body) {
+      const response = await fetch(path, {method:"POST", credentials:"same-origin", headers:{"Content-Type":"application/json"}, body:JSON.stringify(body || {})});
+      const data = await response.json();
+      if (!response.ok || !data.ok) throw new Error(data.error_detail || data.error || "Please retry.");
+      return data;
+    }
+    async function refresh() {
+      clearTimeout(timer);
+      try {
+        const response = await fetch("/api/watch-reports", {credentials:"same-origin"});
+        const target = document.getElementById("reports");
+        if (response.status === 401) {
+          target.replaceChildren();
+          node(target,"a","Sign in to save your watchlist").href = "/login?next=watchlist";
+          document.getElementById("automatic").disabled = true;
+          return;
+        }
+        if (!response.ok) throw new Error("Could not load your watchlist. Please refresh.");
+        const data = await response.json(); signedIn = true;
+        document.getElementById("limit").textContent = data.watchlist.length + " / " + data.watchlist_limit + " stocks";
+        const tickers = document.getElementById("tickers"); tickers.replaceChildren();
+        for (const ticker of data.watchlist) {
+          const button = node(tickers,"button",ticker + " ×"); button.type="button"; button.className="btn secondary";
+          button.setAttribute("aria-label","Remove " + ticker);
+          button.onclick = async () => { button.disabled=true; try { await post("/api/watchlist/remove",{ticker}); await refresh(); } catch(error) { say(error.message); button.disabled=false; } };
+        }
+        const automatic = document.getElementById("automatic"); automatic.checked=data.automatic; automatic.disabled=!data.can_create;
+        document.getElementById("create").textContent = data.can_create ? "Create latest daily report" : "View Pro plans";
+        document.getElementById("create").dataset.allowed=String(data.can_create);
+        target.replaceChildren();
+        if (!data.reports.length) node(target,"p","Your daily reports will appear here.");
+        let pending=false;
+        for (const report of data.reports) {
+          const card=node(target,"article",""); card.className="card";
+          node(card,"h3",report.as_of + " · " + report.total + (report.total === 1 ? " stock" : " stocks"));
+          const finished=["ready","partial"].includes(report.state);
+          node(card,"p", finished ? report.ready + " ready · " + (report.total-report.ready) + " unavailable" : "Preparing " + report.processed + "/" + report.total + " · " + report.ready + " ready");
+          if(report.rows.some(row=>row.reconstructed)) node(card,"p","Recovered historical snapshot. Some rows reconstruct mechanical posture; historical earnings and sector gates are unknown.");
+          const scroller=node(card,"div",""); scroller.className="table-scroll";
+          const table=node(scroller,"table",""); const head=node(node(table,"thead",""),"tr","");
+          for(const label of ["Stock","Posture","Score","Previous","Change"]) node(head,"th",label);
+          const body=node(table,"tbody","");
+          for(const row of report.rows) {
+            const tr=node(body,"tr","");
+            const link=node(node(tr,"td",""),"a",row.ticker); link.href="/?ticker="+encodeURIComponent(row.ticker);
+            for(const value of [row.action,row.score == null ? "—" : row.score,row.previous_action || "—",row.changed == null ? "—" : row.changed ? "Changed" : "Same"]) node(tr,"td",String(value));
+          }
+          if(finished) {
+            for(const format of report.csv_enabled ? ["json","csv"] : ["json"]) {
+              const link=node(card,"a","Download " + format.toUpperCase()); link.className="btn secondary"; link.style.margin="4px";
+              link.href="/api/watch-reports/"+encodeURIComponent(report.id)+"/"+format;
+            }
+          }
+          pending ||= !finished;
+        }
+        if(pending) timer=setTimeout(refresh,5000);
+      } catch(error) { say(error.message); }
+    }
+    document.getElementById("addForm").onsubmit = async event => {
+      event.preventDefault();
+      if(!signedIn) { location.href="/login?next=watchlist"; return; }
+      const button=document.getElementById("add"); button.disabled=true;
+      try { await post("/api/watchlist/add",{ticker:document.getElementById("ticker").value.trim().toUpperCase()}); document.getElementById("ticker").value=""; await refresh(); }
+      catch(error) { say(error.message); } finally { button.disabled=false; }
+    };
+    document.getElementById("create").onclick = async event => {
+      if(!signedIn) { location.href="/login?next=watchlist"; return; }
+      if(event.target.dataset.allowed!=="true") { location.href="/pricing"; return; }
+      event.target.disabled=true;
+      try { await post("/api/watch-reports"); say("Your report is queued. You can leave this page and return later."); await refresh(); }
+      catch(error) { say(error.message); } finally { event.target.disabled=false; }
+    };
+    document.getElementById("automatic").onchange = async event => {
+      try { await post("/api/digest/opt",{on:event.target.checked}); await refresh(); }
+      catch(error) { say(error.message); await refresh(); }
+    };
+    refresh();
+  </script>
+</body>
+</html>

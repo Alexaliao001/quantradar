@@ -1,3 +1,5 @@
+> **2026-09-06 状态更正**：下文为历史计划，旧 Manus/Render、支持者权益和已上架推断不作为当前事实。当前运行于 Nube VPS，待发布成果与剩余闸门见 [验收记录](docs/audit/2026-09-06/README.md) 和 [CORRECT_OPS](docs/CORRECT_OPS.md)。244 项测试及真实 Stripe sandbox 生命周期已通过，正式 Portal 已准备；数据许可、生产切换和 Apple 审核尚未完成，未宣称全量上线或盈利。
+
 # GROK /goal — QuantRadar 商业冲刺 v1（Desk → Revenue）
 
 > **本文件**：`~/quantradar/GROK_GOAL_COMMERCIAL.md` — `GROK_GOAL.md` v3 的**商业子战役**执行层  

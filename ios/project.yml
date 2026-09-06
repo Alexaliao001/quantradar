@@ -19,6 +19,8 @@ targets:
     type: application
     platform: iOS
     sources:
+      - path: ../free_engine/nyse_calendar.json
+        buildPhase: resources
       - path: QuantRadar
         excludes:
           - "**/*.md"
@@ -27,7 +29,7 @@ targets:
       PRODUCT_BUNDLE_IDENTIFIER: one.quantradar.app
       PRODUCT_NAME: QuantRadar
       MARKETING_VERSION: "1.2.0"
-      CURRENT_PROJECT_VERSION: "6"
+      CURRENT_PROJECT_VERSION: "9"
       GENERATE_INFOPLIST_FILE: NO
       INFOPLIST_FILE: QuantRadar/Info.plist
       ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
@@ -44,7 +46,10 @@ targets:
     type: app-extension
     platform: iOS
     sources:
+      - path: ../free_engine/nyse_calendar.json
+        buildPhase: resources
       - path: QuantRadarWidget
+      - path: QuantRadar/Services/MarketCalendar.swift
       - path: QuantRadar/Services/FreeDataRadar.swift
       - path: QuantRadar/Services/BarsCache.swift
       - path: QuantRadar/Services/PostureDepth.swift
@@ -53,7 +58,7 @@ targets:
       PRODUCT_BUNDLE_IDENTIFIER: one.quantradar.app.widget
       PRODUCT_NAME: QuantRadarWidget
       MARKETING_VERSION: "1.2.0"
-      CURRENT_PROJECT_VERSION: "6"
+      CURRENT_PROJECT_VERSION: "9"
       GENERATE_INFOPLIST_FILE: NO
       INFOPLIST_FILE: QuantRadarWidget/Info.plist
       DEVELOPMENT_TEAM: DZ9BFS26A5
@@ -74,16 +79,57 @@ targets:
       DEVELOPMENT_TEAM: DZ9BFS26A5
       GENERATE_INFOPLIST_FILE: YES
       CODE_SIGN_STYLE: Automatic
+  QuantRadarUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: QuantRadarUITests
+    dependencies:
+      - target: QuantRadar
+    settings:
+      PRODUCT_BUNDLE_IDENTIFIER: one.quantradar.app.uitests
+      DEVELOPMENT_TEAM: DZ9BFS26A5
+      GENERATE_INFOPLIST_FILE: YES
+      CODE_SIGN_STYLE: Automatic
+  QuantRadarStoreKitTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: QuantRadarStoreKitTests
+      - path: QuantRadar/Resources/Products.storekit
+        buildPhase: resources
+    dependencies:
+      - target: QuantRadar
+    settings:
+      PRODUCT_BUNDLE_IDENTIFIER: one.quantradar.app.storekittests
+      DEVELOPMENT_TEAM: DZ9BFS26A5
+      GENERATE_INFOPLIST_FILE: YES
+      CODE_SIGN_STYLE: Automatic
 schemes:
   QuantRadar:
     build:
       targets:
         QuantRadar: all
         QuantRadarTests: [test]
+        QuantRadarUITests: [test]
+    run:
+      config: Debug
+      storeKitConfiguration: QuantRadar/Resources/Products.storekit
+    test:
+      config: Debug
+      storeKitConfiguration: QuantRadar/Resources/Products.storekit
+      targets:
+        - QuantRadarTests
+        - QuantRadarUITests
+  QuantRadarStoreKit:
+    build:
+      targets:
+        QuantRadar: all
+        QuantRadarStoreKitTests: [test]
     run:
       config: Debug
       storeKitConfiguration: QuantRadar/Resources/Products.storekit
     test:
       config: Debug
       targets:
-        - QuantRadarTests
+        - QuantRadarStoreKitTests
